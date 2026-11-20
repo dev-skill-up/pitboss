@@ -70,6 +70,24 @@ ORG_SEARCH = re.compile(
 API = "https://api.github.com/"
 
 
+def sorted_as_asked(body: object, asked: str) -> object:
+    """A listing as the path asked for it: oldest first when it said so.
+
+    Args:
+        body: what the world cans for the path.
+        asked: the path as it was asked.
+
+    Returns:
+        The body sorted by creation when the path asks for it, else as it is.
+    """
+    if not isinstance(body, list) or "&sort=created&direction=asc" not in asked:
+        return body
+    return sorted(
+        body,
+        key=lambda row: str(row.get("created_at", "")) if isinstance(row, dict) else "",
+    )
+
+
 def org_searched(bodies: Mapping[str, object], path: str) -> object:
     """What GitHub's search of an organisation answers, from the world's listings.
 
@@ -98,18 +116,16 @@ def _items(
     bodies: Mapping[str, object], org: str, terms: Sequence[str]
 ) -> Iterator[tuple[str, Mapping[str, object]]]:
     # each canned item the search finds, with its age
-    shape = _PULLS if "is:pr" in terms else _labelled(_after(terms, "label:"))
+    shape = _labelled(_after(terms, "label:"))
     for key, body in bodies.items():
         found = re.match(rf"^repos/({re.escape(org)}/[\w.-]+){shape}{_PAGED}", key)
         listed = listed_whole(bodies, key, body) if found else None
         if found and isinstance(listed, list):
-            for row in listed:
-                if isinstance(row, dict) and _wanted(row, terms):
-                    item = {**row, "repository_url": f"{API}repos/{found[1]}"}
-                    yield str(row.get("created_at", "")), item
+            for row in [each for each in listed if isinstance(each, dict)]:
+                item = {**row, "repository_url": f"{API}repos/{found[1]}"}
+                yield str(row.get("created_at", "")), item
 
 
-_PULLS = r"/pulls\?state=open"
 _PAGED = r"(?:&sort=created&direction=asc)?(?:&per_page=100&page=\d+)?$"
 
 
@@ -117,17 +133,6 @@ def _labelled(labels: Sequence[str]) -> str:
     # a listing of a label's open tickets; none matches when no label is asked
     named = "|".join(re.escape(each) for each in labels) or "(?!)"
     return rf"/issues\?state=open&labels=(?:{named})"
-
-
-def _wanted(row: Mapping[str, object], terms: Sequence[str]) -> bool:
-    # a ticket that is one, and a pull request whose branch the head qualifier takes
-    if "is:pr" not in terms:
-        return "pull_request" not in row
-    head = row.get("head")
-    branch = str(head.get("ref", "")) if isinstance(head, dict) else ""
-    starts = [branch.startswith(each) for each in _after(terms, "head:")]
-    left = {branch.startswith(each) for each in _after(terms, "-head:")}
-    return all(starts) and True not in left
 
 
 def _after(terms: Sequence[str], qualifier: str) -> Sequence[str]:

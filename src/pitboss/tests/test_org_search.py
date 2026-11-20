@@ -4,7 +4,8 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import branchtaken, config, ghapi, holdissues, orgsearch, pullrecords
+from .. import branchtaken, config, configrepos, ghapi, holdissues, orgsearch
+from .. import pullrecords
 from .. import pullsearch
 from . import fakes
 
@@ -42,37 +43,44 @@ class TestOrgSearch(unittest.TestCase):
         found = [orgsearch.repo_of(each, repos) for each in items]
         assert_that(found, equal_to([QUIRE, None, None, None]))
 
-    def test_6_1_with_no_relock_prefix_one_search_lists_every_pull_request(
+    def test_6_1_each_repository_has_one_listing_of_its_open_pull_requests(
         self,
     ) -> None:
-        """No prefix names a relock branch, so the open PRs are one search."""
+        """Plan 6.1: one oldest-first listing of each configured repository."""
         settings = _no_relock()
-        searched = fakes.page(orgsearch.path("owner", "is:pr"))
-        bodies: dict[str, object] = {searched: {"items": []}}
-        fake = fakes.FakeProcesses(bodies=bodies)
-        github = ghapi.GitHub(run=fake, mutate=fake)
+        slugs = configrepos.slugs(settings)
+        github = fakes.github(
+            {fakes.page(f"repos/{each}/pulls?state=open"): [] for each in slugs}
+        )
         found = pullsearch.opened(github, settings)
-        assert_that((found.read, len(fake.calls)), equal_to(([], 1)))
+        calls = len(fakes.calls_of(github))
+        assert_that((found.read, calls), equal_to(([], len(slugs))))
 
-    def test_3_1_a_full_page_of_a_search_reads_the_next_when_the_walk_needs_it(
-        self,
-    ) -> None:
-        """Plan 3.1: the second page is read only once the walk passes the first."""
-        settings = _no_relock()
-        path = orgsearch.path("owner", "is:pr")
-        url = "https://api.github.com/repos/owner/project"
+    def test_3_1_a_page_both_kinds_of_row_reach_is_read_once(self) -> None:
+        """Plan 3.1: the pull requests and the relock reviews share a read page."""
+        settings = fakes.settings(fakes.directory())
+        project = settings.project.repo
         made = [
-            {"number": n, "created_at": f"2026-01-01T00:{n // 60:02d}:{n % 60:02d}Z"}
+            {
+                "number": n,
+                "created_at": f"2026-01-01T00:{n // 60:02d}:{n % 60:02d}Z",
+                "head": {"ref": "relock/x" if n % 2 else "x"},
+            }
             for n in range(1, 102)
         ]
-        items = [{**each, "repository_url": url} for each in made]
-        pages = {fakes.page(path, 1): items[:100], fakes.page(path, 2): items[100:]}
-        bodies: dict[str, object] = {
-            each: {"items": rows} for each, rows in pages.items()
-        }
-        found = pullsearch.opened(fakes.github(bodies), settings)
-        walked = [row.number for row in found.pulls]
-        assert_that((walked[-1], len(found.read)), equal_to((101, 101)))
+        path = f"repos/{project.slug}/pulls?state=open"
+        github = fakes.github(
+            {fakes.page(path, 1): made[:100], fakes.page(path, 2): made[100:]}
+        )
+        found = pullsearch.opened(github, settings)
+        reached = [
+            [row.number for row in each] for each in (found.pulls, found.relocks)
+        ]
+        asked = [call for call in fakes.calls_of(github) if call[-1].endswith("page=2")]
+        assert_that(
+            (reached[0][:2], reached[1][:2], reached[0][-1], len(asked)),
+            equal_to(([2, 4], [1, 3], 100, 1)),
+        )
 
     def test_6_1_the_holds_are_one_search_of_the_organisation(self) -> None:
         """A hold of a configured repository is parsed; another repository's is not."""

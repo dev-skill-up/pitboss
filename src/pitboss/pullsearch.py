@@ -1,35 +1,35 @@
-"""The open pull requests, read a page at a time (keyword: org-search).
+"""The open pull requests, one listing for each repository (keyword: pull-listing).
 
 The owner: "Next page of an org only while fewer than max(5, slots) lines are
-printed." Each organisation has two searches of its open pull requests, oldest
-first, of those that are not relock reviews and of those that are (GitHub's
-``head:`` matches a branch prefix). The first page of each is read at once; a later page
-of an organisation is read only when the walk reaches the end of the one before.
-Every row read is kept in ``read``, so the listing of the world is what was read.
+printed." Each configured repository has one listing of its open pull requests,
+oldest first (``pulls?state=open&sort=created&direction=asc``), asked for all
+repositories at once (plan 6.1: 33 listings for the quire configuration). Its
+rows are split here into the pull requests that are not relock reviews and the
+relock reviews (the head branch starts with the relock prefix). The first page
+of each listing is read at once; a later page of a repository is read only when
+the walk reaches the end of the one before. Every row read is kept in ``read``,
+so the listing of the world is what was read.
 """
 
 import dataclasses
 import heapq
+import json
 from typing import Iterator, Mapping, Sequence
 
-from . import concurrently, config, ghapi, listed, orgsearch
-
-Repos = Mapping[str, config.Repo]  # the configured repositories by owner/name
+from . import concurrently, config, configrepos, ghapi, listed, orgsearch, totaljson
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Paged:
-    """One page of an organisation's search of open pull requests.
+    """One page of a repository's open pull requests.
 
     Attributes:
-        path: the search, to which the page is added.
-        relock: whether it is the search of the relock reviews.
-        rows: the rows of the configured repositories on the page.
+        repo: the repository.
+        rows: the rows on the page, plain and relock.
         following: the number of the next page; 0 when this page is the last.
     """
 
-    path: str
-    relock: bool
+    repo: config.Repo
     rows: Sequence[listed.Listed]
     following: int
 
@@ -50,38 +50,41 @@ class Pulls:
     read: Sequence[listed.Listed]
 
 
-def _queries(prefix: str) -> Sequence[tuple[bool, Sequence[str]]]:
-    # the open pull requests that are not relock reviews, and those that are
-    if not prefix:
-        return [(False, ["is:pr"])]
-    return [(False, ["is:pr", f"-head:{prefix}"]), (True, ["is:pr", f"head:{prefix}"])]
+def _items(text: str) -> Sequence[Mapping[str, object]]:
+    return [each for each in totaljson.records(json.loads(text)) if each]
 
 
-def _page(
-    github: ghapi.GitHub, asked: tuple[str, bool], number: int, repos: Repos
-) -> Paged:
-    path, relock = asked
-    text = ghapi.get(github, f"{path}&per_page={ghapi.PAGE_SIZE}&page={number}")
-    items = orgsearch.items(text)
-    rows = [
-        listed.searched_row(repo, relock, item)
-        for item in items
-        if (repo := orgsearch.repo_of(item, repos)) is not None
-    ]
-    following = number + 1 if len(items) == ghapi.PAGE_SIZE else 0
-    return Paged(path=path, relock=relock, rows=rows, following=following)
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _Reader:
+    # what reads a page of a repository's listing, once, and keeps what it read
+    github: ghapi.GitHub
+    prefix: str
+    cache: dict[tuple[str, int], Paged] = dataclasses.field(default_factory=dict)
+    read: list[listed.Listed] = dataclasses.field(default_factory=list)
 
 
-def _stream(
-    github: ghapi.GitHub, first: Paged, repos: Repos, read: list[listed.Listed]
-) -> Iterator[listed.Listed]:
-    # one organisation's rows: its first page, then a page each time it runs out
+def _page(reader: _Reader, repo: config.Repo, number: int) -> Paged:
+    # a page both kinds of row reach is read once
+    key = (repo.slug, number)
+    if key not in reader.cache:
+        path = f"{orgsearch.pulls_path(repo)}&per_page={ghapi.PAGE_SIZE}"
+        items = _items(ghapi.get(reader.github, f"{path}&page={number}"))
+        rows = [listed.listed_row(repo, reader.prefix, item) for item in items]
+        following = number + 1 if len(items) == ghapi.PAGE_SIZE else 0
+        reader.cache[key] = Paged(repo=repo, rows=rows, following=following)
+        reader.read.extend(rows)
+    return reader.cache[key]
+
+
+def _stream(reader: _Reader, first: Paged, wanted: bool) -> Iterator[listed.Listed]:
+    # one repository's rows of one kind: its first page, then a page each time it
+    # runs out
     page = first
-    yield from page.rows
-    while page.following:
-        page = _page(github, (page.path, page.relock), page.following, repos)
-        read.extend(page.rows)
-        yield from page.rows
+    while True:
+        yield from (row for row in page.rows if row.relock == wanted)
+        if not page.following:
+            return
+        page = _page(reader, page.repo, page.following)
 
 
 def ranked(settings: config.Config) -> Mapping[str, int]:
@@ -93,20 +96,11 @@ def ranked(settings: config.Config) -> Mapping[str, int]:
     Returns:
         Each repository's index in the configuration, by ``owner/name``.
     """
-    return {slug: at for at, slug in enumerate(orgsearch.configured(settings))}
-
-
-def _asked(settings: config.Config) -> Sequence[tuple[str, bool]]:
-    # each organisation's searches, and whether each is of the relock reviews
-    return [
-        (orgsearch.path(org, *terms), relock)
-        for org in orgsearch.orgs(settings)
-        for relock, terms in _queries(settings.lint.relock_prefix)
-    ]
+    return {slug: at for at, slug in enumerate(configrepos.slugs(settings))}
 
 
 def opened(github: ghapi.GitHub, settings: config.Config) -> Pulls:
-    """The open pull requests: the first page of each search read at once.
+    """The open pull requests: the first page of each repository read at once.
 
     Args:
         github: the API.
@@ -116,28 +110,17 @@ def opened(github: ghapi.GitHub, settings: config.Config) -> Pulls:
         The two streams, oldest first (a tie of age keeps the configuration's
         order of repositories), and the rows read so far.
     """
-    repos = orgsearch.configured(settings)
+    reader = _Reader(github=github, prefix=settings.lint.relock_prefix)
     firsts = concurrently.each(
-        lambda each: _page(github, each, 1, repos), _asked(settings)
+        lambda repo: _page(reader, repo, 1), configrepos.repositories(settings)
     )
-    read = [row for page in firsts for row in page.rows]
-    plain = [page for page in firsts if not page.relock]
-    relocks = [page for page in firsts if page.relock]
-    return Pulls(
-        pulls=_merged(github, plain, settings, read),
-        relocks=_merged(github, relocks, settings, read),
-        read=read,
-    )
-
-
-def _merged(
-    github: ghapi.GitHub,
-    firsts: Sequence[Paged],
-    settings: config.Config,
-    read: list[listed.Listed],
-) -> Iterator[listed.Listed]:
-    # the organisations' streams of one search, merged oldest first
-    repos = orgsearch.configured(settings)
+    reader.read[:] = [row for first in firsts for row in first.rows]  # in order
     rank = ranked(settings)
-    streams = [_stream(github, page, repos, read) for page in firsts]
-    return heapq.merge(*streams, key=lambda row: (row.created_at, rank[row.repo.slug]))
+
+    def merged(wanted: bool) -> Iterator[listed.Listed]:
+        streams = [_stream(reader, first, wanted) for first in firsts]
+        return heapq.merge(
+            *streams, key=lambda row: (row.created_at, rank[row.repo.slug])
+        )
+
+    return Pulls(pulls=merged(False), relocks=merged(True), read=reader.read)

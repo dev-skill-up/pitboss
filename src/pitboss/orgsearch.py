@@ -43,6 +43,18 @@ def path(org: str, *terms: str) -> str:
     return f"search/issues?q={query}&sort=created&order=asc"
 
 
+def pulls_path(repo: config.Repo) -> str:
+    """The listing of a repository's open pull requests, oldest first.
+
+    Args:
+        repo: the repository.
+
+    Returns:
+        The path, to which the page is added (keyword: pull-listing).
+    """
+    return f"repos/{repo.slug}/pulls?state=open&sort=created&direction=asc"
+
+
 def items(text: str) -> Sequence[Item]:
     """The items of one page of a search.
 

@@ -8,6 +8,7 @@ brief, made as the briefs of ``suggest`` always were.
 """
 
 import argparse
+import concurrent.futures
 import dataclasses
 import functools
 from typing import Callable, Mapping, Sequence, assert_never
@@ -176,14 +177,17 @@ def looked(
     Returns:
         The world and its decisions.
     """
-    runs = functools.partial(read_runner_runs, found)
-    measured = sweepline.runners_look(
-        found.github, runs, found.settings.runners, found.now
-    )
-    made = readworld.read_world(
-        reading_of(found, measured, acts), modeextent.extent_of(chosen)
-    )
-    judged = decide.decide(made)
+    # the queue runs are read from the start, while the world is, for the look
+    # that is asked at the first undraft check (keyword: one-path, pull-read)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        runs = pool.submit(read_runner_runs, found).result
+        measured = sweepline.runners_look(
+            found.github, runs, found.settings.runners, found.now
+        )
+        made = readworld.read_world(
+            reading_of(found, measured, acts), modeextent.extent_of(chosen)
+        )
+        judged = decide.decide(made)
     return Seen(made=made, judgement=judged, runners=measured)
 
 

@@ -1,12 +1,13 @@
 """The check runs and commit statuses of a PR's head (keyword: red-status)."""
 
 import json
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, NamedTuple, Sequence
 
 from . import (
     basefix,
     checkoutcome,
     checkruns,
+    concurrently,
     config,
     ghapi,
     parsing,
@@ -133,8 +134,54 @@ def checks(
     Returns:
         The check runs.
     """
-    found = runs_of(github, repo, head)
-    current = checkruns.current_checks(found, head)
+    return settled(github, repo, head, Read(runs_of(github, repo, head), posted))
+
+
+class Read(NamedTuple):
+    """What is read of a head: its check runs and its commit statuses.
+
+    Attributes:
+        runs: every check run of the head (``runs_of``).
+        statuses: the newest commit status of each context.
+    """
+
+    runs: Sequence[shapes.CheckRun]
+    statuses: Sequence[shapes.CommitStatus]
+
+
+def read_head(github: ghapi.GitHub, repo: config.Repo, head: str) -> Read:
+    """Read a head's check runs and statuses together.
+
+    Args:
+        github: the API.
+        repo: the repository.
+        head: the head's SHA.
+
+    Returns:
+        What was read.
+    """
+    return Read(
+        *concurrently.pair(
+            lambda: runs_of(github, repo, head), lambda: statuses(github, repo, head)
+        )
+    )
+
+
+def settled(
+    github: ghapi.GitHub, repo: config.Repo, head: str, seen: Read
+) -> Sequence[shapes.CheckRun]:
+    """The latest check runs of a head, with a failure a later status clears.
+
+    Args:
+        github: the API.
+        repo: the repository.
+        head: the head's SHA.
+        seen: what was read of the head (``read_head``).
+
+    Returns:
+        The check runs.
+    """
+    current = checkruns.current_checks(seen.runs, head)
     if checkoutcome.result(current) is not checkoutcome.Ci.RED:
         return current
 
@@ -142,7 +189,7 @@ def checks(
         text = ghapi.get(github, f"repos/{repo.slug}/actions/runs/{run}")
         return parsing.run_path(text)
 
-    return supersede.settle(current, posted, workflow_of)
+    return supersede.settle(current, seen.statuses, workflow_of)
 
 
 def red(

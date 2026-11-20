@@ -7,7 +7,7 @@ failed step, the output and the annotations stand in for it.
 import subprocess
 from typing import Callable, Mapping, Sequence, TypeVar
 
-from . import config, ghapi, headchecks, parsing, pullfacts, shapes
+from . import concurrently, config, ghapi, headchecks, parsing, pullfacts, shapes
 
 _Found = TypeVar("_Found")
 NONE: Sequence[str] = ()
@@ -43,10 +43,16 @@ def read(
     """
     prefix = f"repos/{repo.slug}"
     run = f"{prefix}/check-runs/{check.id}"
-    title, summary = _fetch(github, run, parsing.output_text, ("", ""))
-    notes = _fetch(github, run + "/annotations?per_page=20", parsing.annotations, NONE)
     job = f"{prefix}/actions/jobs/{check.id}"
-    steps = _fetch(github, job, parsing.failed_steps, NONE)
+    (title, summary), (notes, steps) = concurrently.pair(  # the three reads together
+        lambda: _fetch(github, run, parsing.output_text, ("", "")),
+        lambda: concurrently.pair(
+            lambda: _fetch(
+                github, run + "/annotations?per_page=20", parsing.annotations, NONE
+            ),
+            lambda: _fetch(github, job, parsing.failed_steps, NONE),
+        ),
+    )
     return shapes.Failure(steps=steps, title=title, summary=summary, annotations=notes)
 
 
