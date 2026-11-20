@@ -10,7 +10,7 @@ state ``pullstate`` made (plan 6.1).
 """
 
 import re
-from typing import AbstractSet, Callable, Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from . import checkruns, holdparse
 from .pullrecords import CheckRead, File, Hold, Status
