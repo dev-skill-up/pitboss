@@ -145,7 +145,7 @@ class TestNoDraftsLint(unittest.TestCase):
     """``lint brief`` refuses a sentence that tells the worker to open a draft."""
 
     def test_an_appended_draft_sentence_is_refused(self) -> None:
-        """Refused where drafts are off, accepted where they are on."""
+        """BadInput where drafts are off, accepted where they are on."""
         bodies = [
             APPENDED,
             "Open the PR ready.\n",

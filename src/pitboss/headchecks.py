@@ -1,5 +1,6 @@
 """The check runs and commit statuses of a PR's head (keyword: red-status)."""
 
+import json
 from typing import AbstractSet, Sequence
 
 from . import (
@@ -55,6 +56,13 @@ def statuses(
     return ghapi.pages(github, path, parsing.statuses)
 
 
+def _total_count(text: str) -> int:
+    # the first page of check-runs says how many the commit has; a page that
+    # says nothing is all there is
+    page = json.loads(text)
+    return int(page.get("total_count", len(page["check_runs"])))
+
+
 def runs_of(
     github: ghapi.GitHub, repo: config.Repo, ref: str
 ) -> Sequence[shapes.CheckRun]:
@@ -69,7 +77,7 @@ def runs_of(
         The check runs, those of reruns and of older attempts included.
     """
     path = f"repos/{repo.slug}/commits/{ref}/check-runs"
-    return ghapi.pages(github, path, parsing.check_runs)
+    return ghapi.pages_counted(github, path, parsing.check_runs, _total_count)
 
 
 def answered(

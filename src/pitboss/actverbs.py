@@ -24,12 +24,11 @@ from . import (
     gateverbs,
     project,
     render,
-    rulecases,
     rulecount,
     rulefiles,
     actrules,
 )
-from .actcore import Act, Options, Refused, Target
+from .actcore import Act, Options, BadInput, Target
 
 Verb = Callable[[Act, Target, Options], str]
 Asked = actfacts.Asked
@@ -49,12 +48,12 @@ def brief(ticket: rulefiles.Ticket) -> str:
         The text.
 
     Raises:
-        Refused: the recount finds a file the brief lacks.
+        BadInput: the recount finds a file the brief lacks.
     """
     text = rulefiles.write(ticket) + "\n" + actrules.instructions()
     lost = rulecount.missing(text, ticket)
     if lost:
-        raise Refused(f"the recount finds rule files the brief lacks: {lost[:3]}")
+        raise BadInput(f"the recount finds rule files the brief lacks: {lost[:3]}")
     return text
 
 
@@ -110,11 +109,7 @@ def _ticket(options: Options) -> rulefiles.Ticket:
     )
 
 
-REFUSALS = (
-    Refused,
-    rulefiles.Refused,
-    rulecases.Refused,
-)
+REFUSALS = (BadInput,)
 
 
 def applied_to_item(verb: gateverbs.ItemVerb) -> Verb:

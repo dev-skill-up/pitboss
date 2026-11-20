@@ -111,11 +111,11 @@ def label(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
         What was done.
 
     Raises:
-        actcore.Refused: a label pitboss does not apply.
+        actcore.BadInput: a label pitboss does not apply.
     """
     name = actcore.option(options, "name")
     if name not in LABELS:
-        raise actcore.Refused(f"label {name} is not one pitboss applies")
+        raise actcore.BadInput(f"label {name} is not one pitboss applies")
     removing = bool(options.get("remove"))
     if name == totalanswer.PAUSED and not removing:
         disarm_first(act, target, totalanswer.PAUSED)
@@ -184,12 +184,12 @@ def rerun(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
         What was done.
 
     Raises:
-        actcore.Refused: the cause is not the runner; a red of the code is fixed by
+        actcore.BadInput: the cause is not the runner; a red of the code is fixed by
             a push.
     """
     run = actcore.option(options, "run")
     if options.get("cause") != "runner" or not options.get("evidence"):
-        raise actcore.Refused(
+        raise actcore.BadInput(
             "a re-run needs a cause of kind runner with its evidence (the job's"
             " annotation)"
         )
@@ -228,11 +228,11 @@ def dispatch_workflow(
         What was done.
 
     Raises:
-        actcore.Refused: another workflow.
+        actcore.BadInput: another workflow.
     """
     workflow, ref = options_of(options, "workflow", "ref")
     if workflow not in WORKFLOWS:
-        raise actcore.Refused(
+        raise actcore.BadInput(
             f"{workflow} is not one pitboss dispatches ({', '.join(WORKFLOWS)})"
         )
     repo = target.repo
@@ -252,12 +252,12 @@ def close(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
         What was done.
 
     Raises:
-        actcore.Refused: another reason.
+        actcore.BadInput: another reason.
     """
     reason = text(options.get("reason"))
     if reason not in CLOSE_REASONS:
         known = ", ".join(CLOSE_REASONS)
-        raise actcore.Refused(f"close names GitHub's state_reason: {known}")
+        raise actcore.BadInput(f"close names GitHub's state_reason: {known}")
     fields = {"reason": reason}
     change = actcore.Change(
         kind="close-issue", repo=target.repo, number=target.number, fields=fields

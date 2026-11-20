@@ -29,7 +29,7 @@ QUEUED = "added_to_merge_queue"
 QUEUE_EVENTS = frozenset({QUEUED, "removed_from_merge_queue"})
 
 
-Refused = actport.Refused
+BadInput = actport.BadInput
 Change = actport.Change
 Hub = actport.Hub
 Target = actport.Target

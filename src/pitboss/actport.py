@@ -112,8 +112,8 @@ class Target:
         return "#".join((self.repo, str(self.number)))
 
 
-class Refused(Exception):
-    """The verb does not write: a gate, the verdict or the form refused it."""
+class BadInput(Exception):
+    """The input is in no form the code takes: the message says which and why."""
 
 
 def option(options: Options, name: str) -> str:
@@ -127,10 +127,10 @@ def option(options: Options, name: str) -> str:
         Its value.
 
     Raises:
-        Refused: it is not given.
+        BadInput: it is not given.
     """
     if not options.get(name):
-        raise Refused(f"{name}=... is required")
+        raise BadInput(f"{name}=... is required")
     return options[name]
 
 

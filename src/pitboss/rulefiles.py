@@ -18,6 +18,7 @@ import hashlib
 import pathlib
 import enum
 import re
+from .actport import BadInput
 from typing import Callable, Mapping, MutableSequence, Sequence
 
 NAMES = ("CLAUDE.md", "CLAUDE.local.md")
@@ -63,10 +64,6 @@ class Key(enum.Enum):
 KEYS = {each.name.lower(): each for each in Key}
 
 
-class Refused(Exception):
-    """A rule file is in no form the writer reads."""
-
-
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Ticket:
     """Where a brief is written for.
@@ -82,8 +79,8 @@ class Ticket:
     home: pathlib.Path
 
 
-def _refused(name: str, line: str) -> Refused:
-    return Refused(f"{name}: front matter line not in a known form: {line[:40]!r}")
+def _refused(name: str, line: str) -> BadInput:
+    return BadInput(f"{name}: front matter line not in a known form: {line[:40]!r}")
 
 
 def _path_line(name: str, line: str, globs: MutableSequence[str]) -> None:
@@ -113,9 +110,9 @@ LINES: Mapping[Key | None, Callable[[str, str, MutableSequence[str]], None]] = {
 def _key_line(name: str, match: re.Match[str]) -> Key:
     word, rest = match.group(1), match.group(2).strip()
     if word not in KEYS:
-        raise Refused(f"{name}: front matter key {word!r} has no row")
+        raise BadInput(f"{name}: front matter key {word!r} has no row")
     if KEYS[word] is Key.PATHS and rest:
-        raise Refused(f"{name}: `paths:` is not a block list ({rest[:30]!r})")
+        raise BadInput(f"{name}: `paths:` is not a block list ({rest[:30]!r})")
     return KEYS[word]
 
 
@@ -143,17 +140,17 @@ def front(text: str, name: str) -> Sequence[str] | None:
         The globs, or None when it has no front matter (it applies to every path).
 
     Raises:
-        Refused: the front matter is in no form the writer reads.
+        BadInput: the front matter is in no form the writer reads.
     """
     if not text.startswith("---\n"):
         return None
     end = text.find("\n---\n", 4)
     if end < 0:
-        raise Refused(f"{name}: front matter is not closed")
+        raise BadInput(f"{name}: front matter is not closed")
     globs: list[str] = []
     seen = _read_lines(name, text[4:end], globs)
     if seen and not globs:
-        raise Refused(f"{name}: `paths:` with no entry")
+        raise BadInput(f"{name}: `paths:` with no entry")
     return globs if seen else None
 
 

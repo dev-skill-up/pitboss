@@ -10,13 +10,10 @@ flips its verdict with no record of the ruling that wins over it.
 """
 
 import dataclasses
+from .actport import BadInput
 from typing import Callable, Mapping, Sequence
 
 Encoding = Callable[[str, Mapping[str, object]], str]
-
-
-class Refused(Exception):
-    """No encoding passes the new case together with the old ones."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -65,7 +62,7 @@ def add(cases: Sequence[Case], new: Case, encodings: Mapping[str, Encoding]) -> 
         The name of the first encoding that passes every case.
 
     Raises:
-        Refused: no encoding does; the message names the older cases lost.
+        BadInput: no encoding does; the message names the older cases lost.
     """
     every = [*cases, new]
     for name, candidate in encodings.items():
@@ -75,7 +72,7 @@ def add(cases: Sequence[Case], new: Case, encodings: Mapping[str, Encoding]) -> 
     lost = sorted({case for kept in keeping for case in failures(cases, kept)}) or [
         "every encoding (none passes it)"
     ]
-    raise Refused(
+    raise BadInput(
         f"ruling {new.name} ({new.date}) cannot hold together with {', '.join(lost)}:"
         " no encoding passes both. One question to the owner, with the two worlds as"
         " the example; his answer is recorded as `wins`."
