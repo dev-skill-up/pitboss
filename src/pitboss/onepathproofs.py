@@ -1,0 +1,19 @@
+"""Every proof of the one path with its seed, by the modules that hold them.
+
+``CASES`` is each bullet's proof and the one edit that breaks it (``proofseeds``,
+one-path). The proofs are in ``answerproofs``, ``actproofs``, ``pureproofs``,
+``readproofs`` and ``retryproofs``, and P4's in ``modeproof``.
+"""
+
+from typing import Mapping
+
+from . import actproofs, answerproofs, pureproofs, readproofs, retryproofs
+from .proofcase import Case
+
+CASES: Mapping[str, Case] = {
+    **answerproofs.CASES,
+    **actproofs.CASES,
+    **pureproofs.CASES,
+    **readproofs.CASES,
+    **retryproofs.CASES,
+}
