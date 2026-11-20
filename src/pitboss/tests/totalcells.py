@@ -297,7 +297,7 @@ def _file_size(given: Given) -> Iterator[Cell]:
         "deletions": 0,
         key: 5000,
     }
-    yield from _file(given, [found], given.action in UNDRAFT)
+    yield from _file(given, [found], True)  # no size stop: any size goes
 
 
 def _file_path(given: Given) -> Iterator[Cell]:
