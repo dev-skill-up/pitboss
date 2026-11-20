@@ -13,7 +13,7 @@ from hamcrest import assert_that, equal_to
 from .. import gate, gateevents, gatefields, gatepolicy, gaterows, totalbody
 from .. import checkruns, parsing
 from ..gatestop import Route, Stop
-from ..pullrecords import File, GateState, Hold, Mistyped, Ticket, Unread
+from ..pullrecords import Errored, File, GateState, Hold, Mistyped, Ticket
 from . import gatestate
 
 SCHEMA = {"title": "string", "milestone": "object | null"}
@@ -67,7 +67,7 @@ class TestAlone(unittest.TestCase):
 
     def test_6_1_a_list_github_refused_is_a_stop(self) -> None:
         """An error GitHub answered is a stop of its own, the rows still run."""
-        reads = gatestate.lists_of(files=Unread(why="Not Found"))
+        reads = gatestate.lists_of(files=Errored(why="Not Found"))
         found = gaterows.read_stops(gatestate.state(reads=reads))
         _says(found, ["input files: GitHub answered Not Found"])
 
@@ -86,9 +86,9 @@ class TestRows(unittest.TestCase):
         assert_that(_routed(found), equal_to([Route.NO_TICKET]))
 
     def test_6_1_each_ticket_line(self) -> None:
-        """Unread, a pull request, closed, locked, open."""
+        """Errored, a pull request, closed, locked, open."""
         tickets = {
-            "#1": Unread(why="gone"),
+            "#1": Errored(why="gone"),
             "#2": _ticket(is_pull=True),
             "#3": _ticket(state="closed", reason="completed"),
             "#4": _ticket(locked=True),

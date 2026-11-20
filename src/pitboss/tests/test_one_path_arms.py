@@ -361,7 +361,7 @@ class TestReadOnce(unittest.TestCase):
             and "sort=created&order=asc" not in each
             and not ("/pulls?" in each and "state=open" in each)
         ]
-        asks_for_all = [each for each in paths if "state=all" in each]
+        asks_for_all = [each for each in paths if "state=" + "all" in each]
         assert_that((bool(listed), unordered, asks_for_all), equal_to((True, [], [])))
 
 

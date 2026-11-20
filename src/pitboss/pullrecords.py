@@ -8,7 +8,7 @@ from typing import AbstractSet, Mapping, Protocol, Sequence
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Unread:
+class Errored:
     """A fact that was not read.
 
     Attributes:
@@ -268,7 +268,7 @@ class CheckRead(Protocol):
 class Reads:
     """The lists read of the head and the PR.
 
-    Each is ``Unread`` when GitHub answered an error, and ``Mistyped`` when a member
+    Each is ``Errored`` when GitHub answered an error, and ``Mistyped`` when a member
     a row branches on is of another type than documented.
 
     Attributes:
@@ -278,10 +278,10 @@ class Reads:
         timeline: the PR's events, oldest first.
     """
 
-    runs: Sequence[CheckRead] | Unread | Mistyped
-    statuses: Sequence[Status] | Unread | Mistyped
-    files: Sequence[File] | Unread | Mistyped
-    timeline: Sequence[Event] | Unread | Mistyped
+    runs: Sequence[CheckRead] | Errored | Mistyped
+    statuses: Sequence[Status] | Errored | Mistyped
+    files: Sequence[File] | Errored | Mistyped
+    timeline: Sequence[Event] | Errored | Mistyped
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -302,13 +302,13 @@ class GateState:
     pull: PullObject
     repository: Repository
     reads: Reads
-    tickets: Mapping[str, Ticket | Unread]
+    tickets: Mapping[str, Ticket | Errored]
     holds: Sequence[Hold]
     absent: Sequence[str]
     attempts: Sequence[Event]
 
 
-def listed[Item](read: Sequence[Item] | Unread | Mistyped) -> Sequence[Item]:
+def listed[Item](read: Sequence[Item] | Errored | Mistyped) -> Sequence[Item]:
     """The items of a list read; none when it was not read.
 
     Args:
@@ -317,4 +317,4 @@ def listed[Item](read: Sequence[Item] | Unread | Mistyped) -> Sequence[Item]:
     Returns:
         Its items.
     """
-    return [] if isinstance(read, (Unread, Mistyped)) else read
+    return [] if isinstance(read, (Errored, Mistyped)) else read

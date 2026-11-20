@@ -2,7 +2,7 @@
 
 "Each fact is parsed once into one field": ``parse`` takes the PR object and the
 inputs read with it and gives a frozen ``GateState``. A fact that was not read is
-``Unread`` and a value of another type than documented is ``Mistyped``, so the
+``Errored`` and a value of another type than documented is ``Mistyped``, so the
 gate rows read typed fields and nothing past here reads JSON (keyword: one-path).
 """
 
@@ -11,7 +11,7 @@ from typing import AbstractSet, Callable, Mapping, Sequence
 from . import gatefacts, holdparse, parsing, pullobject, totalreview, totalschema
 from . import pullrecords as records
 from .pullobject import Raw, count_at, list_at, object_at, pull_object, text_at
-from .pullrecords import Mistyped, Unread
+from .pullrecords import Errored, Mistyped
 from .totaljson import JsonMap
 
 INPUTS = (
@@ -45,11 +45,11 @@ BRANCHED_ON: Mapping[str, tuple[str, bool]] = {
 }
 
 
-def _listing(key: str, value: object) -> Sequence[Raw] | Unread | Mistyped:
+def _listing(key: str, value: object) -> Sequence[Raw] | Errored | Mistyped:
     # a list read: GitHub's error, a member of another type than documented, or
     # its objects (anything that is no list is an empty one)
     if isinstance(value, dict) and "_error" in value:
-        return Unread(why=str(value["_error"]))
+        return Errored(why=str(value["_error"]))
     found = [object_at(each) for each in pullobject.typed_or(value, list, [])]
     name, nullable = BRANCHED_ON.get(key, ("", True))
     for each in found:
@@ -86,14 +86,14 @@ def _event(each: Raw) -> records.Event:
 
 
 def _typed[Item](
-    read: Sequence[Raw] | Unread | Mistyped, make: Callable[[Raw], Item]
-) -> Sequence[Item] | Unread | Mistyped:
-    return read if isinstance(read, (Unread, Mistyped)) else [make(e) for e in read]
+    read: Sequence[Raw] | Errored | Mistyped, make: Callable[[Raw], Item]
+) -> Sequence[Item] | Errored | Mistyped:
+    return read if isinstance(read, (Errored, Mistyped)) else [make(e) for e in read]
 
 
 def _listed[Item](
     inputs: Raw, key: str, make: Callable[[Raw], Item]
-) -> Sequence[Item] | Unread | Mistyped:
+) -> Sequence[Item] | Errored | Mistyped:
     return _typed(_listing(key, inputs.get(key)), make)
 
 
