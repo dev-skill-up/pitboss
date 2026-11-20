@@ -94,7 +94,6 @@ def _clean(act: actcore.Act, asked: actfacts.Asked) -> Sequence[actfacts.Check]:
 
 
 FACTS: Mapping[str, Facts] = {
-    "ticket": _size,
     "ticket-edit": _edit,
     "pr-create": _create,
     "comment-edit": _authored,

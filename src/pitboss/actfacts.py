@@ -86,7 +86,7 @@ class Worktree:
     unpushed: str
 
 
-Check = Size | Starters | Authored | TicketForm | Pushing | Worktree
+Check = Starters | Authored | TicketForm | Pushing | Worktree
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
