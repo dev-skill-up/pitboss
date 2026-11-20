@@ -59,11 +59,12 @@ def built_scene() -> worldcopy.Made:
     foreign_clone(here, "clone-unread", "clone-unread", HIDDEN)
     (here.workspace / "notes").mkdir()
     fakes.write(here.workspace / "notes/file", "x")
-    pulls = [
-        test_autoclean_world.pull("clone-open", OPEN),
-        test_autoclean_world.pull("clone-merged", MERGED),
-    ]
-    here.bodies[fakes.page(f"repos/{FOREIGN}/pulls?state=all")] = pulls
+    listings = {
+        "open": [test_autoclean_world.pull("clone-open", OPEN)],
+        "closed": [test_autoclean_world.pull("clone-merged", MERGED)],
+    }
+    for state, pulls in listings.items():
+        here.bodies[fakes.page(f"repos/{FOREIGN}/pulls?state={state}")] = pulls
     for name in NAMES:
         test_autoclean_world.touch_all(here.workspace / name, 99)
     return here, []

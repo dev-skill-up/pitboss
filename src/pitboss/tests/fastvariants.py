@@ -1,7 +1,7 @@
-"""Worlds in which `slots next ITEM` refuses ticket 9 for what is recorded of it."""
+"""Worlds in which ticket 9 has no decision for what is recorded of it."""
 
-from . import quietworld, rankworld, world
-from .fastworld import PULLS, fast_world, pull_listed
+from . import fakes, quietworld, rankworld, world
+from .fastworld import PULLS, fast_world
 
 LABELS = 'priority_labels = ["urgent"]'
 
@@ -24,7 +24,11 @@ def named() -> world.World:
         The world.
     """
     here = fast_world()
-    here.bodies[PULLS] = [pull_listed(4, "Fixes #9")]
+    green = [world.GREEN]
+    here.bodies.update(world.pull_bodies("owner/project", 4, green, "clean"))
+    pull = fakes.pull_body(4, body=f"Fixes #9\n\n{fakes.PLAN_AND_EXECUTION}")
+    here.bodies[PULLS] = [pull]
+    here.bodies["repos/owner/project/pulls/4"] = pull
     return here
 
 

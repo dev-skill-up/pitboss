@@ -1,0 +1,85 @@
+Fixes dev-skill-up/pitboss#305
+
+Head: 232791bd0246f70cf43e480320d89b975319a7bf
+
+When `orgs/{owner}/repos` is refused with the bound-session message, `ownerrepos` now lists the owner through `search/repositories?q=org:<owner> archived:false` (paginated, at most 10 pages: the search answers at most 1000 results), and through `user:<owner>` when the organization search finds nothing. Any other failure of both routes still raises, so the sweep says `UNREADABLE <owner>` and ends `INCOMPLETE`. `doc/design.rst` is not touched (pitboss#300 removes it); the comment next to the code is the documentation.
+
+## Plan
+
+Done-when of #305, word for word, one row per line. The tests are in `src/pitboss/tests/test_owner_repositories.py`; their result is shown by CI (command 6), never by a nox run of ours.
+
+| Done-when line | Command that shows it |
+| --- | --- |
+| 1. when `orgs/{owner}/repos` is refused with the bound-session message, the listing falls back to `search/repositories?q=org:<owner> archived:false` (paginated; and `user:<owner>` for a user owner) and the sweep shows no `UNREADABLE` for the owner; | Command 2: `is_bound_refusal`, `_search` and `_searched` (org first, then user). Command 3: `_listing` sends the bound refusal to the search. Command 5: `test_a_bound_session_lists_through_the_search` (no `UNREADABLE owner:` line, the unlisted repository's PR shown) and `test_a_bound_session_lists_a_user_through_the_search`. Command 6 shows them pass. |
+| 2. any other failure of both routes is still UNREADABLE and INCOMPLETE (never a silent shorter list). | Command 3: only the bound message goes to the search, and any other refusal is raised as before. Command 5: `test_a_bound_session_whose_search_fails_is_incomplete` (both routes fail: one `UNREADABLE owner:` line, the `INCOMPLETE` line last, exit 1) and `test_a_refused_organization_listing_is_not_replaced_by_the_users_list` (a 403 is still said). Command 6. |
+| 3. A test plays the bound-session refusal and the search answer, and one more where both fail. | Command 5: the three tests above; the refusal text is `ownerbodies.BOUND_MESSAGE`. Command 6. |
+| 4. `pitboss next` run in this orchestrator session prints no INCOMPLETE line. | CI cannot show it; it needs the bound orchestrator session, so the merge's reviewer or the orchestrator runs `pitboss next` there after the merge. Command 4 shows the fallback paths the run would take. |
+
+Commands, each the exact string of a row of the Evidence section (run from the checkout root):
+1. `git rev-parse HEAD` prints the head above.
+2. `rg -n "def (found|is_bound_refusal|_search|_searched)" src/pitboss/ownerrepos.py` prints the four functions.
+3. `rg -n "is_bound_refusal|_searched|status_of" src/pitboss/ownerrepos.py` prints the places that choose a route.
+4. `rg -n "search/repositories|BOUND|SEARCH_PAGES" src/pitboss/ownerrepos.py` prints the search path and its limits.
+5. `rg -n "def test_" src/pitboss/tests/test_owner_repositories.py` prints the tests.
+6. CI pointer. Workflow .github/workflows/pr-main.yml, its run for the head, found by gh api 'repos/dev-skill-up/pitboss/actions/runs?branch=pb-305&event=pull_request' --jq '.workflow_runs[] | select(.name==".github/workflows/pr-main.yml") | "\(.id) \(.event) \(.status) \(.conclusion // "-")"', step Run Nox (the whole suite and the 100% coverage). Greppable: the lines pitboss.tests.test_owner_repositories and nox > Session tests-3.13 was successful.
+
+## Execution
+
+Locally `timeout 598 pitboss nox` on this head: tests-3.13 success, skills success, lint success, mypy success; the whole suite is CI's (command 6). Changed files: `src/pitboss/ownerrepos.py` and, for the tests, `src/pitboss/tests/ownerbodies.py` and `src/pitboss/tests/test_owner_repositories.py`. The test double `RefusedOrganization` takes a `message` for what `gh` prints, and the helper `owner_listing` was added so the three tests do not repeat their asserts (stolid SLD801). The search path is `q=org:owner%20archived:false` (the space is percent-encoded), asked page by page by `ghapi.pages`. Item 4 of the Done-when is for the orchestrator session after the merge.
+
+Deviations: none
+
+## Evidence
+
+```pitboss-expand sha256=ede52a55f6a4526d
+$ git rev-parse HEAD
+232791bd0246f70cf43e480320d89b975319a7bf
+```
+```pitboss-expand sha256=2266243db9eb15d1
+$ rg -n "def (found|is_bound_refusal|_search|_searched)" src/pitboss/ownerrepos.py
+37:def found(text: str) -> Sequence[tuple[str, bool]]:
+49:def is_bound_refusal(error: subprocess.CalledProcessError) -> bool:
+61:def _search(github: ghapi.GitHub, qualifier: str) -> Sequence[tuple[str, bool]]:
+68:def _searched(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
+```
+```pitboss-expand sha256=9dd49616147c5e31
+$ rg -n "is_bound_refusal|_searched|status_of" src/pitboss/ownerrepos.py
+49:def is_bound_refusal(error: subprocess.CalledProcessError) -> bool:
+68:def _searched(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
+91:        if is_bound_refusal(refused):
+92:            return _searched(github, owner)
+93:        if ghapi.status_of(refused) != "HTTP 404":
+```
+```pitboss-expand sha256=5f95a622e0ab3d44
+$ rg -n "search/repositories|BOUND|SEARCH_PAGES" src/pitboss/ownerrepos.py
+14:BOUND = "sessions are bound to their configured repositories"
+16:SEARCH_PAGES = 10
+38:    """Parse a page of ``search/repositories``.
+58:    return BOUND in str(error.stderr or "")
+64:        github, f"search/repositories?q={query}", found, limit=SEARCH_PAGES
+```
+```pitboss-expand sha256=e9bef98c793efc74
+$ rg -n "def test_" src/pitboss/tests/test_owner_repositories.py
+169:    def test_an_unlisted_repository_with_an_open_pr_has_a_state_line(self) -> None:
+176:    def test_archived_and_excluded_repositories_are_left_out(self) -> None:
+190:    def test_without_the_exclusion_the_fixture_is_swept(self) -> None:
+196:    def test_a_repository_in_the_list_is_added_once(self) -> None:
+201:    def test_the_owner_may_be_a_user(self) -> None:
+213:    def test_an_unreadable_repository_ends_the_output_and_fails(self) -> None:
+220:    def test_the_sweep_ends_the_same_way(self) -> None:
+224:    def test_next_with_a_ticket_ends_the_same_way(self) -> None:
+229:    def test_every_repository_readable_says_nothing(self) -> None:
+236:    def test_a_listing_that_cannot_be_read_is_said(self) -> None:
+244:    def test_a_refused_organization_listing_is_not_replaced_by_the_users_list(
+268:    def test_a_bound_session_lists_through_the_search(self) -> None:
+277:    def test_a_bound_session_lists_a_user_through_the_search(self) -> None:
+287:    def test_a_bound_session_whose_search_fails_is_incomplete(self) -> None:
+295:    def test_nothing_unread_is_no_incomplete_line(self) -> None:
+306:    def test_names_are_read_with_the_owner(self) -> None:
+313:    def test_a_string_is_refused(self) -> None:
+```
+
+https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

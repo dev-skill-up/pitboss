@@ -8,6 +8,7 @@ one definition that both sides use, and this test derives the spellings each sid
 accepts and compares them.
 """
 
+import dataclasses
 import unittest
 from typing import Callable, Sequence
 
@@ -22,10 +23,9 @@ from .. import (
     reviews,
     rulingform,
     rulingwords,
-    shapes,
     unreadableform,
 )
-from . import fakes, world
+from . import blank, fakes, world
 
 HEAD = "a" * 40
 FORM = config.DEFAULT_REVIEW_FORM
@@ -221,7 +221,8 @@ class TestGradeSpellings(unittest.TestCase):
 
     def test_the_sweep_names_a_comment_with_an_ungraded_line(self) -> None:
         """``slots next`` and the sweep print the UNREADABLE REVIEW line for it."""
-        comment = shapes.Comment(
+        comment = dataclasses.replace(
+            blank.COMMENT,
             body=_comment("ok"),
             author_association="MEMBER",
             created_at="2026-11-11T00:00:00Z",

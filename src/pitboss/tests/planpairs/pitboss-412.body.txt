@@ -1,0 +1,83 @@
+Fixes dev-skill-up/pitboss#396
+
+Head: 83a135d82ae78f737acff3b0d762604e911a0766
+
+Done-when digest: c4f2bfd8537f53cf
+
+## Plan
+
+Done-when of #396, word for word, one numbered row each (the ticket's body is the only source; it has no comments that add to it):
+
+1. The head: `git rev-parse HEAD`.
+2. The change: `git diff origin/main --stat`.
+3. Done-when comes from the ticket body only (owner, 2026-11-08T23:06Z: "NOT ADDING STUFF IN COMMENTS, ONLY BY EDITING THE BODY, AND ONLY BEFORE A WORKER HAS STARTED"): the sweep's briefs and `plan-check` read the Done-when from the body, never from comments, and pitboss flags (and refuses a Plan against) a body whose Done-when was edited after a worker started; a test pins each. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `pitboss.tests.test_plan_check_remote.TestCommand.test_the_comments_are_never_read`, `pitboss.tests.test_plan_check_remote.TestCommand.test_a_done_when_edited_after_the_start_is_refused`, `pitboss.tests.test_plan_check_remote.TestCommand.test_a_body_with_no_digest_line_is_refused`, `pitboss.tests.test_brief_done_when.TestWorkerBriefs.test_the_comments_are_not_a_source` and `pitboss.tests.test_brief_done_when.TestDigestLine.test_the_new_body_has_the_digest_line`; the run is found with `gh run list --repo dev-skill-up/pitboss --commit cc479f7606c1ede5614aa9cb3362ad626bb7bc32` and its job at `https://github.com/dev-skill-up/pitboss/actions/runs/<run>/job/<job>`.
+4. A Done-when is met as written (rejections B, 23 of 94): `plan-check` refuses a Plan with an "Interpretation" that narrows a Done-when (an ambiguous or infeasible Done-when is a hand-back and an escalation before starting); each Done-when bullet is copied word for word into its own Plan row with the exact evidence command, and `plan-check` fails on a missing or reworded bullet; where a Done-when names a measurement, the Plan uses that measurement, never a substitute; a test pins each. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `pitboss.tests.test_plan_done_when.TestFindings.test_each_case`, `pitboss.tests.test_plan_done_when.TestInterpretation.test_an_interpretation_is_refused_and_other_words_pass`, `pitboss.tests.test_plan_check_remote.TestCommand.test_a_measurement_a_row_does_not_run_is_refused` and `pitboss.tests.test_plan_done_when.TestMeasurement.test_each_spelling_is_refused_when_the_row_runs_another`; the run is found with `gh run list --repo dev-skill-up/pitboss --commit cc479f7606c1ede5614aa9cb3362ad626bb7bc32` and its job at `https://github.com/dev-skill-up/pitboss/actions/runs/<run>/job/<job>`.
+5. No sweep brief, worker prompt, refusal text or help offers a hand-back route for a Done-when (owner, 2026-11-08T23:10Z: "NO HAND BACK. FINISH PLAN AS WRITTEN OR *DEMONSTRATE* IT'S IMPOSSIBLE, AND THERE BETTER BE A MATHEMATICAL THEOREM BEHIND IT."): they say `meet the Done-when as written, or prove it impossible`; the briefs' wording about a hand-back (`NOT STARTED`) stays for a dependency on another open ticket only; a test pins the brief text and the refusal text. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `pitboss.tests.test_brief_done_when.TestWorkerBriefs.test_they_offer_no_hand_back_route`, `pitboss.tests.test_brief_done_when.TestWorkerBriefs.test_the_only_hand_back_for_a_ticket_is_a_dependency`, `pitboss.tests.test_brief_done_when.TestWorkerBriefs.test_the_one_pr_and_done_when_sentences_are_pinned` and `pitboss.tests.test_plan_done_when.TestFindings.test_the_rule_is_meet_it_or_prove_it_impossible`; the run is found with `gh run list --repo dev-skill-up/pitboss --commit cc479f7606c1ede5614aa9cb3362ad626bb7bc32` and its job at `https://github.com/dev-skill-up/pitboss/actions/runs/<run>/job/<job>`.
+6. `plan-check` warns, before work starts and again on every Plan, when the planned Evidence will clearly exceed about 64KB (owner, 2026-11-09T01:31Z: "64KB is a generous allowance. A little bit of leeway is fine. Above that IT'S INSANE AND WE SHOULD NOT HAVE INSANE DONE-WHEN"): it names the part
+that dominates and says the Done-when is to be fixed (a better design that produces a small list), not met by splitting the overflow into comments. A test plants a Plan with Evidence far over the allowance and requires the warning, and a small one that stays silent. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `pitboss.tests.test_plan_size.TestCommand.test_each_plan_is_warned_of_or_not`, `pitboss.tests.test_plan_size.TestWarning.test_far_over_warns_and_names_the_dominant_row` and `pitboss.tests.test_plan_size.TestWarning.test_within_the_allowance_and_its_leeway_is_silent`; the run is found with `gh run list --repo dev-skill-up/pitboss --commit cc479f7606c1ede5614aa9cb3362ad626bb7bc32` and its job at `https://github.com/dev-skill-up/pitboss/actions/runs/<run>/job/<job>`.
+7. Impact lists are removed (owner, 2026-11-09T01:39:34Z: "An impact list is a table in a Plan. For each name or phrase the change touches, it lists every place in the repo that mentions it, and says what happens to each one: cut, updated, or still true. <-- No, that's clearly stupid. DOCSTRINGS ARE NEXT TO THE FUNCTIONS THEY ARE, and if something else becomes false, I DON'T CARE WE ARE REMOVING THAT SHIT."): `plan-check` and `lint pr-body` no longer require impact rows or disposition lines, nor refuse a Plan for a missing one (the `impact-phrase`, `impact-count` and disposition findings, and `pitboss impact` rows in the Plan template, are removed); the review briefs (`pitboss slots next`, the sweep) no longer carry an "Impact list" line or ask a reviewer to reject over a missed mention; stale text that is not a docstring is cut, not dispositioned. Tests: a Plan with no impact row passes plan-check, and a brief carries no impact-list line. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `pitboss.tests.test_plan_check_remote.TestCommand.test_the_comments_are_never_read` (a Plan with no impact row passes plan-check, exit status 0), `pitboss.tests.test_brief_done_when.TestImpactListIsGone.test_no_brief_has_one` and `pitboss.tests.test_brief_done_when.TestImpactListIsGone.test_the_review_briefs_do_not_reject_a_missed_mention`; the run is found with `gh run list --repo dev-skill-up/pitboss --commit cc479f7606c1ede5614aa9cb3362ad626bb7bc32` and its job at `https://github.com/dev-skill-up/pitboss/actions/runs/<run>/job/<job>`.
+
+## Execution
+
+`ticketwhen.py` reads a ticket's Done-when from its body alone and digests it (`ticketwhen.digest`); `plandonewhen.py` holds the checks (`plan-done-when`, `plan-measurement`, `done-when-edited`, and the one of a paragraph that narrows an item, which does not read the copies of the items); `plantickets.py` reads only the ticket's body, never its comments. The brief of a new PR prints the Done-when digest (`suggestwhen.py`, `brieftextwhen.py`), the worker keeps it in the body as `Done-when digest:`, and `plan-check` compares it with the ticket's digest now (GitHub's REST API gives no time an issue body was edited, so the digest is the record that it was not). `brieftextwhen.py` carries `meet the Done-when as written, or prove it impossible` in the One PR and Done-when lines, and `plandonewhen.RULE` is the same sentence in the refusal text. `plansize.py` sums what each Plan command prints (`plancheck_commands.status_in` measures the output) and warns past about 64KB with a leeway of one eighth; it names the dominant row and says the Done-when is to be fixed. The impact list is removed (`impact.py`, `impact_commands.py`, `impactcheck.py`, `impactcount.py`, `brieftextimpact.py` and their tests; the disposition findings of `plan-check` and `lint pr-body`); the review briefs carry no Impact list line and the Search and Grep lines say docstrings are updated and other stale text is cut. The documents lose lines only.
+
+Local: `pitboss nox` on the head 83a135d: skills success 3s, lint success 17s, mypy success 6s, tests-3.13 success 193s.
+
+Deviations: none
+
+## Evidence
+
+```pitboss-expand sha256=45afffed5af14d8d
+$ git rev-parse HEAD
+83a135d82ae78f737acff3b0d762604e911a0766
+```
+
+```pitboss-expand sha256=fb62cc2cbbd8128e
+$ git diff origin/main --stat
+ docs/quire-inventory-landing.py                    |   1 -
+ .../skills/sweep/references/adversarial-review.md  |  26 --
+ plugins/pitboss/skills/sweep/references/rules.md   |  45 +---
+ pyproject.toml                                     |   1 -
+ skill-zips/sweep.zip                               | Bin 68817 -> 67447 bytes
+ src/pitboss/brief.py                               |  23 +-
+ src/pitboss/brieftext.py                           |  26 +-
+ src/pitboss/brieftextconflict.py                   |  13 +
+ src/pitboss/brieftextimpact.py                     |  33 ---
+ src/pitboss/brieftextwhen.py                       |  28 ++
+ src/pitboss/cipointercheck.py                      |   7 +-
+ src/pitboss/expand_commands.py                     |   7 +-
+ src/pitboss/impact.py                              | 162 -----------
+ src/pitboss/impact_commands.py                     |  76 ------
+ src/pitboss/impactcheck.py                         | 175 ------------
+ src/pitboss/impactcount.py                         | 175 ------------
+ src/pitboss/plancheck.py                           | 118 ++++----
+ src/pitboss/plancheck_commands.py                  |  97 ++++---
+ src/pitboss/plandonewhen.py                        | 172 ++++++++++--
+ src/pitboss/planpointers.py                        |  11 +-
+ src/pitboss/plansize.py                            |  82 ++++++
+ src/pitboss/plantickets.py                         |  77 ++++--
+ src/pitboss/suggest.py                             |   7 +-
+ src/pitboss/suggestwhen.py                         |  54 ++++
+ src/pitboss/tests/test_appended.py                 |  12 +-
+ src/pitboss/tests/test_brief.py                    |   2 +-
+ src/pitboss/tests/test_brief_done_when.py          | 130 +++++++++
+ src/pitboss/tests/test_brief_impact.py             |  72 -----
+ src/pitboss/tests/test_brief_phrases.py            |   4 +
+ src/pitboss/tests/test_brief_workers.py            |   4 +-
+ src/pitboss/tests/test_ci_pointer_form.py          |   3 +-
+ src/pitboss/tests/test_impact.py                   | 181 -------------
+ src/pitboss/tests/test_impact_count.py             | 148 ----------
+ src/pitboss/tests/test_impactcheck.py              | 300 ---------------------
+ src/pitboss/tests/test_nox_row.py                  |   4 +-
+ src/pitboss/tests/test_plan_check_remote.py        | 225 +++++++---------
+ src/pitboss/tests/test_plan_done_when.py           | 300 +++++++++++++++++++++
+ src/pitboss/tests/test_plan_pointer.py             |   4 +-
+ src/pitboss/tests/test_plan_size.py                | 132 +++++++++
+ src/pitboss/tests/test_suggest_when.py             |  59 ++++
+ src/pitboss/ticketwhen.py                          | 137 +++++-----
+ 41 files changed, 1331 insertions(+), 1802 deletions(-)
+```
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

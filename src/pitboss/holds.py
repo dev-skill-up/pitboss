@@ -7,10 +7,9 @@ read from the open PRs of the run and the configuration's ``[holds]`` table;
 it changes which tickets are offered as new work and nothing else.
 """
 
-from typing import Iterable, Mapping, Sequence
+from typing import Mapping, Sequence
 
 from . import holdconfig
-from .markers import Marker
 
 
 def standing(holds: holdconfig.Holds, opened: Sequence[str]) -> Mapping[str, int]:
@@ -27,34 +26,3 @@ def standing(holds: holdconfig.Holds, opened: Sequence[str]) -> Mapping[str, int
     """
     counts = {slug: opened.count(slug) for slug in sorted(holds.new_pull_requests)}
     return {slug: n for slug, n in counts.items() if n > holds.max_open}
-
-
-def held_line(reference: str, held: Mapping[str, int]) -> str:
-    """The line that says a ticket is not offered.
-
-    Args:
-        reference: the ticket's ``owner/name#number``.
-        held: the held repositories, as ``standing`` gives them.
-
-    Returns:
-        The ``HELD`` line.
-    """
-    slug = reference.rpartition("#")[0]
-    return (
-        f"{Marker.HELD_TICKET.text} (no new pull requests in {slug}: {held[slug]} open)"
-        f" {reference}"
-    )
-
-
-def sweep_lines(held: Mapping[str, int]) -> Iterable[str]:
-    """The one line of the sweep while a hold applies.
-
-    Args:
-        held: the held repositories, as ``standing`` gives them.
-
-    Yields:
-        The ``HOLD`` line naming each held repository; nothing without a hold.
-    """
-    if held:
-        names = ", ".join(f"{slug} ({n} open)" for slug, n in held.items())
-        yield f"{Marker.HOLD.text} new pull requests: {names}"

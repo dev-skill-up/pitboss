@@ -33,10 +33,3 @@ class TestLintTests(unittest.TestCase):
             pinned(kind, [LINT_TEST])
         for kind in (*EXECUTION_REVIEWS, *OTHER_REVIEWS):
             has_none(text(kind), [LINT_TEST])
-
-    def test_the_execution_reviews_reject_a_lint_without_that_test(self) -> None:
-        """The reviews that grade an Execution carry the changes-needed sentence."""
-        for kind in EXECUTION_REVIEWS:
-            pinned(kind, [LINT_TEST_REVIEW])
-        for kind in (*WORKERS, *OTHER_REVIEWS):
-            has_none(text(kind), [LINT_TEST_REVIEW])

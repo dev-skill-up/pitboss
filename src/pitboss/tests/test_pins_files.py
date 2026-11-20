@@ -5,10 +5,11 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config
-from . import fakes
+from . import decisionline, fakes
 from . import pinsworld as pw
+from .test_slot_commands import next_output
 
-OK_LINE = "PINS-ONLY OK owner/project#3: pins-check printed OK"
+REVIEW = "REVIEWER: owner/project#3: grade Plan and Execution together"
 RENAMED = [{"filename": "bats.lock", "previous_filename": "src/a.py"}]
 CASES = {
     "pin files": (pw.PIN_FILES, True),
@@ -26,9 +27,7 @@ class TestFiles(unittest.TestCase):
         for label, (changed, merged) in CASES.items():
             with self.subTest(label):
                 here = pw.make("branch-3", pw.OK_COMMAND, changed)
-                out = pw.swept(here)
-                assert_that(out.count(OK_LINE), equal_to(int(merged)))
-                assert_that(pw.offered(here) == "", equal_to(merged))
+                assert_that(REVIEW in pw.offered(here), equal_to(not merged))
                 assert_that(bool(pw.ran_commands(here)), equal_to(merged))
 
     def test_pin_files_are_configured(self) -> None:
@@ -36,21 +35,22 @@ class TestFiles(unittest.TestCase):
         extra = 'pin_files = ["requirements.txt"]\n'
         here = pw.make("branch-3", pw.OK_COMMAND, extra=extra)
         pw.files(here, [{"filename": "requirements.txt"}])
-        assert_that(pw.swept(here), contains_string(OK_LINE))
+        assert_that(REVIEW in pw.offered(here), equal_to(False))
         pw.files(here, pw.PIN_FILES)
-        assert_that(pw.pins_lines(pw.swept(here)), equal_to(""))
+        assert_that(pw.offered(here), contains_string(REVIEW))
 
     def test_a_draft_is_asked_nothing(self) -> None:
         """A draft's review is a Plan review: the command is not run."""
         here = pw.make("branch-3", pw.OK_COMMAND, pw.PIN_FILES, draft=True)
-        assert_that(pw.pins_lines(pw.swept(here)), equal_to(""))
+        pw.swept(here)
         assert_that(pw.ran_commands(here), equal_to([]))
 
-    def test_the_library_is_told_to_merge_by_hand_with_the_reason(self) -> None:
-        """MERGE BY HAND says the pins-check printed OK, in place of READY TO MERGE."""
+    def test_the_library_pr_is_not_reviewed_as_a_change(self) -> None:
+        """The library's pins-only PR is past its regular review: the gate decides."""
         here = pw.with_library(pw.make("branch-3", pw.OK_COMMAND))
-        want = "MERGE BY HAND owner/lib#4: green, clean, pins-only, pins-check printed"
-        assert_that(pw.swept(here), contains_string(want))
+        library = decisionline.of(next_output(here), "owner/lib#4")
+        assert_that(library.startswith("NEXT "), equal_to(True))
+        assert_that("grade Plan and Execution" in library, equal_to(False))
 
 
 class TestDefaultCommand(unittest.TestCase):
@@ -63,15 +63,12 @@ class TestDefaultCommand(unittest.TestCase):
         words = ["env", "-C", str(here.clone), "bats", "pins-check", "origin/main"]
         (ran,) = pw.ran_commands(here)
         assert_that(ran, equal_to([*words, pw.HEAD, "--compiler", "../bats"]))
-        assert_that(out, contains_string(OK_LINE))
-        assert_that(pw.offered(here), equal_to(""))
+        assert_that(REVIEW in out, equal_to(False))
 
     def test_a_missing_bats_is_said_and_the_pr_is_reviewed(self) -> None:
-        """The default command that cannot run is a PINS-ONLY line, never silence."""
+        """The default command that cannot run keeps the review."""
         here = pw.without_bats()
-        out = pw.swept(here)
-        assert_that(out, contains_string("pins-check did not print OK (env: "))
-        assert_that(pw.offered(here), contains_string("(review it"))
+        assert_that(pw.offered(here), contains_string(REVIEW))
 
 
 class TestConfig(unittest.TestCase):

@@ -27,62 +27,21 @@ sweep's line for a PR that is offered for nothing and waits for nobody.
 import dataclasses
 from typing import Sequence
 
-from . import pulls, steps, textlint, work
+from . import finishstep, pulls, steps, stepwords, work
 
 PREFIX = "FINISH PARTIAL"
 STRANDED = "NO STEP"
 # the steps a worker still holding the PR does: offered to nobody (a refused check is
 # sent back by the worker that pushed, pitboss#471, so it is named, never offered)
 UNOFFERED = {steps.Step.PLAN_CHECK, steps.Step.SEND_BACK_PLAN_CHECK}
-# the steps that merge or review a PR whose body the lint refuses
-GATED = {
-    steps.Step.REGULAR_REVIEW,
-    steps.Step.UNDRAFT,
-    steps.Step.WAIT_FOR_UNDRAFT,
-    steps.Step.WAIT_FOR_CI,
-    steps.Step.MERGE,
-}
-NO_CHECK = (
-    "no clean Plan check covers the Plan at this head: post `uvx pitboss plan-check`"
-)
-RED_BODY = "the `text-lint` status of the head is red ({description}): fix the body"
-
-
-def reasons(pull: pulls.PullFacts) -> Sequence[str]:
-    """What is missing from a PR, from its step and the statuses of its head.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        The reasons, none when the PR is not partial.
-    """
-    step = pull.step
-    found = []
-    if step.step is steps.Step.PLAN_CHECK:
-        found.append(NO_CHECK)
-    if step.step in {steps.Step.PLAN_CHECK} | GATED:
-        found += [
-            RED_BODY.format(description=each.description or each.state)
-            for each in pull.signals.statuses
-            if each.context == textlint.CONTEXT and each.state in textlint.RED
-        ]
-    return found
 
 
 def _finished(read: pulls.Read) -> tuple[pulls.Read, str]:
     if not isinstance(read, pulls.PullFacts):
         return read, ""
-    found = reasons(read)
-    if not found:
+    step = finishstep.step_of(read)
+    if step is None:
         return read, ""
-    why = "; ".join(found)
-    step = steps.Next(
-        step=steps.Step.WORKER,
-        task=steps.Task.FINISH_PARTIAL,
-        findings=why,
-        reason=f": {why}",
-    )
     return (
         dataclasses.replace(read, step=step),
         f"{PREFIX} {pulls.reference(read)}: {step.findings}",
@@ -112,7 +71,18 @@ def stranded(reads: Sequence[pulls.Read]) -> Sequence[str]:
         One line each, naming the PR and its step; none while every PR has a step.
     """
     return [
-        f"{STRANDED} {pulls.reference(each)}: {steps.describe(each.step)}"
+        f"{STRANDED} {pulls.reference(each)}: {stepwords.describe(step)}"
+        for each, step in _moving(reads)
+        if step.step in UNOFFERED and work.category_of(each) is None
+    ]
+
+
+def _moving(
+    reads: Sequence[pulls.Read],
+) -> Sequence[tuple[pulls.PullFacts, steps.Next]]:
+    # keyword: one-path: an idle PR is stranded by nobody
+    return [
+        (each, each.step)
         for each in pulls.readable(reads)
-        if each.step.step in UNOFFERED and work.category_of(each) is None
+        if isinstance(each.step, steps.Next)
     ]

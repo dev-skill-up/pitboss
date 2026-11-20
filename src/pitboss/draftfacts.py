@@ -5,7 +5,7 @@ module with no import adds no level to the chain of modules the lint bounds.
 """
 
 import dataclasses
-from typing import Callable, Protocol, Sequence
+from typing import Protocol, Sequence
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -13,7 +13,7 @@ class Draft:
     """What the caller reads for a draft.
 
     Attributes:
-        needs_e2e: says whether the diff touches a path the e2e jobs run on and
+        needs_e2e: whether the diff touches a path the e2e jobs run on and
             no dispatched run of ``check.yml`` at the head has completed (the
             caller reads the files, the configuration and the runs; a draft's
             own run skipped the e2e jobs, so it is not one; asked only for a
@@ -22,14 +22,18 @@ class Draft:
             when none (keyword: plan-review-check, pitboss#275).
         no_drafts: whether its repository has no drafts (keyword: no-drafts,
             pitboss#390).
-        hold: says whether a runner-pressure hold covers its repository now
+        hold: whether a runner-pressure hold covers its repository now
             (the caller looks at the runners; keyword: hold-scope, B20).
     """
 
-    needs_e2e: Callable[[], bool] = lambda: False
-    plan_review_check: str = ""
-    no_drafts: bool = False
-    hold: Callable[[], bool] = lambda: False
+    needs_e2e: bool
+    plan_review_check: str
+    no_drafts: bool
+    hold: bool
+
+
+# a PR with no draft question
+NONE = Draft(needs_e2e=False, plan_review_check="", no_drafts=False, hold=False)
 
 
 class Run(Protocol):
@@ -73,21 +77,21 @@ def named(run: Run, name: str) -> bool:
     return run.name == name or run.name.endswith(f" / {name}")
 
 
-def failed_besides(checks: Sequence[Run], name: str) -> bool:
-    """Whether a check other than the Plan review's has failed (keyword: draft-red-ci).
+def besides(checks: Sequence[Run], name: str) -> Sequence[Run]:
+    """The check runs of other names than the Plan review's (keyword: draft-red-ci).
 
     Args:
         checks: the current check runs of the head.
         name: the Plan review's check, empty when there is none.
 
     Returns:
-        True when a run of another name completed and failed.
+        The runs of another name (``checkoutcome`` says whether one failed).
     """
-    return any(each.failed and not named(each, name) for each in checks)
+    return [each for each in checks if not named(each, name)]
 
 
-def completed(checks: Sequence[Run], name: str) -> bool:
-    """Whether the check run of a name has completed (keyword: plan-review-check).
+def of_name(checks: Sequence[Run], name: str) -> Sequence[Run]:
+    """The check runs of a name (keyword: plan-review-check).
 
     A job of a called workflow is named ``caller / job``, so the name matches
     that form too.
@@ -97,7 +101,6 @@ def completed(checks: Sequence[Run], name: str) -> bool:
         name: the check's name.
 
     Returns:
-        True when a run of that name completed, green or red; False when it
-        runs, is queued or has not been created.
+        The runs of that name (``checkoutcome`` says whether one completed).
     """
-    return any(each.finished and named(each, name) for each in checks)
+    return [each for each in checks if named(each, name)]

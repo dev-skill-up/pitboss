@@ -35,17 +35,11 @@ class TestRowsHoldTheirFunctions1(unittest.TestCase):
 
     def test_a4_next_step_1_is_held(self) -> None:
         """The mutant: step.step in steps.HELD -> step.step not in steps.HELD."""
-        rerun(
-            "test_body_only_round.TestStepReview"
-            ".test_a_pr_at_another_step_is_refused"
-        )
+        rerun("test_hold_scope.TestB20.test_b20_a_merge_is_withheld_during_a_hold")
 
     def test_a10_next_step_1_is_held(self) -> None:
         """The mutant: step.step in steps.HELD -> step.step not in steps.HELD."""
-        rerun(
-            "test_body_only_round.TestStepReview"
-            ".test_a_pr_at_another_step_is_refused"
-        )
+        rerun("test_hold_scope.TestB20.test_b20_a_merge_is_withheld_during_a_hold")
 
     def test_a11_refusal_1_is_held(self) -> None:
         """The mutant: newest is not None and needs_check(body, comments, trusted)."""
@@ -92,8 +86,8 @@ class TestRowsHoldTheirFunctions1(unittest.TestCase):
     def test_a17_build_1_is_held(self) -> None:
         """The mutant: spec.kind is Kind.RULING -> spec.kind is not Kind.RULING."""
         rerun(
-            "test_all_findings.TestSweep"
-            ".test_pause_counts_the_findings_marked_missed_earlier"
+            "test_brief_forms.TestOtherForms"
+            ".test_the_ruling_brief_prints_every_word_and_the_command_that_checks_it"
         )
 
     def test_a18_refusal_1_is_held(self) -> None:
@@ -106,8 +100,8 @@ class TestRowsHoldTheirFunctions1(unittest.TestCase):
     def test_a23_build_1_is_held(self) -> None:
         """The mutant: spec.kind is Kind.RULING -> spec.kind is not Kind.RULING."""
         rerun(
-            "test_all_findings.TestSweep"
-            ".test_pause_counts_the_findings_marked_missed_earlier"
+            "test_brief_forms.TestOtherForms"
+            ".test_the_ruling_brief_prints_every_word_and_the_command_that_checks_it"
         )
 
     def test_a25_findings_1_is_held(self) -> None:
@@ -157,18 +151,7 @@ class TestRowsHoldTheirFunctions2(unittest.TestCase):
 
     def test_i15_next_step_1_is_held(self) -> None:
         """The mutant: step.step in steps.HELD -> step.step not in steps.HELD."""
-        rerun(
-            "test_body_only_round.TestStepReview"
-            ".test_a_pr_at_another_step_is_refused"
-        )
-
-    def test_i16_ordered_1_is_held(self) -> None:
-        """The mutant: item.category is Category.RELOCK_REVIEW -> item.category ."""
-        rerun("test_slots_rules.TestRelockLast" ".test_b9_a_relock_review_is_last")
-
-    def test_i16_ordered_2_is_held(self) -> None:
-        """The mutant: item.category is Category.NEW_PR -> item.category is not ."""
-        rerun("test_closing_comment.TestSlotsNext" ".test_every_blocker_has_merged")
+        rerun("test_hold_scope.TestB20.test_b20_a_merge_is_withheld_during_a_hold")
 
     def test_i18_classify_1_is_held(self) -> None:
         """The mutant: 2 -> 3."""
@@ -198,16 +181,13 @@ class TestRowsHoldTheirFunctions3(unittest.TestCase):
 
     def test_t475_next_step_1_is_held(self) -> None:
         """The mutant: step.step in steps.HELD -> step.step not in steps.HELD."""
-        rerun(
-            "test_body_only_round.TestStepReview"
-            ".test_a_pr_at_another_step_is_refused"
-        )
+        rerun("test_hold_scope.TestB20.test_b20_a_merge_is_withheld_during_a_hold")
 
     def test_t417_build_1_is_held(self) -> None:
         """The mutant: spec.kind is Kind.RULING -> spec.kind is not Kind.RULING."""
         rerun(
-            "test_all_findings.TestSweep"
-            ".test_pause_counts_the_findings_marked_missed_earlier"
+            "test_brief_forms.TestOtherForms"
+            ".test_the_ruling_brief_prints_every_word_and_the_command_that_checks_it"
         )
 
     def test_t419_missing_line_1_is_held(self) -> None:

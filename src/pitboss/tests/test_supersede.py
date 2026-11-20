@@ -4,10 +4,11 @@ import dataclasses
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_exactly, equal_to, has_item
+from hamcrest import assert_that, contains_exactly, contains_string, equal_to
 
 from .. import parsing, shapes, supersede
-from . import fakes, world
+from . import blank, decisionline, fakes, world
+from .says import read_failed
 from .test_commands import sweep
 
 FAILED_AT = "2026-11-02T21:01:47Z"
@@ -16,7 +17,7 @@ EARLIER = "2026-11-02T20:00:00Z"
 RUN = 41524542678
 OTHER_RUN = 41524542999
 WORKFLOW = ".github/workflows/text-lint.yml"
-FAILED_LINE = "FAILED owner/project#1: lint"
+LINT_FAILED = "failed=[lint (job"
 HEAD = "1" * 40
 RUN_URL = f"repos/owner/project/actions/runs/{RUN}"
 OTHER_URL = f"repos/owner/project/actions/runs/{OTHER_RUN}"
@@ -32,7 +33,8 @@ def check(name: str = "lint", run: int = RUN) -> shapes.CheckRun:
     Returns:
         The check run.
     """
-    return shapes.CheckRun(
+    return dataclasses.replace(
+        blank.CHECK_RUN,
         id=125548778441,
         name=name,
         finished=True,
@@ -66,6 +68,7 @@ def status(
         run=run,
         state="success" if succeeded else "failure",
         url=f"https://github.com/o/r/actions/runs/{run}" if run else "",
+        description="",
     )
 
 
@@ -167,9 +170,7 @@ class TestParsing(unittest.TestCase):
             found,
             contains_exactly(
                 status("text-lint", created="2026-11-03T01:06:05Z", run=41524542678),
-                shapes.CommitStatus(
-                    context="x", succeeded=False, created_at="", state="pending"
-                ),
+                dataclasses.replace(status("x", "", 0, False), state="pending"),
             ),
         )
 
@@ -232,48 +233,44 @@ def posted_status(created: str, state: str = "success") -> Mapping[str, object]:
     }
 
 
-def lines_of(here: world.World) -> Sequence[str]:
-    """The lines of a sweep.
+def state_of(here: world.World) -> str:
+    """PR 1's state line of a sweep.
 
     Args:
         here: the world.
 
     Returns:
-        The lines.
+        The line.
     """
-    return sweep(here).out.splitlines()
+    return decisionline.state(sweep(here).out, "owner/project#1")
 
 
 class TestSweepOfTheTicketsHead(unittest.TestCase):
     """bats-lang/quire#1032: job ``lint`` failed, status ``text-lint`` passed later."""
 
-    def test_no_failed_line_when_the_status_is_later(self) -> None:
+    def test_no_failed_check_when_the_status_is_later(self) -> None:
         """The status came after the failure, from a run of the same workflow."""
         here = ticket_world(
             [posted_status(LATER)],
             {RUN_URL: {"path": WORKFLOW}, OTHER_URL: {"path": WORKFLOW}},
         )
-        assert_that(FAILED_LINE in lines_of(here), equal_to(False))
+        assert_that(state_of(here), contains_string("failed=[]"))
 
-    def test_a_failed_line_when_the_status_is_older(self) -> None:
+    def test_a_failed_check_when_the_status_is_older(self) -> None:
         """The failure is the newest of the two (the reverse)."""
         here = ticket_world(
             [posted_status(EARLIER)],
             {RUN_URL: {"path": WORKFLOW}, OTHER_URL: {"path": WORKFLOW}},
         )
-        assert_that(lines_of(here), has_item(FAILED_LINE))
+        assert_that(state_of(here), contains_string(LINT_FAILED))
 
-    def test_a_failed_line_when_the_status_failed(self) -> None:
+    def test_a_failed_check_when_the_status_failed(self) -> None:
         """A later status that is red does not clear the red check run."""
         here = ticket_world([posted_status(LATER, "failure")])
-        assert_that(lines_of(here), has_item(FAILED_LINE))
+        assert_that(state_of(here), contains_string(LINT_FAILED))
 
-    def test_an_unreadable_status_is_said(self) -> None:
-        """No status answer is the PR unreadable, not a silent FAILED."""
+    def test_an_unreadable_status_ends_the_command(self) -> None:
+        """No status answer is a failed read: no decision on a partial world."""
         here = ticket_world([])
         del here.bodies[fakes.page(f"repos/owner/project/commits/{HEAD}/status")]
-        lines = lines_of(here)
-        assert_that(FAILED_LINE in lines, equal_to(False))
-        assert_that(
-            lines, has_item("UNREADABLE owner/project#1: status answered HTTP 404")
-        )
+        read_failed(sweep(here))

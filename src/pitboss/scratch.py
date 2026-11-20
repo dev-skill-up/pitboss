@@ -13,7 +13,7 @@ import datetime
 import subprocess
 from typing import AbstractSet, Sequence
 
-from . import ghapi, parsing, pullparse, scratchconfig, shapes
+from . import checkoutcome, ghapi, parsing, pullparse, scratchconfig, shapes
 from .markers import Marker
 from .running import Run
 
@@ -105,7 +105,7 @@ def _finished(source: Source, slug: str, pull: shapes.Pull) -> bool:
         parsing.workflow_runs,
     )
     if runs:
-        return all(each.finished for each in runs)
+        return checkoutcome.all_finished(runs)
     opened = datetime.datetime.fromisoformat(pull.created_at)
     return (source.now - opened) >= datetime.timedelta(minutes=GRACE_MINUTES)
 

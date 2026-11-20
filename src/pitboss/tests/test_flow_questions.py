@@ -1,12 +1,13 @@
 """Each question of the review flow alone, on recorded PR data (pitboss#107)."""
 
+import dataclasses
 import unittest
 from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, planbody, rulingwords, shapes
-from . import test_flow
+from .. import checkoutcome, flow, planbody, rulingwords, shapes
+from . import blank, test_flow
 
 APPROVED = test_flow.APPROVED
 CHANGES = test_flow.CHANGES
@@ -43,7 +44,9 @@ def comment(body: str, second: int, author: str = "MEMBER") -> shapes.Comment:
         The comment.
     """
     when = f"2026-10-30T00:00:{second:02d}Z"
-    return shapes.Comment(body=body, author_association=author, created_at=when)
+    return dataclasses.replace(
+        blank.COMMENT, body=body, author_association=author, created_at=when
+    )
 
 
 class TestQuestions(unittest.TestCase):
@@ -96,14 +99,19 @@ class TestQuestions(unittest.TestCase):
         ]
         answers = [flow.Ci.GREEN, flow.Ci.RED, flow.Ci.RED, None, None, None]
         cases = [(state(checks=each), want) for each, want in zip(checks, answers)]
-        check(flow.ci_result, cases)
+        check(lambda pr: checkoutcome.result(pr.checks), cases)
 
     def test_plan_approved(self) -> None:
         """Some regular review graded the plan approved, at any head."""
         approving = graded(APPROVED, None, 1, sha=OLDER)
         rejecting = graded(CHANGES, None, 2)
-        github = shapes.Graded(
-            sha=OLDER, when="x", plan=APPROVED, execution=None, comment=False
+        github = dataclasses.replace(
+            blank.GRADED,
+            sha=OLDER,
+            when="x",
+            plan=APPROVED,
+            execution=None,
+            comment=False,
         )
         cases = [
             (state(approving, rejecting), True),
@@ -117,8 +125,13 @@ class TestQuestions(unittest.TestCase):
     def test_get_plan_rejections(self) -> None:
         """Each regular review that graded the plan changes needed counts."""
         rejecting = [graded(CHANGES, None, second) for second in (1, 2)]
-        github = shapes.Graded(
-            sha=OLDER, when="x", plan=CHANGES, execution=None, comment=False
+        github = dataclasses.replace(
+            blank.GRADED,
+            sha=OLDER,
+            when="x",
+            plan=CHANGES,
+            execution=None,
+            comment=False,
         )
         cases = [
             (state(), 0),
@@ -168,7 +181,8 @@ class TestQuestions(unittest.TestCase):
         full = graded(APPROVED, CHANGES, 1)
         plain = graded(None, APPROVED, 2)
         older = graded(APPROVED, APPROVED, 3, sha=OLDER)
-        github = shapes.Graded(
+        github = dataclasses.replace(
+            blank.GRADED,
             sha=full.sha,
             when="2026-10-30T00:01:00Z",
             plan=None,

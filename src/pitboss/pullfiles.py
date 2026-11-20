@@ -4,7 +4,7 @@ import json
 import re
 from typing import Sequence
 
-from . import ghapi, planrowtext, shapes, testnames
+from . import ghapi
 
 DEFINITION = re.compile(r"^([-+])[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.M)
 
@@ -45,8 +45,8 @@ def changed_tests(patches: str) -> Sequence[str]:
     ]
 
 
-def removed_by(github: ghapi.GitHub, slug: str, number: int) -> Sequence[str]:
-    """The tests a pull request's diff removes and does not add back.
+def names(github: ghapi.GitHub, slug: str, number: int) -> Sequence[str]:
+    """The paths of the files a PR changes (keyword: brief-when).
 
     Args:
         github: the API.
@@ -54,15 +54,9 @@ def removed_by(github: ghapi.GitHub, slug: str, number: int) -> Sequence[str]:
         number: the PR's number.
 
     Returns:
-        The test names (keyword: superseded-pointer, pitboss#317).
+        Each changed file's path, and the old path of a renamed one.
     """
-    path = f"repos/{slug}/pulls/{number}/files"
-    changes = ghapi.pages(github, path, changed_tests)
-    return [
-        each[1:]
-        for each in dict.fromkeys(changes)
-        if each[0] == "-" and f"+{each[1:]}" not in changes
-    ]
+    return list(ghapi.pages(github, f"repos/{slug}/pulls/{number}/files", file_names))
 
 
 def touches(
@@ -85,26 +79,3 @@ def touches(
         name.startswith(tuple(prefixes))
         for name in ghapi.pages(github, path, file_names)
     )
-
-
-def superseded(github: ghapi.GitHub, slug: str, pull: shapes.Pull) -> Sequence[str]:
-    """The tests a PR removes that its Execution says another replaced.
-
-    The files are read only when the Execution has such a line for a test a Plan
-    row cites, so a PR with none costs no call (keyword: superseded-pointer,
-    pitboss#317).
-
-    Args:
-        github: the API.
-        slug: the PR's repository, ``owner/name``.
-        pull: the PR.
-
-    Returns:
-        The names.
-    """
-    body = pull.body or ""
-    rows = " ".join(planrowtext.rows(body).values())
-    cited = [old for old in testnames.superseding(body) if old in rows]
-    if not cited:
-        return []
-    return [each for each in removed_by(github, slug, pull.number) if each in cited]

@@ -1,0 +1,236 @@
+Refs bats-lang/repository-prototype#269
+
+This is the daily bot relock: it has no ticket of its own, so the first line `Refs` the relock's design ticket, bats-lang/repository-prototype#269 (a `Fixes` line would name a ticket this PR does not close).
+
+## Plan
+
+Move the pins of bats-lang/quire to the newest, as the daily `relock.yml` does: one package version in `bats.lock` (`zip`), the compiler and package repository pins in `.github/`, and the `uses:` lines and `pwa-ref` copies of the workflows in `.github/workflows/`. The relock changes no `src/`, no `bats.toml` and no `package.json`. One commit on this branch is not the relock's: the newer `zip` adds two rows to the proofs audit that have no verdict, which failed `static (app)` and so `check`, so a fix adds the verdicts and their by-hand fixtures under `tests/static/` (a data file and 10 fixture files, no `src/`).
+
+What moved, old to new, from the diff of base 513dd5fd7114c08564cc518256b23ec5e4d9ff2e to head 30f54850893504f0b27e45eafed64608955104f3 (the relock's own text, kept; the relock's text has no section for the fix, which is described above and in the Execution):
+
+### Packages (`bats.lock`)
+
+| Package | Old | New |
+|---|---|---|
+| `zip` | 2026.10.24.42588 | 2026.10.28.85840 |
+
+### Compiler (`.github/bats-version`)
+
+`110eaa34c4dcbd8f34f534eb681b6fa85b68d100` → `87f57a17a8b5455deefaf084b237932f96f4aeb7` ([changes](https://github.com/bats-lang/bats/compare/110eaa34c4dcbd8f34f534eb681b6fa85b68d100...87f57a17a8b5455deefaf084b237932f96f4aeb7))
+
+### Package repository (`.github/repository-version`)
+
+`c190c73390d21dcf2586c2a452de08122d6608bb` → `0d40672762e0482b1ea58f936b1e7c265eb9e57a` ([changes](https://github.com/bats-lang/repository-prototype/compare/c190c73390d21dcf2586c2a452de08122d6608bb...0d40672762e0482b1ea58f936b1e7c265eb9e57a))
+
+### Workflows
+
+- `bats-lang/pwa/.github/workflows/android.yml`: `59d426b1130f62b3f6c82fe98fa53d87dd7789f2` → `c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5` ([changes](https://github.com/bats-lang/pwa/compare/59d426b1130f62b3f6c82fe98fa53d87dd7789f2...c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5))
+- `bats-lang/pwa/.github/workflows/play-release.yml`: `59d426b1130f62b3f6c82fe98fa53d87dd7789f2` → `c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5` ([changes](https://github.com/bats-lang/pwa/compare/59d426b1130f62b3f6c82fe98fa53d87dd7789f2...c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5))
+- `bats-lang/pwa/.github/actions/e2e-setup`: `59d426b1130f62b3f6c82fe98fa53d87dd7789f2` → `c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5` ([changes](https://github.com/bats-lang/pwa/compare/59d426b1130f62b3f6c82fe98fa53d87dd7789f2...c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5))
+- `bats-lang/pwa/.github/actions/queue-passed`: `3cace57c2c9dde8923a5eef219a008791a85f54c` → `c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5` ([changes](https://github.com/bats-lang/pwa/compare/3cace57c2c9dde8923a5eef219a008791a85f54c...c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5))
+- `bats-lang/repository-prototype/.github/workflows/relock-pins.yml`: `c190c73390d21dcf2586c2a452de08122d6608bb` → `0d40672762e0482b1ea58f936b1e7c265eb9e57a` ([changes](https://github.com/bats-lang/repository-prototype/compare/c190c73390d21dcf2586c2a452de08122d6608bb...0d40672762e0482b1ea58f936b1e7c265eb9e57a))
+- `bats-lang/bats/.github/actions/setup`: `110eaa34c4dcbd8f34f534eb681b6fa85b68d100` → `87f57a17a8b5455deefaf084b237932f96f4aeb7` ([changes](https://github.com/bats-lang/bats/compare/110eaa34c4dcbd8f34f534eb681b6fa85b68d100...87f57a17a8b5455deefaf084b237932f96f4aeb7))
+- `bats-lang/repository-prototype/.github/actions/check-aggregate`: `c190c73390d21dcf2586c2a452de08122d6608bb` → `0d40672762e0482b1ea58f936b1e7c265eb9e57a` ([changes](https://github.com/bats-lang/repository-prototype/compare/c190c73390d21dcf2586c2a452de08122d6608bb...0d40672762e0482b1ea58f936b1e7c265eb9e57a))
+
+### Actions
+
+| Kind | Name | Old | New | Release age | Status |
+| --- | --- | --- | --- | --- | --- |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/upload-artifact | v4.6.2 | v7.0.2 | 23 days | major, not moved |
+| action | actions/upload-artifact | v4.6.2 | v7.0.2 | 23 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/download-artifact | v4.3.0 | v8.0.2 | 23 days | major, not moved |
+| action | actions/download-artifact | v4.3.0 | v8.0.2 | 23 days | major, not moved |
+| action | actions/upload-artifact | v4.6.2 | v7.0.2 | 23 days | major, not moved |
+| action | actions/upload-artifact | v4.6.2 | v7.0.2 | 23 days | major, not moved |
+| action | actions/upload-artifact | v4.6.2 | v7.0.2 | 23 days | major, not moved |
+| action | actions/upload-artifact | v4.6.2 | v7.0.2 | 23 days | major, not moved |
+| action | actions/upload-artifact | v4.6.2 | v7.0.2 | 23 days | major, not moved |
+| action | actions/upload-artifact | v4.6.2 | v7.0.2 | 23 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/configure-pages | v5.0.0 | v6.0.0 | 218 days | major, not moved |
+| action | actions/upload-pages-artifact | v3.0.1 | v5.0.0 | 202 days | major, not moved |
+| action | actions/deploy-pages | v4.0.5 | v5.0.1 | 58 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+| action | actions/checkout | v4.4.0 | v7.0.1 | 101 days | major, not moved |
+
+If a check here fails, a newer version broke this project: fix it on this branch (or in a pull request of its own that commits the pins), and main stays green meanwhile.
+
+Why it is safe to merge:
+
+* `bats.toml` is not in the diff, and the only change to `bats.lock` is the one `zip` line (the Evidence prints the lock's diff and both files at the head); the relock committed the lock, CI never relocks the package, so `bats check` and `bats build` fetched exactly the locked versions.
+* The required check passed on this head, with the new compiler, the new `pwa` workflows and the new `zip`: 45 of the 46 check runs on this head are success: `check` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124287658055 (success), `plan` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124258998312 (success), `queue` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124258998259 (success), `build` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124258998286 (success), `static (app)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394597 (success), `static (rest)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394457 (success), `static (accepts)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394445 (success), `static (accepts-data)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394306 (success), `static (accepts-reader)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394147 (success), `static (rejects)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394379 (success), `static (mutation-text-relation-1)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394838 (success), `static (mutation-text-relation-2)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394554 (success), `static (mutation-text-relation-3)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394494 (success), `static (mutation-text-relation-4)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394741 (success), `static (mutation-text-labels-1)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394742 (success), `static (mutation-text-labels-2)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394591 (success), `static (mutation-text-labels-3)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394345 (success), `static (mutation-text-labels-4)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394225 (success), `static (mutation-text-labels-5)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394540 (success), `static (mutation-text-codes)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394258 (success), `static (mutation-fields-record)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394582 (success), `static (mutation-schema-1)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394354 (success), `static (mutation-schema-2)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394336 (success), `static (mutation-crc-1)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394124 (success), `static (mutation-crc-2)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394158 (success), `static (mutation-crc-3)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394280 (success), `static (mutation-crc-4)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394298 (success), `static (mutation-crc-5)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394121 (success), `static (mutation-chunk)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394175 (success), `static (mutation-bytesarr-cut)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394168 (success), `static (mutation-bytes-seq)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394137 (success), `static (mutation-bytes-records)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394106 (success), `e2e (settings)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270394018 (success), `e2e (sync)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393971 (success), `e2e (relaunch)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393943 (success), `e2e (library)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393897 (success), `e2e (extras)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393870 (success), `e2e (reading-tools)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393851 (success), `e2e (reader)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393819 (success), `e2e (perf)` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393803 (success), `android / sdk-pins-tool` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393832 (success), `android / build-android` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124270393927 (success), `android / smoke-test` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124272689491 (success), `lint` https://github.com/bats-lang/quire/actions/runs/41112792719/job/124259195063 (success), `lint` https://github.com/bats-lang/quire/actions/runs/41112732756/job/124258986070 (success). The 46th, `play-internal` https://github.com/bats-lang/quire/actions/runs/41112736937/job/124290005454 was skipped, because it is the Google Play release job and its condition at the head is `if: github.event_name == 'push' && github.ref == 'refs/heads/main'` (the Evidence prints it from `check.yml` at the head), so a pull request never runs it; the pull request is not a draft, so no job was skipped for that reason.
+* The fix adds only verdict text and by-hand `.dats` fixtures with their `.expect` files, no change to any source the app builds; `static (app)`, the job the missing verdicts failed, is success on this head.
+* The pull request is reviewed by what it moves; nothing in the relock is a design choice.
+
+## Execution
+
+What was done: the relock workflow pushed branch `relock/2026-10-30` with the commit `235256c`, by github-actions[bot]; a second commit, `93977ff`, adds the verdicts for the two new proofs audit rows of `zip` (it is not the relock's, and the Evidence lists its files); a third merges main into the branch. This body was written for the branch with no commit added, and no workflow or merge action was taken for it. Files changed, from the Evidence: the pin files `.github/bats-version` and `.github/repository-version`, `bats.lock`, the `uses:` lines and `pwa-ref` values of `check.yml`, `deploy.yml`, `mutation.yml` and `relock.yml` in `.github/workflows/`, and under `tests/static/` the file `proofs_audit_verdicts.txt` and 10 fixture files.
+
+Head: 30f54850893504f0b27e45eafed64608955104f3
+
+## Evidence
+
+The commands below were run now by `pitboss expand` in a clone of bats-lang/quire that has fetched the relock branch.
+
+```pitboss-expand sha256=b9d219e61d16dcc8
+$ git log --format='%h %an %s' 513dd5fd7114c08564cc518256b23ec5e4d9ff2e..30f54850893504f0b27e45eafed64608955104f3
+30f5485 Claude Merge main into relock/2026-10-30
+93977ff Claude Give the two HIGH rows of the relocked zip a verdict (#1042)
+235256c github-actions[bot] Relock packages and CI pins (2026-10-30)
+```
+```pitboss-expand sha256=39fb26c02b70f84b
+$ git diff --name-only 513dd5fd7114c08564cc518256b23ec5e4d9ff2e 30f54850893504f0b27e45eafed64608955104f3
+.github/bats-version
+.github/repository-version
+.github/workflows/check.yml
+.github/workflows/deploy.yml
+.github/workflows/mutation.yml
+.github/workflows/relock.yml
+bats.lock
+tests/static/proofs_audit_verdicts.txt
+tests/static/solver/accept/vacuity-by-hand-zip-inflate-output-most-range.dats
+tests/static/solver/accept/vacuity-by-hand-zip-window-nth-back-range.dats
+tests/static/solver/reject/vacuity-by-hand-zip-inflate-output-most-context.dats
+tests/static/solver/reject/vacuity-by-hand-zip-inflate-output-most-context.expect
+tests/static/solver/reject/vacuity-by-hand-zip-inflate-output-most-range.dats
+tests/static/solver/reject/vacuity-by-hand-zip-inflate-output-most-range.expect
+tests/static/solver/reject/vacuity-by-hand-zip-window-nth-back-context.dats
+tests/static/solver/reject/vacuity-by-hand-zip-window-nth-back-context.expect
+tests/static/solver/reject/vacuity-by-hand-zip-window-nth-back-range.dats
+tests/static/solver/reject/vacuity-by-hand-zip-window-nth-back-range.expect
+```
+```pitboss-expand sha256=53c950ee6081db37
+$ git diff --stat 513dd5fd7114c08564cc518256b23ec5e4d9ff2e 30f54850893504f0b27e45eafed64608955104f3
+ .github/bats-version                                 |  2 +-
+ .github/repository-version                           |  2 +-
+ .github/workflows/check.yml                          | 20 ++++++++++----------
+ .github/workflows/deploy.yml                         |  2 +-
+ .github/workflows/mutation.yml                       |  2 +-
+ .github/workflows/relock.yml                         |  2 +-
+ bats.lock                                            |  2 +-
+ tests/static/proofs_audit_verdicts.txt               |  2 ++
+ ...acuity-by-hand-zip-inflate-output-most-range.dats |  3 +++
+ .../vacuity-by-hand-zip-window-nth-back-range.dats   |  3 +++
+ ...uity-by-hand-zip-inflate-output-most-context.dats |  3 +++
+ ...ty-by-hand-zip-inflate-output-most-context.expect |  3 +++
+ ...acuity-by-hand-zip-inflate-output-most-range.dats |  3 +++
+ ...uity-by-hand-zip-inflate-output-most-range.expect |  3 +++
+ .../vacuity-by-hand-zip-window-nth-back-context.dats |  3 +++
+ ...acuity-by-hand-zip-window-nth-back-context.expect |  3 +++
+ .../vacuity-by-hand-zip-window-nth-back-range.dats   |  3 +++
+ .../vacuity-by-hand-zip-window-nth-back-range.expect |  3 +++
+ 18 files changed, 48 insertions(+), 16 deletions(-)
+```
+```pitboss-expand sha256=e4cf913595bc81a3
+$ git show --stat --format='%h %s' 93977ff6e413e61e16fb89429916eab59ac424f0
+93977ff Give the two HIGH rows of the relocked zip a verdict (#1042)
+
+ tests/static/proofs_audit_verdicts.txt                                 | 2 ++
+ .../solver/accept/vacuity-by-hand-zip-inflate-output-most-range.dats   | 3 +++
+ .../solver/accept/vacuity-by-hand-zip-window-nth-back-range.dats       | 3 +++
+ .../solver/reject/vacuity-by-hand-zip-inflate-output-most-context.dats | 3 +++
+ .../reject/vacuity-by-hand-zip-inflate-output-most-context.expect      | 3 +++
+ .../solver/reject/vacuity-by-hand-zip-inflate-output-most-range.dats   | 3 +++
+ .../solver/reject/vacuity-by-hand-zip-inflate-output-most-range.expect | 3 +++
+ .../solver/reject/vacuity-by-hand-zip-window-nth-back-context.dats     | 3 +++
+ .../solver/reject/vacuity-by-hand-zip-window-nth-back-context.expect   | 3 +++
+ .../solver/reject/vacuity-by-hand-zip-window-nth-back-range.dats       | 3 +++
+ .../solver/reject/vacuity-by-hand-zip-window-nth-back-range.expect     | 3 +++
+ 11 files changed, 32 insertions(+)
+```
+```pitboss-expand sha256=ae287d1327cc1a1d
+$ git show 30f54850893504f0b27e45eafed64608955104f3:.github/bats-version
+87f57a17a8b5455deefaf084b237932f96f4aeb7
+```
+```pitboss-expand sha256=7f4e538bf6f4ffca
+$ git show 30f54850893504f0b27e45eafed64608955104f3:.github/repository-version
+0d40672762e0482b1ea58f936b1e7c265eb9e57a
+```
+```pitboss-expand sha256=a09a1c209e7b81d4
+$ git show 30f54850893504f0b27e45eafed64608955104f3:bats.toml
+[package]
+name = "quire"
+kind = "bin"
+unsafe = false
+
+[dependencies]
+"array" = ""
+"arith" = ""
+"builder" = ""
+"css" = ""
+"file" = ""
+"gestures" = ""
+"path" = ""
+"promise" = ""
+"pwa" = ""
+"result" = ""
+"json" = ""
+"str" = ""
+"widget" = ""
+"sha256" = ""
+"xml-tree" = ""
+"zip" = ""
+"wasm.bats-packages.dev/bridge" = ""
+"wasm.bats-packages.dev/dom" = ""
+```
+```pitboss-expand sha256=0636da79cd71d3a3
+$ git diff 513dd5fd7114c08564cc518256b23ec5e4d9ff2e 30f54850893504f0b27e45eafed64608955104f3 -- bats.lock
+diff --git a/bats.lock b/bats.lock
+index 901a692..58f905f 100644
+--- a/bats.lock
++++ b/bats.lock
+@@ -4,7 +4,7 @@ wasm.bats-packages.dev/dom 2026.10.26.28030 671763143a2c7fa734032e940239ceb2cd51
+ wasm.bats-packages.dev/bridge 2026.10.25.18302 0f81401fd61961aa4dc8e0c113cfea2bfca38b05fac74766de934e9ce0abca85
+ css 2026.9.28.58088 896b96757a58d887784f7089a78543b2b202da01d44a6304174465700d8f4675
+ xml-tree 2026.9.27.54519 579f726385c67e930666e216a75877bc398e1a1f236cd264fb1795962e23df22
+-zip 2026.10.24.42588 f5a7f779df3accaf13959738bd5d11028f88f4cfc9de321bc438f0ab94b5ca09
++zip 2026.10.28.85840 753582ca05e72e0b55a2d4711ee264c07c2fd2d23537d456a96a66ae178490fb
+ gestures 2026.10.2.48017 c912e03582ff6e2db0b0add64c7fb520f5d89bcbca5889a91e86f6ab3272bfa4
+ pwa 2026.10.26.22704 f2f8f978bf44487e542213907e3f5c88df5a2530caaa87ba987c304f1e93af79
+ process 2026.10.24.44105 3b89c2279cbfe69f09ba73c0df710b0edab38f9bae34a87b1b4dccf575241c4b
+```
+```pitboss-expand sha256=2093f22a63c8a197
+$ git show 30f54850893504f0b27e45eafed64608955104f3:bats.lock
+json 2026.10.6.64294 a81161bb51806441faa3bcdfc3dfd1aa30c962784e54ddcbfd7f514d7d86653d
+widget 2026.9.27.65140 705eca9a3da853d9ed3448a864e1a7b4e7d50ee8636d451e65cbed05533c570a
+wasm.bats-packages.dev/dom 2026.10.26.28030 671763143a2c7fa734032e940239ceb2cd51014dd3fcde57df54829c460f3918
+wasm.bats-packages.dev/bridge 2026.10.25.18302 0f81401fd61961aa4dc8e0c113cfea2bfca38b05fac74766de934e9ce0abca85
+css 2026.9.28.58088 896b96757a58d887784f7089a78543b2b202da01d44a6304174465700d8f4675
+xml-tree 2026.9.27.54519 579f726385c67e930666e216a75877bc398e1a1f236cd264fb1795962e23df22
+zip 2026.10.28.85840 753582ca05e72e0b55a2d4711ee264c07c2fd2d23537d456a96a66ae178490fb
+gestures 2026.10.2.48017 c912e03582ff6e2db0b0add64c7fb520f5d89bcbca5889a91e86f6ab3272bfa4
+pwa 2026.10.26.22704 f2f8f978bf44487e542213907e3f5c88df5a2530caaa87ba987c304f1e93af79
+process 2026.10.24.44105 3b89c2279cbfe69f09ba73c0df710b0edab38f9bae34a87b1b4dccf575241c4b
+list 2026.9.27.58773 5aa070d0c05e79b00e7c51c9b0b71cfaeda5f7227fea5cddb05d1a2ea4965e35
+env 2026.9.27.58926 eb44c3ae5d90a5ff04f742722955da3b802cad5411a64487721591225c4db279
+path 2026.9.27.25138 d9c01123796f41d9b3dbc597c8a09779dbdfb4ce4da503a72b98430379bcdff9
+file 2026.10.26.17291 36d59bf41196f839ea6921165e4660af4556ad9b8a6949e500af7788f5ff0586
+builder 2026.10.22.61640 1eb2b078a01193e697fb57185c5ded5207fcfce7ba1d5961d5d7044ac9ca8fd2
+sha256 2026.10.25.65041 437a98e2cdba47a3189c72fcf780c4a353040b9e83d02c1434d546e3cb157a49
+str 2026.9.27.2044 c40903796377e94685b58dd401c5d3adf9dd9a77d94f157e81f9bb78f21ec6d2
+result 2026.9.27.25202 775ddd1d75cab66af3120427a71ce174ec74d47e894a85a0bc2319052cddcab1
+promise 2026.10.2.48010 432cd75c70cdb2cdbedce4751c78714a55600fc2ff647f65c8587f4cc7fc959d
+arith 2026.10.20.71830 83c0c68f073efd7e397298661fa1f1667bdc60dafde17c5d804e24e6a88b1152
+array 2026.10.26.2064 724a5fee29de296d9b311e17d0061dd8eb306a253de37b6dd0d2f4c427b9810b
+```
+```pitboss-expand sha256=15af61af013f814a
+$ git grep -n 'pwa-ref:' 30f54850893504f0b27e45eafed64608955104f3 -- .github/workflows/check.yml
+30f54850893504f0b27e45eafed64608955104f3:.github/workflows/check.yml:701:      pwa-ref: c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5
+30f54850893504f0b27e45eafed64608955104f3:.github/workflows/check.yml:740:      pwa-ref: c7aca6b5c45ea4d12680b8f3307a030c7e81f0e5
+```
+```pitboss-expand sha256=e3eeed6cd5974cfe
+$ git grep -n -A2 '^  play-internal:' 30f54850893504f0b27e45eafed64608955104f3 -- .github/workflows/check.yml
+30f54850893504f0b27e45eafed64608955104f3:.github/workflows/check.yml:732:  play-internal:
+30f54850893504f0b27e45eafed64608955104f3:.github/workflows/check.yml-733-    needs: [check, android]
+30f54850893504f0b27e45eafed64608955104f3:.github/workflows/check.yml-734-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+```
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

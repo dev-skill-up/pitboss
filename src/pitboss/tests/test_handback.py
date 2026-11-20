@@ -1,12 +1,13 @@
 """Tests of ``NO HAND-BACK``: a dispatched agent that has said nothing."""
 
+import dataclasses
 import datetime
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import handback, ledger
+from .. import handback, ledger, slotbook
 from . import world
 
 START = world.START
@@ -44,8 +45,8 @@ def held(started: str) -> ledger.Ledger:
     Returns:
         The ledger.
     """
-    slot = ledger.Slot(name="s", model="m", agent="a", task="t", started=started)
-    return ledger.Ledger(slots=(slot,), failed={})
+    slot = dataclasses.replace(slotbook.empty_slot("s", "m"), agent="a", task="t")
+    return slotbook.ledger_of((dataclasses.replace(slot, started=started),))
 
 
 def slots(here: world.World, action: str, *words: str) -> world.Result:
@@ -128,6 +129,9 @@ class TestHeardRefusal(unittest.TestCase):
     def test_no_such_slot(self) -> None:
         """A slot that does not exist is refused."""
         refused = ledger.stamp(
-            ledger.Ledger(slots=(), failed={}), "x", ledger.Mark.HEARD, "now"
+            slotbook.ledger_of(()),
+            "x",
+            ledger.Mark.HEARD,
+            "now",
         )
         assert_that(isinstance(refused, ledger.Refusal), equal_to(True))

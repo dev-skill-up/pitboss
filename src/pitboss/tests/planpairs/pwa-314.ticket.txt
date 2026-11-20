@@ -1,0 +1,12 @@
+Priority p1 and the age of bats-lang/quire#1030 (2026-10-29): a blocker inherits the blocked ticket's priority and age (Opus ruling 2026-11-10 on quire PR 1083).
+
+`build_smoke_test_script_scaled_probes` (src/lib.bats, the block `for scale in 1.0 2.0`, lines about 1383 to 1435 of main; the same text is in the locked package pwa 2026.11.9.78653) runs the app's probes silently: its only `echo` inside the probe block is in `fail`, and the files it writes (`select-point-*.txt`, `tap-points-*.txt`, `tap-result-*.txt` in `$OUT`) never reach an artifact. quire#1030 Done-when 1 says the log of the `android` job "shows the long press and one tap for each toolbar button with the result `true`, at 1.0 and at 2.0", and Done-when 2 needs to see where the taps land when the toolbar placement is reverted (the revert passed the emulator job, bats-lang/quire run 42842034497, job 129950961083, with no tap line and no data). Nothing in quire can write to that log or those files.
+
+## Done when
+
+1. Inside `for scale in 1.0 2.0`, after the long press (`adb shell input swipe`) the script prints `Probe long press: font scale $scale at $px $py`; after each `adb shell -n input tap` it prints `Probe tap: font scale $scale: $name at $px $py`; when the page's answer is `true` it prints `Probe taps: font scale $scale: $taps taps, the page saw a click on every one: true`; when it is not, the failure line is unchanged. None of the three starts with `Long press:` or `Taps:` (those are the failure markers).
+2. The files `select-point-$scale.txt`, `tap-points-$scale.txt` and `tap-result-$scale.txt` are uploaded with the job's artifacts (the existing `android-smoke-test` artifact), for 1.0 and 2.0.
+3. `build_smoke_test_script_scaled_probes` and `_smoke_probes_scaled` keep their old signatures, bounds and output beside the new ones for one published version (the overlap rule: the new form beside the old, a test calls the old form), and a test asserts the three lines in the generated script and that the failure lines are unchanged.
+4. The green `android / smoke-test` log of a quire head built with the new pwa lists, for 1.0 and 2.0, one `Probe long press`, one `Probe tap` for each toolbar button and `Probe taps: ... true`, and the artifact holds the three files for each scale.
+
+pwa's CLAUDE.md allows test tooling as process (the smoke script changes nothing the app runs).

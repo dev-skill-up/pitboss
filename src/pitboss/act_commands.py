@@ -4,19 +4,29 @@ The keyword is act-verbs, pitboss#444.
 
 ``pitboss act <verb> <target> [name=value ...]``: the target is ``owner/name#N``,
 ``owner/name`` or ``all``; the verbs are ``actverbs.VERBS``. Each verb that changes
-GitHub runs the total verdict and the gates first and refuses (exit 2) with the
-reason. Writes are a dry run unless ``--no-dry-run`` is given.
+GitHub is looked up in the decisions of the command's one read (``actverbs.run``),
+and what stands instead of it is printed with exit 2. Writes are a dry run unless
+``--no-dry-run`` is given.
 """
 
 import argparse
+import functools
 import sys
-from typing import Mapping, NoReturn, Sequence
+from typing import Callable, Mapping, NoReturn, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, actcore, actledger, actverbs, actwiring, configsettle, logline
+from . import ENTRY_DATA, actcore, actfacts, actledger, actread, actverbs, actwiring
+from . import answer, configsettle, logline, onepath, render
 from .commandarguments import CONFIG_OPTION, DRY_RUN_ARGUMENT, NOW_ARGUMENT
 from .commands import Context, load_context
+
+
+def _printed(said: str) -> None:
+    # P8: a verb whose decision is another prints the one that stands, and exits 2
+    print(said)
+    if said.startswith(render.NOT_DONE):
+        raise SystemExit(2)
 
 
 def _refuse(message: str) -> NoReturn:
@@ -42,26 +52,38 @@ def options_of(words: Sequence[str]) -> Mapping[str, str]:
     return found
 
 
-def run_verb(
-    world: actcore.Act, verb: str, target: actcore.Target, options: Mapping[str, str]
-) -> str:
-    """Run one verb, refusing with its reason.
+def run_verb(world: actcore.Act, asked: actfacts.Asked) -> str:
+    """Run one verb through ``actverbs.run``, refusing with its reason.
 
     Args:
         world: the verbs' world.
-        verb: the verb.
-        target: the target.
-        options: the options.
+        asked: the verb, its target and its options.
 
     Returns:
         What it said.
     """
-    if verb not in actverbs.VERBS:
-        _refuse(f"act: no verb {verb!r}: {', '.join(sorted(actverbs.VERBS))}")
     try:
-        return actverbs.VERBS[verb](world, target, options)
+        return actverbs.run(world, asked, actverbs.VERBS)
     except actverbs.REFUSALS as error:
-        _refuse(f"act {verb}: refused: {error}")
+        _refuse(f"act {asked.verb}: refused: {error}")
+
+
+def _decided(
+    found: Context, args: argparse.Namespace, options: Mapping[str, str]
+) -> tuple[actcore.Questions, Callable[[actcore.Act], None]]:
+    # the one read of the command line's mode, made once, with the act's own facts
+    # (actread) read in it; the world is given once it is made
+    chosen = onepath.mode_of(args, found, options)
+    made: dict[str, answer.Decided] = {}
+    worlds: list[actcore.Act] = []
+
+    def decided(asked: actfacts.Asked) -> answer.Decided:
+        if "decided" not in made:
+            acts = functools.partial(actread.read, worlds[0], asked)
+            made["decided"] = onepath.looked(found, chosen, acts).decided
+        return made["decided"]
+
+    return actcore.Questions(decided=decided), worlds.append
 
 
 @ENTRY_DATA.register(
@@ -85,9 +107,13 @@ def act(args: argparse.Namespace) -> None:
     found = load_context(args)
     path = found.settings.slots.ledger.parent / actwiring.OWNER
     owner = actwiring.owner_of(path)
-    world = actwiring.act_of(found.github, found.settings, owner, args.run)
+    questions, given = _decided(found, args, options)
+    asking = actwiring.Asking(owner=owner, questions=questions)
+    world = actwiring.act_of(found.github, found.settings, args.run, asking)
+    given(world)
     target = actledger.target_of(args.target)
-    print(run_verb(world, args.verb, target, options))
+    asked = actfacts.Asked(verb=args.verb, target=target, options=options)
+    _printed(run_verb(world, asked))
     if args.no_dry_run:
         actwiring.write_owner(path, owner)
         _recorded(

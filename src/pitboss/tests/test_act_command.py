@@ -7,15 +7,15 @@ import json
 import subprocess
 import sys
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_item
 
-from .. import actcore, actledger, acthub, actinputs, actwiring, ghapi
+from .. import actcore, acthub, actinputs, actledger, actwiring, ghapi
 from ..totaljson import members
-from . import fakehub, fakes, world
-from .knownkit import NUMBER, REPO, base_map, made, shipped_kit
-from .says import errs, exits
+from . import fakehub, fakes, knownshipped, world
+from .knownkit import NUMBER, REPO, base_map, made
+from .says import errs, exits, outs
 from .fakes import calls_with
 from ..actledger import Done
 
@@ -65,9 +65,9 @@ ISSUE_CALL = [
 ]
 HUB_ANSWERS = {
     "repos/o/r/pulls/3": json.dumps({"number": 3}),
-    "repos/o/r/pulls?state=open&per_page=100": '{"number": 1}\n{"number": 2}\n',
-    "repos/o/r/issues/3/timeline?per_page=100": "[]\n",
-    "repos/o/r/issues?state=open&per_page=100&labels=pitboss-hold": "",
+    "repos/o/r/pulls?state=open&per_page=100&page=1": '[{"number": 1}, {"number": 2}]',
+    "repos/o/r/issues/3/timeline?per_page=100&page=1": "[]",
+    "repos/o/r/issues?state=open&labels=pitboss-hold&per_page=100&page=1": "[]",
     "repos/o/r": json.dumps({"default_branch": "trunk"}),
     "repos/o/r/pulls": "7\n",
 }
@@ -86,8 +86,8 @@ INPUT_ANSWERS = {
     ),
     "repos/o/r/issues/1": json.dumps({"state": "open"}),
     "repos/x/y/issues/4": json.dumps({"state": "closed"}),
-    "repos/o/r/pulls/3/files?per_page=100": json.dumps([{"filename": "a"}]),
-    "repos/o/r/issues/3/timeline?per_page=100": "",
+    "repos/o/r/pulls/3/files?per_page=100&page=1": json.dumps([{"filename": "a"}]),
+    "repos/o/r/issues/3/timeline?per_page=100&page=1": "[]",
 }
 BLOCKED_PULL = {
     "body": "Fixes #1\n\nBlocked by x/y#4 and #9\n",
@@ -105,18 +105,23 @@ def _recorded(hub: fakehub.Made, done: actledger.Done) -> str:
     return event.what if event else ""
 
 
+OPEN = "/pulls?state=open"
+
+
+def _listed(number: int) -> Mapping[str, object]:
+    # an open PR as the listing gives it: one path reads its branch and age
+    return {"number": number, "head": {"ref": f"b{number}"}, "created_at": "2026-11"}
+
+
 def _here() -> world.World:
     here = world.make_world()
+    listings = {world.PROJECT: [_listed(n) for n in (1, 2, 3)], world.LIBRARY: []}
+    here.bodies.update(
+        {fakes.page(repo + OPEN): found for repo, found in listings.items()}
+    )
     here.bodies["user"] = {"login": "pitboss-bot"}
     here.bodies["POST repos/owner/project/issues/3/labels"] = []
     here.bodies["POST repos/owner/project/issues/3/comments"] = {"html_url": "u"}
-    here.bodies["name=project"] = {
-        "data": {
-            "repository": {
-                "pullRequests": {"nodes": [{"additions": 3, "deletions": 1}]}
-            }
-        }
-    }
     return here
 
 
@@ -173,10 +178,12 @@ class TestCommand(unittest.TestCase):
         for words, said in (
             (("nope", PULL), "no verb"),
             (("label", PULL, "name"), "is not an option"),
-            (("merge", PULL), "act merge: refused"),
         ):
             done = _act(here, *words)
             errs(done, 2, said)
+        edited = _act(here, "comment-edit", PULL, "id=1", "body=x")
+        outs(edited, 2, "not a comment pitboss")
+        outs(_act(here, "merge", PULL), 2, f"NOT DONE: merge {PULL}")
         assert_that(calls_with(here.calls, "-X"), equal_to([]))
 
     def test_c17_targets(self) -> None:
@@ -189,7 +196,7 @@ class TestCommand(unittest.TestCase):
 
     def test_c17_the_ledger_event_names_the_branch(self) -> None:
         """A checked write is recorded with the PR's branch and head; another is not."""
-        hub = made(shipped_kit())
+        hub = made(knownshipped.shipped())
         target = actcore.Target(repo=REPO, number=NUMBER)
         branch = str(base_map("pull", "head")["ref"])
         merged = _recorded(hub, Done(verb="merge", target=target, options={}))
@@ -261,25 +268,22 @@ class TestInputs(unittest.TestCase):
     """The verdict's inputs, read live."""
 
     def test_c17_every_required_input_is_read(self) -> None:
-        """Rules, runs, statuses, tickets, files, blockers and the timeline.
+        """Rules, runs, statuses, tickets, files and the timeline.
 
         A failed read is kept.
         """
         _, github = _github(INPUT_ANSWERS)
-        settings = actinputs.Settings(
-            identity="bot", authors=["dependabot[bot]"], max_lines=lambda _: 400
-        )
+        settings = actinputs.Settings(identity="bot", authors=["dependabot[bot]"])
         made_ = actinputs.live_inputs(actinputs.reader(github), settings)
         ctx = made_("o/r", 3, dict(BLOCKED_PULL), [])
         assert_that(
-            (ctx["required_checks"], ctx["merge_queue"], ctx["max_lines"]),
-            equal_to((["check"], True, 400)),
+            (ctx["required_checks"], ctx["merge_queue"]),
+            equal_to((["check"], True)),
         )
         assert_that(
             (ctx["check_runs"], ctx["files"], ctx["timeline"]),
             equal_to(([{"name": "check"}], [{"filename": "a"}], [])),
         )
-        assert_that(ctx["blockers"], equal_to({"x/y#4": "closed", "#9": "not read"}))
         assert_that(list(members(ctx["tickets"])), equal_to(["o/r#1"]))
         assert_that("_error" in members(ctx["statuses"]), equal_to(True))
         assert_that(ctx["authors"], equal_to({"bot", "dependabot[bot]"}))
@@ -318,40 +322,3 @@ class TestWiring(unittest.TestCase):
         code = "import sys; print('said'); sys.exit(3)"
         done = actwiring.quiet([sys.executable, "-c", code])
         assert_that((done.returncode, done.stdout), equal_to((3, "said\n")))
-
-    def test_c17_the_p90_is_read_once_and_an_unread_one_is_0(self) -> None:
-        """Nine of ten sizes are at or under the percentile."""
-        nodes = [{"additions": size, "deletions": 0} for size in range(1, 11)]
-        calls, github = _github(
-            {
-                "name=r": json.dumps(
-                    {"data": {"repository": {"pullRequests": {"nodes": nodes}}}}
-                )
-            }
-        )
-        found = actwiring.limits(github)
-        assert_that((found("o/r"), found("o/r"), found("o/none")), equal_to((9, 9, 0)))
-        assert_that(len(calls), equal_to(2))
-
-    def test_c17_the_order_of_work_reads_slots_prs_and_tickets(self) -> None:
-        """The configured slots and ledger.
-
-        The open PRs and the tickets of each priority.
-        """
-        here = _here()
-        for repo in ("owner/project", "owner/lib"):
-            here.bodies[f"repos/{repo}/pulls?state=open&per_page=100"] = [
-                {"number": 5, "created_at": "2026-11-01"}
-            ]
-            for label in ("p0", "p1", "p2", "p3"):
-                issues = [
-                    {"number": 6, "created_at": "2026-11-02"},
-                    {"number": 5, "pull_request": {}},
-                ]
-                here.bodies[
-                    f"repos/{repo}/issues?state=open&per_page=100&labels={label}"
-                ] = issues
-        done = _act(here, "dispatch-next", "all")
-        assert_that(
-            (done.code, done.out + done.err), equal_to((0, "owner/project#5\n"))
-        )

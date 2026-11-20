@@ -14,14 +14,12 @@ from .briefmake import pinned, text
 from .says import has_none
 from .suggestions import next_output, parsed
 from .test_brief_nox import WORKERS
-from .briefmake import PLAN_REVIEWS
 
 GIBIBYTE = 2**30
 TOTAL = 100 * GIBIBYTE
 TEMP_RUNS = (
     "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"
-    " right after each run; a run that needs more than 1 GiB is left to CI"
-    " (pitboss#288)."
+    " right after each run; a run that needs more than 1 GiB is left to CI."
 )
 NO_LOOP = (
     "Repeated runs: a Plan whose evidence is a repeated local run (a loop of N"
@@ -135,8 +133,3 @@ class TestBriefs(unittest.TestCase):
         for kind in WORKERS:
             pinned(kind, [TEMP_RUNS])
         has_none(text(brief.Kind.REVIEW_EXECUTION), [TEMP_RUNS, NO_LOOP])
-
-    def test_a_plan_review_refuses_a_repeated_local_run(self) -> None:
-        """The finding is `move the evidence to CI`."""
-        for kind in PLAN_REVIEWS:
-            pinned(kind, [NO_LOOP])

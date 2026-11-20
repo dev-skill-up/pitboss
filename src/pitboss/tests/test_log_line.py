@@ -105,6 +105,7 @@ class TestHandBack(unittest.TestCase):
         here = world.make_world()
         pull = {f"{world.PROJECT}/pulls/2": fakes.pull_body(2, body="Fixes #9")}
         here.bodies.update(pull)
+        fakes.listed_row(here.bodies, world.PROJECT, 2, body="Fixes #9")
         slot_steps(here)
         found = posted(here, POSTING[0], "hand-back")
         assert_that(found, equal_to([HAND_BACK + fakes.HEAD]))

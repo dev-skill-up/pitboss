@@ -11,7 +11,7 @@ import pathlib
 import statistics
 from typing import AbstractSet, Mapping, Sequence
 
-from . import ledger
+from . import slotbook
 
 
 class State(enum.Enum):
@@ -55,7 +55,7 @@ class Entry:
     begun: bool = False
 
 
-def state_of(slot: ledger.Slot) -> State:
+def state_of(slot: slotbook.Slot) -> State:
     """The state of a slot.
 
     Args:
@@ -140,7 +140,7 @@ def append(path: pathlib.Path, entries: Sequence[Entry]) -> None:
         stream.writelines(map(_line, entries))
 
 
-def _current(slot: ledger.Slot, now: datetime.datetime, begun: str) -> Entry:
+def _current(slot: slotbook.Slot, now: datetime.datetime, begun: str) -> Entry:
     return Entry(
         time=now,
         slot=slot.name,
@@ -159,7 +159,7 @@ def _gone(name: str, now: datetime.datetime) -> Entry:
 
 def changes(
     logged: Sequence[Entry],
-    book: ledger.Ledger,
+    book: slotbook.Ledger,
     now: datetime.datetime,
     begun: str = "",
 ) -> Sequence[Entry]:

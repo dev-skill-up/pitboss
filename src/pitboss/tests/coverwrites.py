@@ -38,6 +38,7 @@ ROUTE: Mapping[str, str] = {
     "clean-worktrees": "scratch-clean",
     "case": "ticket-edit",
     "owner-pause": "label",
+    "impossible": "label",
     "plan-check": "comment",
     "sweep": "scratch-clean",
 }
@@ -172,9 +173,15 @@ def _writes_here(node: ast.AST) -> bool:
 
 def _registered(function: ast.FunctionDef | ast.AsyncFunctionDef) -> Iterator[str]:
     for decorator in function.decorator_list:
-        for word in decorator.keywords if isinstance(decorator, ast.Call) else ():
+        if not isinstance(decorator, ast.Call):
+            continue
+        for word in decorator.keywords:
             if word.arg == "name" and isinstance(word.value, ast.Constant):
                 yield str(word.value.value)
+        # ``pullfile.register("name", ...)`` names its command first
+        first = decorator.args[:1]
+        if first and isinstance(first[0], ast.Constant):
+            yield str(first[0].value)
 
 
 def call_graph(source: pathlib.Path) -> Graph:

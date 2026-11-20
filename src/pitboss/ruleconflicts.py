@@ -213,7 +213,7 @@ def lines(pair: Declared, words: Mapping[str, str]) -> Sequence[str]:
     ]
 
 
-def brief_lines(step: steps.Next | None) -> Sequence[str]:
+def brief_lines(step: steps.Move | None) -> Sequence[str]:
     """The lines a ruling brief adds for the pair a step names.
 
     Args:
@@ -222,7 +222,7 @@ def brief_lines(step: steps.Next | None) -> Sequence[str]:
     Returns:
         ``lines`` of the pair its ``conflict`` names, none when it names none.
     """
-    wanted = step.conflict.split() if step else []
+    wanted = step.conflict.split() if isinstance(step, steps.Next) else []
     pairs = [each for each in shipped() if named(each).split() == wanted]
     return lines(pairs[0], register_words()) if pairs else ()
 

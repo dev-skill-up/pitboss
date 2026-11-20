@@ -4,12 +4,14 @@ import dataclasses
 import enum
 import json
 import pathlib
-import re
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import Callable, Iterable, Sequence
 
-from . import config
+from . import config, slotbook
+from .slotbook import Ledger as Ledger
+from .slotbook import Slot as Slot
+from .slotbook import empty_slot as empty_slot
 
-_REFERENCE = re.compile(r"^(?:(?P<owner>[\w.-]+)/)?(?P<name>[\w.-]+)?#(?P<number>\d+)$")
+reference = slotbook.reference
 
 
 class Mark(enum.Enum):
@@ -41,79 +43,6 @@ class Refusal:
     reason: str
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Slot:
-    """One worker slot.
-
-    Attributes:
-        name: the slot's name.
-        model: the model its worker runs on.
-        agent: the agent in it, or empty.
-        task: what the agent works on (an ``owner/name#number``), or empty.
-        waiting: the agent waits (on CI, a review or an answer), not runs.
-        started: when the agent was put in the slot (ISO time), or empty.
-        heard: when the agent last handed back or notified (ISO time), or empty.
-        ticket: the ticket the task works on (an ``owner/name#number``), or
-            empty.
-        kind: the kind of task (one of ``TASK_KINDS``), or empty.
-    """
-
-    name: str
-    model: str
-    agent: str = ""
-    task: str = ""
-    waiting: bool = False
-    started: str = ""
-    heard: str = ""
-    ticket: str = ""
-    kind: str = ""
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Ledger:
-    """Every slot, and the models each ticket has failed with.
-
-    Attributes:
-        slots: the slots, in order.
-        failed: each ticket's failed models.
-        config: the path of the configuration that owns the ledger, a key put
-            in the file by hand (nothing writes it when the file is made), or
-            empty when the file records none.
-        deviations: for each ticket, the deviations a review of its worker's
-            work listed (keyword: deviations, pitboss#257).
-        checkin: when the orchestrator last posted its status (ISO time), or
-            empty when none is recorded (keyword: check-in, pitboss#450).
-        checkin_first: the first check-in of the timer job now kept (ISO time):
-            the job was made at most one interval before it (keyword: check-in,
-            pitboss#471).
-    """
-
-    slots: Sequence[Slot]
-    failed: Mapping[str, Sequence[str]]
-    config: str = ""
-    deviations: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
-    checkin: str = ""
-    checkin_first: str = ""
-
-
-def reference(text: str, project: config.Repo) -> str:
-    """Spell a ticket or PR as ``owner/name#number``.
-
-    Args:
-        text: ``#12``, ``name#12`` or ``owner/name#12``.
-        project: the repository of a bare ``#12``, and the owner of ``name#12``.
-
-    Returns:
-        The full reference, or ``text`` when it is not a reference.
-    """
-    found = _REFERENCE.match(text.strip())
-    if found is None:
-        return text
-    owner = found.group("owner") or project.owner
-    name = found.group("name") or project.name
-    return f"{owner}/{name}#{found.group('number')}"
-
-
 def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
     """Read the ledger, or start one from the configured slots.
 
@@ -125,13 +54,12 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
         The ledger.
     """
     if not path.exists():
-        return Ledger(
-            slots=tuple(Slot(name=spec.name, model=spec.model) for spec in defaults),
-            failed={},
+        return slotbook.ledger_of(
+            tuple(empty_slot(spec.name, spec.model) for spec in defaults)
         )
     data = json.loads(path.read_text())
     return Ledger(
-        slots=tuple(Slot(**item) for item in data["slots"]),
+        slots=tuple(slotbook.slot_of(item) for item in data["slots"]),
         failed={key: tuple(value) for key, value in data["failed"].items()},
         config=data.get("config", ""),
         deviations={
@@ -250,7 +178,8 @@ def take(ledger: Ledger, slot_name: str, work: Work) -> Ledger | Refusal:
         return Refusal(
             reason=f"slot {slot_name} holds {slot.agent} on {slot.task}: free it first"
         )
-    taken = Slot(name=slot.name, model=slot.model, **dataclasses.asdict(work))
+    blank = slotbook.empty_slot(slot.name, slot.model)
+    taken = dataclasses.replace(blank, **dataclasses.asdict(work))
     return _replace(ledger, slot_name, taken)
 
 
@@ -275,7 +204,7 @@ def free(ledger: Ledger, slot_name: str, done: str) -> Ledger | Refusal:
             reason=f"slot {slot_name} holds {held}, not {done}: only the agent"
             " that handed back is done"
         )
-    return _replace(ledger, slot_name, Slot(name=slot.name, model=slot.model))
+    return _replace(ledger, slot_name, empty_slot(slot.name, slot.model))
 
 
 def add(
@@ -297,7 +226,7 @@ def add(
     if spec.model not in models:
         configured = ", ".join(models) or "none: set [slots] models"
         return Refusal(reason=f"model {spec.model!r} is not one of {configured}")
-    added = Slot(name=spec.name, model=spec.model)
+    added = empty_slot(spec.name, spec.model)
     return dataclasses.replace(ledger, slots=(*ledger.slots, added))
 
 

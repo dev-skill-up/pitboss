@@ -16,7 +16,7 @@ from .says import exits
 
 TICKET = f"{world.PROJECT}/issues/9"
 PATCH = f"PATCH {TICKET}"
-LISTED = fakes.page("/".join([world.PROJECT, "pulls?state=all"]))
+LISTED = fakes.page("/".join([world.PROJECT, "pulls?state=closed"]))
 BODY = (
     "Intro.\n\n## Done when\n\n1. Old, demonstrated by a test.\n\n## History\n\nMore.\n"
 )

@@ -32,18 +32,17 @@ def run(here: world.World) -> world.Result:
 
 
 def printed(found: world.Result) -> str:
-    """What the command printed, without the note of the library the world lacks.
+    """What the command printed before the brief, without the library's note.
 
     Args:
         found: what the command did.
 
     Returns:
-        The other lines, each with its newline.
+        The lines before the brief's ``DISPATCH`` line, each with its newline.
     """
-    return (
-        "\n".join(each for each in found.out.splitlines() if "owner/gone" not in each)
-        + "\n"
-    )
+    before = found.out.partition("\nDISPATCH: ")[0]
+    kept = [each for each in before.splitlines() if "owner/gone" not in each]
+    return "\n".join(kept) + "\n"
 
 
 def next_with_body(body: str | None) -> world.Result:

@@ -16,8 +16,11 @@ class Holds:
             before the hold applies; 0 holds while any is open.
     """
 
-    new_pull_requests: AbstractSet[str] = frozenset()
-    max_open: int = 0
+    new_pull_requests: AbstractSet[str]
+    max_open: int
+
+
+NONE = Holds(new_pull_requests=frozenset(), max_open=0)  # no repository is held
 
 
 def from_document(document: Mapping[str, object], owner: str) -> Holds:

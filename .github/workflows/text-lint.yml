@@ -1,0 +1,20 @@
+# The text-lint commit status of a pull request of this repository, posted by
+# text-lint-check.yml (called by commit, never @main; tools-ref is the same commit).
+# A same-repository pull request gets a write token on `pull_request`, so the status
+# is posted on its own head (pitboss#485).
+name: text-lint
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  text-lint:
+    uses: dev-skill-up/pitboss/.github/workflows/text-lint-check.yml@879bb03cb839122c0667691da43e3db619c76eed # text-lint-check at main 879bb03
+    with:
+      tools-ref: 879bb03cb839122c0667691da43e3db619c76eed

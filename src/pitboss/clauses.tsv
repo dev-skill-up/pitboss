@@ -262,7 +262,7 @@ memory:ruling-remove-design-rst.md	how-to-apply	outside: a removal of doc/design
 memory:run-latest-pitboss.md	description	C10	pitboss
 memory:run-latest-pitboss.md	how-to-apply	C10	pitboss
 memory:run-pitboss-and-verify-it-makes-sense.md	description	D1	pitboss
-memory:run-pitboss-and-verify-it-makes-sense.md	how-to-apply	D1	ticket
+memory:run-pitboss-and-verify-it-makes-sense.md	how-to-apply	D1	pitboss
 memory:run-pitboss-as-autoapproved.md	description	outside: the harness's permission classifier and the allowed command strings; no pitboss command reads them	-
 memory:run-pitboss-as-autoapproved.md	how-to-apply	outside: the harness's permission classifier and the allowed command strings; no pitboss command reads them	-
 memory:session-state-2026-11-04-1740z.md	description	outside: a dated queue state	-
@@ -300,7 +300,6 @@ ticket:444	case 4	A7	a7
 ticket:444	case 5	T464	t464
 ticket:444	case 6	B6	b6
 ticket:444	case 7	B15	b15
-ticket:444	case 8	B16	b16
 ticket:444	case 9	D6	d6
 ticket:444	case 10	I10	i10
 ticket:444	case 11	I11	i11

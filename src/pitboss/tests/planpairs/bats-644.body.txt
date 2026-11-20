@@ -1,0 +1,145 @@
+Fixes bats-lang/bats#612
+
+Done-when digest: 8cb1b58f64f409c3
+
+Head: fd5277113914a661e3cdcc198893a16c8902f3c9
+
+## Plan
+
+Done-when, word for word (the ticket body): "each file of `CLAUDE.md` and `.claude/rules/` is examined; each passage that restates code is removed or replaced by a pointer to `bats <command> --help`; a rule found only in a note and not in the help text moves into the help text (in the code); a report in the PR lists each file and what became of it (kept as a decision, pointer, removed). The CLAUDE.md index is updated for any removed file. The bootstrap/c rule applies if `src/` changes (help text moved into code)."
+
+1. each file of `CLAUDE.md` and `.claude/rules/` is examined; each passage that restates code is removed or replaced by a pointer to `bats <command> --help`; a rule found only in a note and not in the help text moves into the help text (in the code); a report in the PR lists each file and what became of it (kept as a decision, pointer, removed). The CLAUDE.md index is updated for any removed file. The bootstrap/c rule applies if `src/` changes (help text moved into code). Command: `git ls-files CLAUDE.md .claude/rules` lists the 35 files; the report below covers each.
+2. each passage that restates code is removed or replaced by a pointer to `bats <command> --help`: `python3 -I -c "import subprocess as s;L=s.run(['git','diff','-U0','origin/main','HEAD','--','CLAUDE.md','.claude/rules'],capture_output=True,text=True).stdout.splitlines();H=[sum(m[:2]=='@@' for m in L[:k+1]) for k in range(len(L))];q=lambda a,b:(lambda i:all(x in i for x in a))(iter(b));bad=[l for k,l in enumerate(L) if l[:1]=='+' and l[:6]!='+++ b/' and not any(q(l[1:],m[1:]) for j,m in enumerate(L) if H[j]==H[k] and m[:1]=='-' and m[:6]!='--- a/')];print('added lines not a subsequence of a removed line of their hunk:',len(bad));print(*bad,sep=chr(10))"` prints `0` as the count (every added line of the diff of `CLAUDE.md` and `.claude/rules` is a subsequence of a removed line of its own hunk, that is a cut: characters deleted, none inserted or reordered), so the 72 insertions of the shortstat are cuts and the diff adds no text.
+3. a rule found only in a note and not in the help text moves into the help text (in the code): `git diff -U0 origin/main HEAD -- src/bin/bats.bats` adds an `environment:` section to `bats --help`.
+4. a report in the PR lists each file and what became of it (kept as a decision, pointer, removed): `git diff --name-status origin/main HEAD -- CLAUDE.md .claude/rules` lists the changed files; the Execution section reports each file.
+5. The CLAUDE.md index is updated for any removed file: `git diff --diff-filter=D --name-only origin/main HEAD` prints nothing, no file is removed, so the index is unchanged.
+6. The bootstrap/c rule applies if `src/` changes (help text moved into code): CI pointer. Workflow `check.yml`, job `build` of the run of this head (https://github.com/bats-lang/bats/actions/runs/42820514223/job/129844715526), step "Verify bootstrap/c matches sources" (success: the committed `bootstrap/c` is the regenerated tree) and step "Upload the regenerated bootstrap/c" (skipped); greppable string "Verify bootstrap/c matches sources".
+7. Not in scope: the Area-notes comment convention (a comment names its area by keyword) stays; it points at notes that remain. Exact read: `CLAUDE.md` keeps its "Area notes" paragraph, which states the convention, because the change cuts no line of it.
+
+## Execution
+
+Report, one line per file (kept as a decision = the decisions, research and proved-versus-tested statements stay; removed = passages that restate code were cut; pointer = none added, since a note may add no line):
+
+- CLAUDE.md: removed the list of modules and of dependencies and the list of unsafe constructs the lexer rejects; the rest kept.
+- cli.md: removed the flag values; kept the divergences.
+- lock.md, test-command.md, write-errors.md, recursion.md, patsopt-caps.md, project-lock.md, lexer.md, validated.md, facts-and-inputs.md, overrides.md, fixtures.md, fixtures-memo.md, affected.md, check-memo.md, shared-cache.md, machine-slots.md, ats2-install.md, runtime-header.md, fixture-times.md, capture.md, stamp.md, setup-action.md, with-env.md, check-pins.md, build-jobs.md, build-freshness.md, keep-on-fail.md, pins-check.md, merge-proof.md, check-push.md: removed passages that restate code (formats, flows, lists of tests, callers, measurements); kept the decisions, research and what is proved apart from what is tested.
+- bats.md: removed the build commands (stale: `--release` is not a flag), the project layout and the examples; kept the syntax notes.
+- emitter.md, wasm-prelude.md: examined, kept whole (each paragraph is a divergence from the Rust bats with its reason).
+
+Rules found only in notes moved into `bats --help` (`src/bin/bats.bats`, `print_usage`): BATS_REPOSITORY, BATS_COMMIT, BATS_COLD, BATS_SLOTS, BATS_LOCK_DIR, BATS_CACHE_DIR, BATS_CACHE_MAX_MB, BATS_PATSOPT_TIMEOUT_S, BATS_PATSOPT_MEM_MB (with exits 124 and 125), BATS_MEMO_DIR and BATS_ORPHAN_ERROR. The first paragraphs of build-freshness.md and check-memo.md, the intro and enumerations of setup-action.md, the limit details of with-env.md and the mechanics of stamp.md and ats2-install.md are cut; what stays there is the shell-avenue reasoning (setup-action.md), the limits with their research and the proved-versus-tested statements. `src/` changed, so `bootstrap/c` was regenerated from CI's artifact and is committed in this head (commit fd52771, `Regenerate bootstrap/c from the CI artifact`); row 6 points to CI's check of it.
+
+Deviations: none
+
+## Evidence
+
+```pitboss-expand sha256=8b0370cca1bf4f37 head=fd5277113914a661e3cdcc198893a16c8902f3c9
+$ git ls-files CLAUDE.md .claude/rules
+.claude/rules/affected.md
+.claude/rules/ats2-install.md
+.claude/rules/bats.md
+.claude/rules/build-freshness.md
+.claude/rules/build-jobs.md
+.claude/rules/capture.md
+.claude/rules/check-memo.md
+.claude/rules/check-pins.md
+.claude/rules/check-push.md
+.claude/rules/cli.md
+.claude/rules/emitter.md
+.claude/rules/facts-and-inputs.md
+.claude/rules/fixture-times.md
+.claude/rules/fixtures-memo.md
+.claude/rules/fixtures.md
+.claude/rules/keep-on-fail.md
+.claude/rules/lexer.md
+.claude/rules/lock.md
+.claude/rules/machine-slots.md
+.claude/rules/merge-proof.md
+.claude/rules/overrides.md
+.claude/rules/patsopt-caps.md
+.claude/rules/pins-check.md
+.claude/rules/project-lock.md
+.claude/rules/recursion.md
+.claude/rules/runtime-header.md
+.claude/rules/setup-action.md
+.claude/rules/shared-cache.md
+.claude/rules/stamp.md
+.claude/rules/test-command.md
+.claude/rules/validated.md
+.claude/rules/wasm-prelude.md
+.claude/rules/with-env.md
+.claude/rules/write-errors.md
+CLAUDE.md
+```
+
+```pitboss-expand sha256=a55527a0194e3158 head=fd5277113914a661e3cdcc198893a16c8902f3c9
+$ python3 -I -c "import subprocess as s;L=s.run(['git','diff','-U0','origin/main','HEAD','--','CLAUDE.md','.claude/rules'],capture_output=True,text=True).stdout.splitlines();H=[sum(m[:2]=='@@' for m in L[:k+1]) for k in range(len(L))];q=lambda a,b:(lambda i:all(x in i for x in a))(iter(b));bad=[l for k,l in enumerate(L) if l[:1]=='+' and l[:6]!='+++ b/' and not any(q(l[1:],m[1:]) for j,m in enumerate(L) if H[j]==H[k] and m[:1]=='-' and m[:6]!='--- a/')];print('added lines not a subsequence of a removed line of their hunk:',len(bad));print(*bad,sep=chr(10))"
+added lines not a subsequence of a removed line of their hunk: 0
+
+```
+
+```pitboss-expand sha256=5bb7ad3b1abd6c6d head=fd5277113914a661e3cdcc198893a16c8902f3c9
+$ git diff -U0 origin/main HEAD -- src/bin/bats.bats
+diff --git a/src/bin/bats.bats b/src/bin/bats.bats
+index 5bad65f..14aca2d 100644
+--- a/src/bin/bats.bats
++++ b/src/bin/bats.bats
+@@ -146,0 +147,13 @@ fn print_usage(): void = let
++  val () = println! ("")
++  val () = println! ("environment:")
++  val () = println! ("  BATS_REPOSITORY              The package repository when --repository is not given; the flag wins")
++  val () = println! ("  BATS_COMMIT                  The commit the _bats_facts and _bats_built modules name (default HEAD)")
++  val () = println! ("  BATS_COLD                    Anything but 0: check and build ignore every memo key and write them again (as --cold)")
++  val () = println! ("  BATS_SLOTS                   1 to 64: check, build, test and run's build hold one of that many machine slots (flock on BATS_LOCK_DIR/slot-<i>.lock)")
++  val () = println! ("  BATS_LOCK_DIR                The directory of the machine slots (default ~/.cache/bats)")
++  val () = println! ("  BATS_CACHE_DIR               The shared cache of patsopt's C, kept under a key of what patsopt reads")
++  val () = println! ("  BATS_CACHE_MAX_MB            The size limit of the shared cache in whole megabytes (default 2048); the least recently used entries go first")
++  val () = println! ("  BATS_PATSOPT_TIMEOUT_S       Wall clock seconds a patsopt run may take; a run the cap ends exits 124")
++  val () = println! ("  BATS_PATSOPT_MEM_MB          Address space in megabytes a patsopt run may take; a run the cap ends exits 125")
++  val () = println! ("  BATS_MEMO_DIR                The fixtures' memo when --memo is not given (default $XDG_CACHE_HOME/bats/fixtures, else ~/.cache/bats/fixtures)")
++  val () = println! ("  BATS_ORPHAN_ERROR            1 (anything but 0): an implement of another package's template for a type it does not own is an error, else a warning")
+```
+
+```pitboss-expand sha256=4631ecfe6b319fff head=fd5277113914a661e3cdcc198893a16c8902f3c9
+$ git diff --name-status origin/main HEAD -- CLAUDE.md .claude/rules
+M	.claude/rules/affected.md
+M	.claude/rules/ats2-install.md
+M	.claude/rules/bats.md
+M	.claude/rules/build-freshness.md
+M	.claude/rules/build-jobs.md
+M	.claude/rules/capture.md
+M	.claude/rules/check-memo.md
+M	.claude/rules/check-pins.md
+M	.claude/rules/check-push.md
+M	.claude/rules/cli.md
+M	.claude/rules/facts-and-inputs.md
+M	.claude/rules/fixture-times.md
+M	.claude/rules/fixtures-memo.md
+M	.claude/rules/fixtures.md
+M	.claude/rules/keep-on-fail.md
+M	.claude/rules/lexer.md
+M	.claude/rules/lock.md
+M	.claude/rules/machine-slots.md
+M	.claude/rules/merge-proof.md
+M	.claude/rules/overrides.md
+M	.claude/rules/patsopt-caps.md
+M	.claude/rules/pins-check.md
+M	.claude/rules/project-lock.md
+M	.claude/rules/recursion.md
+M	.claude/rules/runtime-header.md
+M	.claude/rules/setup-action.md
+M	.claude/rules/shared-cache.md
+M	.claude/rules/stamp.md
+M	.claude/rules/test-command.md
+M	.claude/rules/validated.md
+M	.claude/rules/with-env.md
+M	.claude/rules/write-errors.md
+M	CLAUDE.md
+```
+
+```pitboss-expand sha256=0d7f045fa5201d09 head=fd5277113914a661e3cdcc198893a16c8902f3c9
+$ git diff --diff-filter=D --name-only origin/main HEAD
+```
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

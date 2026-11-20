@@ -1,7 +1,8 @@
 """A PR whose newest ``Plan check`` refuses the Plan waits for what it names (#388).
 
 The cause: pitboss#372 was refused by plan-check until pitboss#373 landed, and the
-sweep still offered its review round.
+sweep still offered its review round. A waiting PR has no decision and nothing is
+said of it; the open blocker it names is offered in its place (keyword: one-path).
 """
 
 import unittest
@@ -11,13 +12,13 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import planrefusal
 from . import fakes, rankworld, world
-from .rankworld import lines_are, next_output, printed, starts, sweep
+from .pinsworld import offered as third_of
+from .rankworld import starts, sweep
 
 COMMENTS = "repos/owner/project/issues/3/comments"
 SEVEN = "owner/project#7"
-BLOCKED = f"BLOCKED owner/project#3 by {SEVEN}"
-STEP = "PR STATE owner/project#3"
-TASK = "TASK LIST next 3. owner/project#3"
+THIRD = "owner/project#3"
+REFUSED = "WORKER: owner/project#3: the Plan check is refused"
 DIGEST = "Plan digest: afbee19f3c5134c8"
 
 
@@ -90,16 +91,14 @@ class TestRefusal(unittest.TestCase):
 
 
 class TestSlotsNext(unittest.TestCase):
-    """The offer of ``slots next``."""
+    """The answer of ``slots next``."""
 
     def test_the_refusal_blocks_the_pull_request(self) -> None:
-        """No step for PR 3; the blocker is listed in its place."""
+        """No decision for PR 3; the blocker is offered in its place."""
         here = refused_world([refusal()])
-        printed(here, "BLOCKED", [BLOCKED])
-        assert_that(
-            starts(here), equal_to(["owner/project#1", SEVEN, "owner/project#10"])
-        )
-        rankworld.absent(next_output(here), STEP)
+        offered = ["owner/project#1", SEVEN, "owner/project#10"]
+        assert_that(starts(here), equal_to(offered))
+        assert_that(third_of(here), equal_to(""))
 
     def test_every_spelling_of_a_name_blocks(self) -> None:
         """``#7``, ``owner/project#7`` and the issue's URL name the same ticket."""
@@ -107,55 +106,52 @@ class TestSlotsNext(unittest.TestCase):
         for names in ("#7", SEVEN, url):
             with self.subTest(names):
                 here = refused_world([refusal(names)])
-                printed(here, "BLOCKED", [BLOCKED])
+                found = (third_of(here), SEVEN in starts(here))
+                assert_that(found, equal_to(("", True)))
 
     def test_a_ticket_that_is_closed_blocks_no_more(self) -> None:
-        """Ticket 7 is closed: the step of PR 3 is back."""
+        """Ticket 7 is closed: PR 3 has its decision again."""
         here = refused_world([refusal()], "closed")
-        printed(here, "BLOCKED", [])
-        assert_that(next_output(here), contains_string(STEP))
+        assert_that(third_of(here), contains_string(REFUSED))
 
     def test_a_newer_ok_unblocks(self) -> None:
-        """The newest ``Plan check`` says ok: the step is back."""
-        here = refused_world([refusal(), OK])
-        printed(here, "BLOCKED", [])
-        assert_that(next_output(here), contains_string(STEP))
+        """The newest ``Plan check`` says ok: PR 3 has a decision again."""
+        assert_that(third_of(refused_world([refusal(), OK])), contains_string(THIRD))
 
     def test_the_pull_request_and_its_ticket_are_not_blockers(self) -> None:
         """A refusal that names PR 3 and ticket 9 blocks nothing."""
         here = refused_world([refusal("#3 and #9")])
-        printed(here, "BLOCKED", [])
-        assert_that(next_output(here), contains_string(STEP))
+        assert_that(third_of(here), contains_string(REFUSED))
 
     def test_an_untrusted_comment_is_not_read(self) -> None:
-        """A refusal from a author who is not a member does not block."""
-        refused = check(refusal()["body"], "NONE")
-        here = refused_world([refused])
-        printed(here, "BLOCKED", [])
+        """A refusal from an author who is not a member does not block."""
+        here = refused_world([check(refusal()["body"], "NONE")])
+        assert_that(SEVEN in starts(here), equal_to(False))
+        assert_that(third_of(here), contains_string(THIRD))
 
     def test_the_blocker_is_joined_to_those_of_the_ticket(self) -> None:
         """The ticket depends on owner/lib#3 and the check names ticket 7."""
         here = refused_world([refusal()])
         rankworld.serve(here, "owner/project", 9, rankworld.ticket(rankworld.DEPENDENT))
         here.bodies[rankworld.BLOCKER] = dict(rankworld.LIB_THREE)
-        both = f"BLOCKED owner/project#3 by owner/lib#3, {SEVEN}"
-        printed(here, "BLOCKED", [both])
+        offered = starts(here)
+        named = [each in offered for each in ("owner/lib#3", SEVEN)]
+        assert_that(named, equal_to([True, True]))
+        assert_that(third_of(here), equal_to(""))
 
 
 class TestSweep(unittest.TestCase):
-    """The sweep prints the same."""
+    """The sweep prints the same answer."""
 
-    def test_the_line_stands_in_place_of_the_step(self) -> None:
-        """BLOCKED once, and no task for PR 3."""
+    def test_the_pull_request_has_no_decision(self) -> None:
+        """No line decides PR 3; the blocker is offered."""
         out = sweep(refused_world([refusal()])).out
-        lines_are(out, "BLOCKED", [BLOCKED])
-        rankworld.absent(out, TASK)
+        assert_that(f": {THIRD}: " in out, equal_to(False))
+        assert_that(out, contains_string(f": {SEVEN}: write the code"))
 
-    def test_a_closed_ticket_or_an_ok_gives_the_step_back(self) -> None:
-        """With no blocker the PR is listed and, refused, is offered no round (#471)."""
+    def test_a_closed_ticket_or_an_ok_gives_the_decision_back(self) -> None:
+        """With no blocker the PR is decided again (the refusal, #471)."""
         for comments, seventh in (([refusal()], "closed"), ([refusal(), OK], "open")):
             with self.subTest(seventh):
                 out = sweep(refused_world(comments, seventh)).out
-                lines_are(out, "BLOCKED", [])
-                assert_that(out, contains_string("owner/project#3 [clean]"))
-                rankworld.absent(out, TASK)
+                assert_that(out, contains_string(REFUSED))

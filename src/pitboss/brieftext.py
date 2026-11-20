@@ -9,11 +9,11 @@ from . import causetext
 from .envrules import LIMIT
 
 WORKTREE = (
-    "Worktree: work in your own `git worktree add` of {repo} {checkout}; never in"
+    "Worktree: work in your own git worktree of {repo}, made {checkout}; never in"
     " the main clone. A task that changes a repository other than the ticket's"
-    " gets a `git worktree add` of that repository, the only place to commit, and"
-    " a shared clone (`main_clone`, the repository-prototype clone) is never"
-    " checked out to another branch."
+    " gets a worktree of that repository, the only place to commit, and a shared"
+    " clone (`main_clone`, the repository-prototype clone) is never checked out to"
+    " another branch."
 )
 DRAFT = (
     "Draft: open the PR as a draft whose body has a Plan section (what you will"
@@ -36,10 +36,9 @@ BODY = (
     " row in the body."
 )
 EDIT = (
-    "Edit: change files with the Edit tool only (no sed, no shell redirection, no"
-    " ad hoc rm); clean up with `uvx pitboss clean-container {config}` only;"
-    " change an existing comment or PR body only after reading its current text in"
-    " full, and send the complete replacement, never a placeholder."
+    "Edit: clean up with `uvx pitboss clean-container {config}` only; change an"
+    " existing comment or PR body only after reading its current text in full, and"
+    " send the complete replacement, never a placeholder."
 )
 DENIED = (
     "Denied: when the classifier denies a command, look in the repository's"
@@ -48,15 +47,16 @@ DENIED = (
     " fits."
 )
 LOCAL = (
-    f"Local checks: wrap each in `timeout {LIMIT}`; a 124 is left to CI, never rerun"
-    " with a longer limit. Never leave a command running, and never remove files"
-    " under /dev (redirecting to /dev/null is fine)."
+    f"Local checks: wrap each in `timeout {LIMIT}`; a check that runs out of time"
+    " (`timeout` exits 124) is left to CI, never rerun with a longer limit. Never"
+    " leave a command running, and never remove files under /dev (redirecting to"
+    " /dev/null is fine)."
 )
 HOLD_BUG = (
     "A hold that comes from a known pitboss bug with a ticket is not waited out:"
     " push the branch with plain `git push origin <branch>` and cite the ticket in"
     " the hand-back (with no ticket yet, file one first); every other hold is"
-    " kept (pitboss#218)."
+    " kept."
 )
 PUSH_HELD = (
     "Push: push with `uvx pitboss push {config} --no-dry-run` (add `--draft` for a"
@@ -85,7 +85,7 @@ NO_APPEND = (
 SEARCH = (
     "Search: update the docstring next to each piece of code the change alters,"
     " and cut other text that no longer matches it; a change never adds a line"
-    " to a doc, so a doc is cut, not reworded (pitboss#396)."
+    " to a doc, so a doc is cut, not reworded."
 )
 NO_WAITING = "No waiting: never wait for CI. Push, then hand back at once."
 FINISH = "Finish inside the turn. Do not merge. Do not write the review."
@@ -96,10 +96,16 @@ HAND_BACK = (
     " sessions and their status), and the `Deviations:` line (only a departure"
     " from the Plan's commands or the ticket's Done-when, or `none`); nothing"
     " else. Before you hand back, save it to a file and run `uvx pitboss"
-    " hand-back-check FILE` (keyword: hand-back-done); hand back only on its `ok`."
+    " hand-back-check FILE`; hand back only on its `ok`."
 )
-NEW_PR_CHECKOUT = "from origin/{base} after `git fetch origin {base}`"
-PR_CHECKOUT = "on the PR's branch, current with origin/{base}"
+NEW_PR_CHECKOUT = (
+    "with `git fetch origin {base}` then `git worktree add -b <branch> <dir>"
+    " origin/{base}`"
+)
+PR_CHECKOUT = (
+    "with `git fetch origin {branch}` then `git worktree add <dir> {branch}`; if"
+    " origin/{base} has moved, merge it into the branch (never rebase or force-push)"
+)
 
 TASK_NEW_PR = (
     "Task: do the whole of ticket {reference} in one PR: write the code, then open"
@@ -117,7 +123,7 @@ TASK_REVISE_PLAN = (
     " `Head:` line as it is, and hand back the body digest (`pitboss"
     " body-digest`): the head has not moved, so the sweep offers the review of"
     " the Plan again (`older-body`) and the next round is the next round of the"
-    " Plan stage (keyword: plan-revision, pitboss#221)."
+    " Plan stage."
 )
 TASK_FIX_REVIEW = (
     "Task: PR {reference}: fix the findings of {review}, each one, and nothing"
@@ -127,7 +133,7 @@ TASK_FIX_REVIEW = (
 TASK_FIX_CI = (
     "Task: PR {reference}: CI on the head {head} is red. Fix CI (a red CI is never"
     " a rejection); change only what makes it red. Read the log of each failed"
-    " check first: " + causetext.RULE + ".{logs}"
+    " check first: " + causetext.RULE + "."
 )
 
 TASK_RULING_STEPS = (
@@ -140,19 +146,10 @@ TASK_RULING_AS_GIVEN = (
     " or abandon. Do exactly what that ruling says to the ticket and the PR; it is"
     " not checked against the one-ticket-one-PR rules."
 )
-REVIEW = (
-    "Review: {reference} at head {head}. Read the head from the PR when you start"
-    " and again before you post; if it moved, review the new head."
-)
+REVIEW = "Review: {reference}."
 SEPARATE = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
     " say so and stop. You run nothing: you read the diff and the CI of the head."
-)
-CI = (
-    "CI: first read the checks of the head SHA above; if one has not finished or"
-    " has not passed, hand back `NOT STARTED: <check> is <state> at <sha>` and"
-    " review nothing. Read the complete run of this head. A draft, or a head with"
-    " an unfinished check, is `NOT STARTED`, not a verdict (pitboss#202)."
 )
 SEPARATE_DRAFT = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
@@ -168,30 +165,6 @@ SEPARATE_DRAFT_DRY = (
     " say so and stop. You run nothing but the dry runs of the Plan's commands:"
     " you read the diff and the PR body."
 )
-CI_DRAFT = (
-    "Draft: this PR is a draft, and a draft runs no CI job (its check is reported"
-    " skipped, never missing; keyword: draft-ci, pitboss#321), so there is no CI"
-    " to read and none to wait for. You read the diff and the PR body only (and"
-    " dry-run the Plan's commands); never hand back"
-    " `NOT STARTED` for a missing check run of a draft."
-)
-FORM = (
-    "Form: read `references/adversarial-review.md` of the sweep skill, then post"
-    " one comment on the PR in the form of the repository, from `uvx pitboss"
-    " review-form {config} {repo}`:"
-)
-GATED = (
-    "Gated: this repository's review-gate.yml reads the comment, and the merge"
-    " waits for it: {note}. A comment that breaks any of it leaves the status"
-    " `adversarial-review` pending."
-)
-PLAN_DIGEST = (
-    "Plan digest: you grade the Plan, so add {plan_digest_line} to the comment,"
-    " beside the `Plan:` line, as given (it is what `uvx pitboss plan-digest`"
-    " prints for the body this brief read). The sweep prints `PLAN EDITED` when"
-    " the Plan section of the body later differs from it, and offers the PR for"
-    " no round until an Opus ruling allows the edit."
-)
 NO_PLAN_EDIT = (
     "Approved Plan: do not edit the Plan section of an approved PR; hand back a"
     " Plan problem as NOT PROCEEDING with the evidence."
@@ -202,15 +175,6 @@ NO_PLAN_FINDING = (
     " Execution: do not post it as one and never ground changes needed on it;"
     " write it as a note for an Opus ruling, and judge the Execution against the"
     " Plan as written."
-)
-BODY_DIGEST = (
-    "Body: the PR body is part of what you read. This brief read it as it stood"
-    " when the sweep printed it (keyword: review-brief, pitboss#338): add the"
-    " line `Body: {body_digest}` to the comment, beside the `Verdict:` line, as"
-    " given. The sweep shows `review=older-body` for a body edited after the"
-    " review of an unmoved head, and a review that records the new digest"
-    " answers it. This brief is complete: the orchestrator dispatches it"
-    " unchanged, and you copy its form, head and digest lines as given."
 )
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"
@@ -274,12 +238,12 @@ EXCLUSIVE = (
 )
 
 SCOPE_FULL = (
-    "Scope: the full review of head {head}: the Plan and the Execution, against"
+    "Scope: the full review: the Plan and the Execution, against"
     " the goal and the ticket's Done-when. Grade both in one review, with a"
     " `Plan:` line and an `Execution:` line beside the one `Verdict:` line."
 )
 SCOPE_EXECUTION = (
-    "Scope: the Execution of head {head}, against the approved Plan and the"
+    "Scope: the Execution, against the approved Plan and the"
     " ticket's Done-when. The Plan is approved: grade only the Execution, and"
     " write `Plan: approved (fixed)` and an `Execution:` line with your verdict, the"
     " same word as the `Verdict:` line (a review with no `Execution:` line is not"
@@ -287,14 +251,14 @@ SCOPE_EXECUTION = (
     " you see in the Plan is a request for an Opus ruling, never a Plan finding."
 )
 SCOPE_PLAN = (
-    "Scope (exclusive): the Plan of head {head}, alone, against the goal and the"
+    "Scope (exclusive): the Plan, alone, against the goal and the"
     " ticket's Done-when. Write a `Plan:` line and the one `Verdict:` line (the"
     " Plan's verdict), no `Execution:` line and no defect of the Execution. Of the"
     " PR's facts only the last `Head:` line of the body is checked: it is the full"
     " SHA of the head."
 )
 SCOPE_RESOLUTION = (
-    "Scope (exclusive): this head {head} differs from the approved head {approved}"
+    "Scope (exclusive): the head differs from the approved head {approved}"
     " only by a merge of {base}. Check the merge commit's resolution against both"
     " parents, any file regenerated from the merge (a rebuilt zip), and the CI on"
     " the head, and nothing else: not the PR body (its Head line, footer or commit"
@@ -304,7 +268,7 @@ SCOPE_RESOLUTION = (
 SCOPE_FIX_ROUND = (
     "Scope (exclusive): the fix round. The findings to check are those of"
     " {review}, of head {approved}. The diff to read is `git diff"
-    " {approved}..{head}`. Check that each finding is fixed at head {head} as the"
+    " {approved}..{head}`. Check that each finding is fixed as the"
     " finding asks, whether the fixes invalidate the approved Plan, and the CI on"
     " the head, and nothing else. You may raise nothing outside that diff or those"
     " findings: a finding outside this scope is not a ground for changes needed;"
@@ -314,13 +278,14 @@ SCOPE_FIX_ROUND = (
 )
 # keyword: all-findings (pitboss#169): a first round lists every finding, a later
 # round checks those; a fix round is scoped to its diff and its findings
-ALL_FINDINGS = (
-    "Round: in the first round of a stage,"
-    " read the whole PR body, the whole diff and every command of the Plan"
+FIRST_ROUND = (
+    "Round: read the whole PR body, the whole diff and every command of the Plan"
     " against the repository, and list every finding of the stage you grade in"
-    " that one review, not the first few. A later round on the same stage (an"
-    " earlier review of this PR graded it) checks only the earlier findings and"
-    " the findings caused by the changes made since the head that review read."
+    " that one review, not the first few."
+)
+LATER_ROUND = (
+    "Round: check only the findings of the earlier review and the findings caused"
+    " by the changes made since the head it read."
 )
 MISSED_EARLIER = (
     "Missed earlier: a review that is not the first round and raises a finding"
@@ -338,7 +303,7 @@ PLAN_DRY_RUN = (
 )
 
 SCOPE_RELOCK = (
-    "Scope (exclusive): the relock {reference} at head {head}, which fixes no"
+    "Scope (exclusive): the relock {reference}, which fixes no"
     " ticket and has no Plan or Execution of its own. The goal above is its"
     " goal: moves of pins are safe when the lock matches and CI is green. It"
     " changes nothing but pins (the compiler, the package repository, the"
@@ -375,18 +340,15 @@ RULING_RECORD = (
     " this brief's `How we got here` line, checked against the PR); then"
     " the steps or the reasons. A step that edits the ticket or the PR body is one"
     " line `N. ticket delete: TEXT`, `N. body delete: TEXT` or `N. ticket replace:"
-    " OLD => NEW` (or `body replace:`), and before you post, run `uvx pitboss lint"
-    " ruling RULING TICKET BODY --head SHA` on the ruling, the ticket's body and the"
-    " PR's body (`ruling post` runs it too and refuses a ruling whose steps fail"
-    " plan-check or lint pr-body, naming the gate and the step). The ruling is"
+    " OLD => NEW` (or `body replace:`); `ruling post` refuses a ruling whose steps fail"
+    " plan-check or lint pr-body, naming the gate and the step. The ruling is"
     " taken as given."
 )
 RULING_HOW = (
-    "How we got here: <the orchestrator writes this before the brief is sent: for"
-    " each rejection before this ruling, the finding, the rule or brief line that"
-    " should have prevented it, and the prevention filed (a pitboss ticket"
-    " number)>. Refuse to rule without it: if this line is still the template,"
-    " is empty, or names no prevention filed for a rejection, hand back NOT STARTED"
-    " with what is missing, post no comment, and write no ruling."
+    "How we got here: the rejections before this ruling are {review} and the"
+    " reviews and comments of the PR before it. In your `How we got here` section,"
+    " give for each the finding, the rule or brief line that should have"
+    " prevented it, and the prevention it needs (a pitboss ticket number, or the"
+    " words `none filed`)."
 )
 RULING_END = "Hand back the comment's URL and nothing else."

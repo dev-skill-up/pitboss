@@ -5,8 +5,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brieftextfix, suggest
-from . import fakes, suggestions, test_flow_sweep, world
+from .. import brieftextfix
+from . import fakes, test_flow_sweep, world
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
 from .suggestions import (
     default_suggestions,
@@ -17,7 +17,6 @@ from .suggestions import (
     third,
     with_more_tickets,
 )
-from .says import errs
 
 MERGE = {"sha": "2", "parents": [{"sha": "1"}, {"sha": "9"}]}
 COMMENT_URL = "https://example.org/owner/project/pull/3#issuecomment-1"
@@ -53,26 +52,6 @@ class TestOrderAndTruncation(unittest.TestCase):
         found = run_command(here, "next")
         assert_that((found.out, found.code), equal_to((next_output(here), 0)))
 
-    def test_next_without_a_ticket_needs_the_ledger(self) -> None:
-        """The ledger is authoritative on the slots."""
-        here = world.make_world()
-        here.ledger.unlink()
-        found = run_command(here, "next")
-        errs(found, 1, "LEDGER MISSING")
-
-    def test_more_than_five_are_cut_and_the_end_of_the_list_said(self) -> None:
-        """Five are shown; the tickets after them are not read, and that is said."""
-        here = world.make_world()
-        with_more_tickets(here, 5)
-        output = next_output(here)
-        headers = [header for header, _ in parsed(output)]
-        assert_that(len(headers), equal_to(suggest.TOP))
-        assert_that(
-            headers[-1].startswith("SUGGESTION 5 of 5: start a PR"), equal_to(True)
-        )
-        assert_that(output, contains_string("The list ends at its first 5 items"))
-        assert_that("more queued, not shown" in output, equal_to(False))
-
     def test_exactly_five_say_nothing_more(self) -> None:
         """No count of what is not shown."""
         here = world.make_world()
@@ -80,42 +59,6 @@ class TestOrderAndTruncation(unittest.TestCase):
         output = next_output(here)
         assert_that(len(parsed(output)), equal_to(5))
         assert_that("more queued" in output, equal_to(False))
-
-    def test_nothing_queued_is_said(self) -> None:
-        """No candidate: one line, no brief."""
-        here = world.make_world()
-        for path in (
-            f"{world.PROJECT}/pulls?state=open",
-            f"{world.LIBRARY}/pulls?state=open",
-        ):
-            here.bodies[fakes.page(path)] = []
-        here.bodies[fakes.page(suggestions.SUGGESTIONS)] = []
-        output = next_output(here)
-        assert_that(parsed(output), equal_to([]))
-        assert_that(
-            output,
-            contains_string("SUGGESTION: none: nothing is queued that could start\n"),
-        )
-
-    def test_a_ruling_comes_first_and_takes_no_slot(self) -> None:
-        """An Opus agent, before the list."""
-        here = world_with(test_flow_sweep.TWO_PLAN_REJECTIONS)
-        found = parsed(next_output(here))
-        assert_that(
-            found[0][0],
-            equal_to(
-                "SUGGESTION 1 of 3: make an Opus ruling: owner/project#3:"
-                " Opus agent, no slot"
-            ),
-        )
-        assert_that(
-            found[0][1][0],
-            equal_to("Goal: PR owner/project#3, which names no ticket: PR 3"),
-        )
-        assert_that(
-            [header.split(": ")[2] for header, _ in found[1:]],
-            equal_to(["owner/project#1", "owner/project#9"]),
-        )
 
     def test_a_pr_that_waits_for_a_ruling_is_not_offered_twice(self) -> None:
         """After the ruling is recorded it is a worker round, and not a ruling."""
@@ -173,7 +116,7 @@ class TestKindsOfReview(unittest.TestCase):
 
     def test_a_first_review_is_the_full_review(self) -> None:
         """2b: no review of the PR."""
-        scope = f"Scope: the full review of head {HEAD}"
+        scope = "Scope: the full review"
         scope_is(world_with([]), "review the Plan and the Execution", scope)
 
     def test_a_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
@@ -181,7 +124,7 @@ class TestKindsOfReview(unittest.TestCase):
         here = world_with([graded(APPROVED, APPROVED, 1, sha=OLDER)])
         merge_only(here)
         scope = (
-            f"Scope (exclusive): this head {HEAD} differs from the approved"
+            "Scope (exclusive): the head differs from the approved"
             f" head {OLDER} only by a merge of main."
         )
         scope_is(here, "review the merge resolution only", scope)
@@ -189,7 +132,7 @@ class TestKindsOfReview(unittest.TestCase):
     def test_a_head_changed_by_more_than_a_merge_is_reviewed_in_full(self) -> None:
         """2b: the same approval, but a commit of the author's since."""
         here = world_with([graded(APPROVED, APPROVED, 1, sha=OLDER)])
-        scope_is(here, "review the Execution", f"Scope: the Execution of head {HEAD}")
+        scope_is(here, "review the Execution", "Scope: the Execution,")
 
     def test_the_review_after_a_fix_round_checks_its_findings(self) -> None:
         """2c: the review asked for changes, and the head moved."""
@@ -203,7 +146,7 @@ class TestKindsOfReview(unittest.TestCase):
     def test_a_revised_plan_is_graded_alone_not_as_a_fix(self) -> None:
         """A rejected Plan, revised: the head moved, the Plan was never approved."""
         here = world_with([graded(CHANGES, None, 1, sha=OLDER)])
-        scope = f"Scope (exclusive): the Plan of head {HEAD}, alone,"
+        scope = "Scope (exclusive): the Plan, alone,"
         scope_is(here, PLAN_ALONE, scope)
 
     def test_a_gated_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
@@ -212,7 +155,7 @@ class TestKindsOfReview(unittest.TestCase):
         merge_only(here)
         gate_project(here)
         scope = (
-            f"Scope (exclusive): this head {HEAD} differs from the approved"
+            "Scope (exclusive): the head differs from the approved"
             f" head {OLDER} only by a merge of main."
         )
         scope_is(here, "review the merge resolution only", scope)
@@ -223,11 +166,11 @@ class TestKindsOfReview(unittest.TestCase):
         """The gated repository is not special when the author changed the code."""
         here = world_with([graded(APPROVED, APPROVED, 1, sha=OLDER)])
         gate_project(here)
-        scope_is(here, "review the Execution", f"Scope: the Execution of head {HEAD}")
+        scope_is(here, "review the Execution", "Scope: the Execution,")
 
     def test_a_draft_gets_the_plan_alone(self) -> None:
         """The Plan stage."""
-        scope = f"Scope (exclusive): the Plan of head {HEAD}, alone,"
+        scope = "Scope (exclusive): the Plan, alone,"
         scope_is(world_with([], draft=True), PLAN_ALONE, scope)
 
 

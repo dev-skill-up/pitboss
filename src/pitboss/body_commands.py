@@ -29,7 +29,6 @@ from . import (
     repositoryrule,
     plandigest,
     workeractions,
-    workeredits,
 )
 
 USAGE_ERROR = 2
@@ -101,15 +100,6 @@ def body_digest(args: argparse.Namespace) -> None:
         ),
     ),
     add_argument(
-        "--output",
-        default=None,
-        help=(
-            "the worker's whole output file (JSON lines): its file edit tools are"
-            " listed, and an edit of a file outside the worktree or a shell command"
-            " that edits files is refused (B16, keyword: worker-edits)"
-        ),
-    ),
-    add_argument(
         "--processes",
         default="/proc",
         help=(
@@ -149,7 +139,6 @@ def hand_back_check(args: argparse.Namespace) -> None:
 
 def _refusals(args: argparse.Namespace, text: str) -> Sequence[str]:
     # the clone's, the jobs', the partial hand-back's (B17, keyword: partial-hand-back)
-    # and the edits' (B16, keyword: worker-edits); the EDIT TOOLS line only informs
     found = [
         *cloneguard.refusals(args, configfile.working_directory(args)),
         *handbackrun.refusals(args, commands.load_settings(args)),
@@ -157,17 +146,7 @@ def _refusals(args: argparse.Namespace, text: str) -> Sequence[str]:
         repositoryrule.refusal(text),
         envrules.give_up_refusal(text),  # keyword: env-check (quire#1065)
     ]
-    edits = _edits(args)
-    for each in edits[:1]:
-        print(each)
-    return [*found, *edits[1:]]
-
-
-def _edits(args: argparse.Namespace) -> Sequence[str]:
-    if args.output is None:
-        return []
-    root = pathlib.Path(handbackrun.git_out(args, "rev-parse", "--show-toplevel"))
-    return workeredits.lines(_read(args.output).splitlines(), root)
+    return found
 
 
 def _scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:

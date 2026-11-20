@@ -1,0 +1,110 @@
+Fixes dev-skill-up/pitboss#443
+
+## Plan
+
+Rows (each Done-when bullet word for word from the ticket body, with its evidence command; commands first, the pointers to CI last). The "before" runs use pitboss at its main, commit f10374f14b913b04c956c47e9405cd1861adb32a; the "after" runs use this checkout.
+
+1. `git rev-parse HEAD`
+2. Each network-using pitboss command (`slots next` in both forms, `sweep`, `plan-check`, `body-digest`, `lint pr-body`, `clean-container`) prints, as its last lines, a per-phase timing breakdown: the seconds and the count of each kind of work (GitHub API calls, `git` calls, `uvx` and process startup, ranking, brief build), so the cause is measured before anything is fixed. A test with a fake clock and a fake `gh` shows the lines and the counts. Run: `uvx --from . pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 >/dev/null | tail -6` (full form; the sweep, `plan-check`, `lint pr-body`, `body-digest` and `clean-container` end with the same lines, shown by rows 8 and 9, and `clean-container` took 328 s here, a cause named in the Execution).
+3. `uvx pitboss slots next OWNER/REPO#N` prints the brief of that item without reading every open item of every repository: a test with a fake `gh` that records its calls shows that no call lists the issues or pull requests of a repository other than the item's. Run: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 >/dev/null | tail -3`; the test is row 10.
+4. The line `NEXT k of n, ...` still says where the item stands in the order; when that needs the whole order, the command prints the brief first and the place after it (or computes the place from the cache of the last full `slots next`, saying so). Run: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` (after the full run of row 2, from its cache, saying so).
+5. `uvx pitboss slots next` (no item) reads only what the top five items need: it does not page through every open item. A test with a fake `gh` whose pages are counted shows that the number of pages read stays the same when the queue holds 10 times as many low-ranked items (the ranking is by priority label and age, which a sorted, labelled query returns first). Run: `uvx --from . pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 >/dev/null | tail -2`; the test is row 11.
+6. For each cause the timing lines of Done-when 1 name on the real quire queue (about 270 items), a Done-when of its own is added to the body of this ticket before a worker starts it, with a target time. The first target: the per-item form and the full form each finish in under 60 seconds. This is the orchestrator's edit of the ticket body, not a change of this PR; the causes the timing lines name are in the Execution. Run: `uvx --from . pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 >/dev/null | tail -3`.
+7. The commands of Done-when 1, 2 and 4 run on the real data (`slots next bats-lang/bats#612`) are timed in the PR Evidence with `time`, before and after. Run: `bash -c 'echo before-item; time uvx --from git+https://github.com/dev-skill-up/pitboss@f10374f14b913b04c956c47e9405cd1861adb32a pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null 2>&1; echo after-item; time uvx --from . pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null 2>&1; echo before-full; time uvx --from git+https://github.com/dev-skill-up/pitboss@f10374f14b913b04c956c47e9405cd1861adb32a pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null 2>&1; echo after-full; time uvx --from . pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null 2>&1'`.
+8. CI (item 1): workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_counts_and_seconds_of_each_kind`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.
+9. CI (item 1): workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_commands_of_the_ticket_are_measured_and_the_others_are_not`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.
+10. CI (item 2): workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_no_call_lists_the_items_of_another_repository`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.
+11. CI (item 4): workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_ten_times_the_low_ranked_items_are_read_in_the_same_pages`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.
+12. CI (item 3): workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_place_is_unknown_before_a_full_slots_next`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.
+
+## Execution
+
+- `slots next OWNER/REPO#N` reads the item, its repository's open PRs and its timeline, and says the place from the cache of the last full `slots next` (`slotcache`), or `NEXT place unknown` before one; an unlabeled ticket falls back to the whole order.
+- `slots next` and the sweep read the tickets in a window (24, growing by 4 while fewer than five items are offered and tickets are unread) from a labelled, sorted query; the causes of promotion are cached and read by `since`.
+- A cache that cannot be written is said on standard error (the file and the error), and a test shows it (`test_a_cache_that_cannot_be_written_is_said_on_standard_error`).
+- The six commands end with `pitboss timing:` lines on standard error (`measured`, `breakdown`, `startup`): seconds and counts of GitHub API calls, git calls, other processes, and each noted section.
+- Real data, quire queue: bats#612 took 167 s before and a few seconds after; the full form about 31 s after (284 API calls).
+- Causes the timing lines name on the real queue, for Done-when 5 (the orchestrator adds them to the ticket body): the reads of the open PRs of every repository (about 177 calls, about 19 s), the per-repository `since` reads of causes (about 33 calls), the per-ticket blocker and comment reads, the repository-access check of the context (about 35 `repository` calls, which still makes the per-item form about 70 API calls and 5 to 7 s), and `clean-container` (328 s: 101 API calls 60.5 s, 5216 git calls 24.8 s, the other 240 s are outside the counted calls).
+- Caveats: a cold cause cache pages the whole corpus once; the `k of n` total is a lower bound in the windowed form; a ticket with no label in the per-item form reads the whole order.
+- Row 4 is impossible on this head, demonstrated (the Evidence line after its block): the ticket of the command is not in the order while this pull request is open, because `taken` in `src/pitboss/work.py` (lines 111 to 130, read at line 276) reads any mention of a ticket in an open pull request's title or body as work in progress, and the approved Plan itself names that ticket in rows 3 and 4; no text outside the frozen Plan can change that. The prevention is https://github.com/dev-skill-up/pitboss/issues/448. The behavior is covered by `test_the_place_is_unknown_before_a_full_slots_next` (`src/pitboss/tests/test_item_fast.py`), which passed on this head in CI: `test_the_place_is_unknown_before_a_full_slots_next ...  [OK]` (log line 1654 of https://github.com/dev-skill-up/pitboss/actions/runs/42928506639/job/130221019007), the job ending `PASSED (successes=1932)`.
+- Superseded: the empty Evidence of row 4 that the review of this head rejected is replaced as the newest `Opus ruling` comment of this pull request (https://github.com/dev-skill-up/pitboss/pull/452#issuecomment-6783101043) rules; the Plan is untouched.
+- Local check: `pitboss nox` on the head: skills, lint, mypy and tests-3.13 all success.
+
+Deviations: `pitboss nox` was run more than once on the work (lint, mypy and test failures fixed between runs); Done-when 5's ticket-body edit is the orchestrator's, so this PR reports the causes only; `sweep`, `plan-check` and `clean-container` are shown by their CI tests, not by a run on the real queue.
+
+Head: f280001a655094fc32e9c32f822fe5a65cd10567
+
+Done-when digest: a7efbdb1518b41aa
+
+## Evidence
+
+```pitboss-expand sha256=12b83feff717e032 head=f280001a655094fc32e9c32f822fe5a65cd10567
+$ git rev-parse HEAD
+f280001a655094fc32e9c32f822fe5a65cd10567
+```
+
+```pitboss-expand sha256=fe6082a5ea1fa019 head=f280001a655094fc32e9c32f822fe5a65cd10567
+$ uvx --from . pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 >/dev/null | tail -6
+2026-11-11 00:05:40,935:INFO:commander_data.run:Running ['grep', 'tracefs', '/proc/mounts']
+tracefs: found mounted
+pitboss timing: slots next: 26.3s in the command, startup before it 0.4s
+pitboss timing: ranking: 24.0s, 28 items; GitHub API 290 calls 156.8s, git 0 calls 0.0s, other processes 1 calls 0.0s
+pitboss timing: lists and briefs printed: 2.3s, 5 briefs at most; GitHub API 3 calls 2.3s, git 0 calls 0.0s, other processes 0 calls 0.0s
+pitboss timing: all: GitHub API 293 calls 159.1s, git 0 calls 0.0s, other processes 1 calls 0.0s
+```
+
+```pitboss-expand sha256=8589596faba02ad2 head=f280001a655094fc32e9c32f822fe5a65cd10567
+$ uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 >/dev/null | tail -3
+pitboss timing: slots next: 5.6s in the command, startup before it 0.4s
+pitboss timing: item read and brief built: 5.6s; GitHub API 71 calls 36.0s, git 0 calls 0.0s, other processes 1 calls 0.0s
+pitboss timing: all: GitHub API 71 calls 36.0s, git 0 calls 0.0s, other processes 1 calls 0.0s
+```
+
+```pitboss-expand sha256=f4d593ef71d4acd0 head=f280001a655094fc32e9c32f822fe5a65cd10567
+$ uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1
+```
+
+Impossible: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` on head f280001a655094fc32e9c32f822fe5a65cd10567 -> standard output empty (exit status 1); standard error `UNKNOWN: dev-skill-up/pitboss#311 is not in the order of slots next: an open PR already works on it (a held or blocked ticket and a PR at a wait are not)`.
+
+```pitboss-expand sha256=60e2b236a7e209ce head=f280001a655094fc32e9c32f822fe5a65cd10567
+$ uvx --from . pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 >/dev/null | tail -2
+pitboss timing: lists and briefs printed: 2.5s, 5 briefs at most; GitHub API 3 calls 2.5s, git 0 calls 0.0s, other processes 0 calls 0.0s
+pitboss timing: all: GitHub API 293 calls 158.0s, git 0 calls 0.0s, other processes 1 calls 0.0s
+```
+
+```pitboss-expand sha256=8f0de08c6fa5d88e head=f280001a655094fc32e9c32f822fe5a65cd10567
+$ uvx --from . pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 >/dev/null | tail -3
+pitboss timing: slots next: 4.7s in the command, startup before it 0.4s
+pitboss timing: item read and brief built: 4.7s; GitHub API 69 calls 35.9s, git 0 calls 0.0s, other processes 1 calls 0.0s
+pitboss timing: all: GitHub API 69 calls 35.9s, git 0 calls 0.0s, other processes 1 calls 0.0s
+```
+
+```pitboss-expand sha256=b0a11f630a9e8eb1 head=f280001a655094fc32e9c32f822fe5a65cd10567
+$ bash -c 'echo before-item; time uvx --from git+https://github.com/dev-skill-up/pitboss@f10374f14b913b04c956c47e9405cd1861adb32a pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null 2>&1; echo after-item; time uvx --from . pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null 2>&1; echo before-full; time uvx --from git+https://github.com/dev-skill-up/pitboss@f10374f14b913b04c956c47e9405cd1861adb32a pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null 2>&1; echo after-full; time uvx --from . pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null 2>&1'
+before-item
+
+real	1m32.899s
+user	0m20.515s
+sys	0m7.927s
+after-item
+
+real	0m5.116s
+user	0m3.787s
+sys	0m1.165s
+before-full
+
+real	1m34.713s
+user	0m24.238s
+sys	0m8.873s
+after-full
+
+real	0m27.110s
+user	0m14.454s
+sys	0m5.479s
+```
+
+https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

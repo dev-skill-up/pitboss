@@ -8,7 +8,7 @@ Ask = Callable[[config.Repo, shapes.Pull], pinsreading.Reading]
 
 
 def at_review(
-    ask: Ask, repo: config.Repo, pull: shapes.Pull, step: steps.Next
+    ask: Ask, repo: config.Repo, pull: shapes.Pull, step: steps.Move
 ) -> pinsreading.Reading:
     """Ask about a PR only where a review would be offered for it.
 
@@ -22,12 +22,12 @@ def at_review(
         Nothing unless the step is a review of a PR that is not a draft (a
         draft's review is of its Plan), else what ``ask`` says.
     """
-    if step.step is not steps.Step.REGULAR_REVIEW or pull.draft:
+    if not steps.step_is(step, {steps.Step.REGULAR_REVIEW}) or pull.draft:
         return pinsreading.NOTHING
     return ask(repo, pull)
 
 
-def unreviewed(step: steps.Next, reading: pinsreading.Reading) -> steps.Next:
+def unreviewed(step: steps.Move, reading: pinsreading.Reading) -> steps.Move:
     """The merge, when the pins-check printed OK, in place of the review.
 
     Args:

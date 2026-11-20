@@ -143,17 +143,30 @@ def register() -> Sequence[Standing]:
     ]
 
 
-def lines(slug: str) -> Sequence[str]:
+def lines(slug: str, branch: str = "") -> Sequence[str]:
     """The standing lines a worker brief adds for a repository.
 
     Args:
         slug: ``owner/name``.
+        branch: the head branch of the PR the brief is for, empty for a ticket.
 
     Returns:
-        The text of each rule for its kinds that says it itself, in order.
+        The text of each rule for its kinds that says it itself, in order; the
+        branch rule names the PR's own branch when there is a PR.
     """
     kinds = kinds_of(slug)
-    return [each.text for each in register() if each.text and each.kinds & kinds]
+    return [
+        _branch_named(each, branch)
+        for each in register()
+        if each.text and each.kinds & kinds
+    ]
+
+
+def _branch_named(rule: Standing, branch: str) -> str:
+    # a PR is pushed on its own head branch, read from the PR (keyword: branch-naming)
+    if branch and rule.topic == "branch-naming":
+        return f"Branch: the PR's branch is `{branch}`; push to it and to no other."
+    return rule.text
 
 
 def needles(slug: str) -> Sequence[Standing]:

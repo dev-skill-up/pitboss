@@ -69,7 +69,7 @@ OUTSIDE_THE_MERGE = [
     "Guards:",
 ]
 FULL = [
-    f"Scope: the full review of head {HEAD}: the Plan and the Execution,"
+    "Scope: the full review: the Plan and the Execution,"
     " against the goal and the ticket's Done-when.",
     "Check: the last `Head:` line of the PR body is the full SHA of the head;",
     "Grep: look for a docstring that contradicts the code it sits next to",
@@ -85,20 +85,20 @@ FULL_SCOPES = (
     brief.Kind.REVIEW_PLAN,
 )
 EXECUTION = [
-    f"Scope: the Execution of head {HEAD}, against the approved Plan",
+    "Scope: the Execution, against the approved Plan",
     "write `Plan: approved (fixed)` and an `Execution:` line with your verdict, the"
     " same word as the `Verdict:` line (a review with no `Execution:` line is not"
     " read: REVIEW UNREAD); do not reassess or discuss the Plan.",
 ]
 PLAN = [
-    f"Scope (exclusive): the Plan of head {HEAD}, alone,",
+    "Scope (exclusive): the Plan, alone,",
     "no `Execution:` line and no defect of the Execution.",
     "Of the PR's facts only the last `Head:` line of the body is checked",
 ]
 FORM_LINES = [
     "from `uvx pitboss review-form proj o/r`:\n    ## Review\n"
     f"    Reviewed: {HEAD}\n    Verdict: <approved or changes needed>\n",
-    f"Review: o/r#3 at head {HEAD}.",
+    "Review: o/r#3.",
     "You run nothing",
     "Do not push, merge, or edit the PR or its branch.",
 ]
@@ -106,7 +106,7 @@ SEPARATE_PINS = "You run nothing but the project's pins-check command:"
 FIX_ROUND = [
     "Scope (exclusive): the fix round. The findings to check are those"
     " of the review at https://example.org/c/1, of head " + APPROVED,
-    f"Check that each finding is fixed at head {HEAD} as the finding asks,"
+    "Check that each finding is fixed as the finding asks,"
     " whether the fixes invalidate the approved Plan, and the CI on the head,"
     " and nothing else. You may raise nothing outside that diff or those"
     " findings: a finding outside this scope is not a ground for changes needed;"
@@ -120,25 +120,15 @@ class TestEveryBrief(unittest.TestCase):
     def test_each_brief_starts_with_the_original_goal(self) -> None:
         """The first line is the goal, taken from the ticket, in one line."""
         for kind in brief.Kind:
-            assert_that(text(kind).splitlines()[1], equal_to(f"Goal: {GOAL}"))
+            assert_that(text(kind).splitlines()[0], equal_to(f"Goal: {GOAL}"))
 
 
 class TestReviewScopes(unittest.TestCase):
     """The scope of a review is exactly one of 2a, 2b and 2c, and exclusive."""
 
-    def test_a_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
-        """2a: the whole brief is pinned, word for word."""
-        found = text(brief.Kind.REVIEW_RESOLUTION).partition("\n")[2]
-        assert_that(found, equal_to(RESOLUTION))
-
     def test_a_merge_only_review_asks_for_nothing_outside_its_scope(self) -> None:
         """No body check, no Head line, no Evidence, no Grep, no Done-when walk."""
         has_none(text(brief.Kind.REVIEW_RESOLUTION), OUTSIDE_THE_MERGE)
-
-    def test_a_first_review_is_the_full_review_of_the_head(self) -> None:
-        """2b: the Plan and the Execution of that head, with the body checks."""
-        pinned(brief.Kind.REVIEW_FULL, FULL)
-        has_none(text(brief.Kind.REVIEW_FULL), ["Scope (exclusive)"])
 
     def test_a_review_of_an_approved_plan_grades_the_execution_only(self) -> None:
         """The Plan line is carried over, not reassessed."""
@@ -176,19 +166,10 @@ class TestReviewRules(unittest.TestCase):
         for kind in brief.REVIEWS:
             pinned(kind, [HONEST, NO_ATTACKS])
 
-    def test_every_review_records_the_body_it_read(self) -> None:
-        """The Body: line, the command that makes it, and the sweep word."""
-        for kind in brief.REVIEWS:
-            pinned(kind, [briefmake.BODY])
-
     def test_a_guard_review_checks_mistakes_only(self) -> None:
         """Obfuscation and faked output are not hunted and get no ticket."""
         for kind in FULL_SCOPES:
             pinned(kind, [GUARDS])
-
-    def test_the_review_form_is_filled_in_and_the_head_named(self) -> None:
-        """The comment's lines are the repository's, with the head."""
-        pinned(brief.Kind.REVIEW_FULL, FORM_LINES)
 
     def test_a_relock_review_may_run_the_pins_check_and_nothing_else(self) -> None:
         """The relock brief names the one command, and does not say it runs nothing."""

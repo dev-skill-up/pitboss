@@ -114,7 +114,10 @@ class TestReviews(unittest.TestCase):
         """The review brief says so."""
         each(
             "test_all_findings",
-            ["test_a_review_of_a_stage_lists_every_finding_in_the_first_round"],
+            [
+                "test_a_first_round_says_to_list_every_finding",
+                "test_a_later_round_says_only_the_later_round",
+            ],
         )
 
     def test_a17_a_merge_of_main_is_reviewed_for_the_merge_alone(self) -> None:
@@ -122,7 +125,6 @@ class TestReviews(unittest.TestCase):
         each(
             "test_brief",
             [
-                "test_a_merge_only_head_is_checked_for_the_merge_alone",
                 "test_a_merge_only_review_asks_for_nothing_outside_its_scope",
             ],
         )
@@ -160,10 +162,10 @@ class TestSlots(unittest.TestCase):
         )
 
     def test_b7_one_ticket_has_one_pr(self) -> None:
-        """Two PRs on one ticket are named."""
+        """A ticket an open PR fixes is not offered."""
         each(
-            "test_slots_rules",
-            ["test_b23_two_prs_on_one_ticket_are_named_oldest_first"],
+            "test_one_path_rules",
+            ["test_3_1_3_b7_a_ticket_an_open_pull_request_fixes_is_not_offered"],
         )
 
     def test_b8_a_newer_ticket_is_folded_into_the_older(self) -> None:
@@ -250,7 +252,7 @@ class TestHousekeeping(unittest.TestCase):
 
     def test_c5_a_failed_check_is_read_through_the_api(self) -> None:
         """The failed line comes from the status."""
-        each("test_supersede", ["test_a_failed_line_when_the_status_failed"])
+        each("test_supersede", ["test_a_failed_check_when_the_status_failed"])
 
     def test_c6_a_flake_is_not_closed_until_addressed(self) -> None:
         """Next says a test is not quarantined."""
@@ -258,7 +260,10 @@ class TestHousekeeping(unittest.TestCase):
 
     def test_c7_a_green_relock_ranks_last(self) -> None:
         """A relock review is last and a pins-only relock needs none."""
-        each("test_slots_rules", ["test_b9_a_relock_review_is_last"])
+        each(
+            "test_one_path_rules",
+            ["test_3_1_2_c7_a_relock_pull_request_comes_after_the_tickets"],
+        )
 
     def test_c9_the_sweep_lists_every_org_repository(self) -> None:
         """Archived and excluded ones only are left out."""

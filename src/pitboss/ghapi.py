@@ -1,6 +1,5 @@
 """Reading GitHub through ``gh api``, with the session's own auth and proxy."""
 
-import dataclasses
 import json
 import re
 import subprocess
@@ -8,35 +7,10 @@ import urllib.parse
 from typing import Callable, Iterable, Mapping, Sequence, TypeVar
 
 from . import concurrently
-from .running import Run
+from .running import GitHub as GitHub
 
 PAGE_SIZE = 100
 _Item = TypeVar("_Item")
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class GitHub:
-    """GitHub's REST API, through ``gh api``.
-
-    Attributes:
-        run: the runner reads go through.
-        mutate: the runner changes go through (a dry run unless asked).
-    """
-
-    run: Run
-    mutate: Run
-
-
-def read_only(run: Run) -> GitHub:
-    """The API for a command that only reads (it never changes GitHub).
-
-    Args:
-        run: the runner reads go through.
-
-    Returns:
-        The API, whose changes go through the same runner.
-    """
-    return GitHub(run=run, mutate=run)
 
 
 def workflow_runs_path(slug: str, workflow: str) -> str:
@@ -91,19 +65,6 @@ def get_object(github: GitHub, path: str) -> Mapping[str, object]:
     """
     found = get_json(github, path)
     return found if isinstance(found, dict) else {}
-
-
-def run_json(github: GitHub, words: Sequence[str]) -> object:
-    """Run a ``gh`` read and parse its JSON.
-
-    Args:
-        github: the API.
-        words: the command.
-
-    Returns:
-        The parsed output.
-    """
-    return json.loads(github.run(words).stdout)
 
 
 def branch_pulls(
@@ -207,6 +168,25 @@ def pages(
         if len(page) < PAGE_SIZE:
             break
     return found
+
+
+def _array(text: str) -> Sequence[object]:
+    # a page of a list; an answer that is no list has no items
+    found = json.loads(text)
+    return found if isinstance(found, list) else []
+
+
+def every(github: GitHub, path: str) -> Sequence[object]:
+    """Read a list to its last page, the pages asked for by number (proxy-paging).
+
+    Args:
+        github: the API.
+        path: the list's path, with or without a query, with no ``per_page``.
+
+    Returns:
+        Every item.
+    """
+    return pages(github, path, _array)
 
 
 def pages_at_once(

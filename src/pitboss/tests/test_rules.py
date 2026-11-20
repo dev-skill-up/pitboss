@@ -170,8 +170,8 @@ class TestIds(unittest.TestCase):
     """The register holds the ids of the coverage table."""
 
     def test_r2_the_register_has_every_id_of_the_table(self) -> None:
-        """Compare the table's 87 ids with the register's."""
-        assert_that(table(), has_length(87))
+        """Compare the table's 86 ids with the register's."""
+        assert_that(table(), has_length(86))
         assert_that(found("none", "enforced"), empty())
 
     def test_r2_outside_and_output_kinds_are_the_tables(self) -> None:

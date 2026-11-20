@@ -14,6 +14,7 @@ from .. import (
     plancheck,
     plancheckrun,
     plandigest,
+    plantickets,
     steps,
 )
 from . import captured, fakes, world
@@ -87,6 +88,7 @@ class TestPlanCheckCommand(unittest.TestCase):
             "Plan check",
             "row 1: ran, exit status 0: test -f README",
             "row 2: ran, exit status 3: exit 3",
+            *plantickets.no_ticket_note(),
             f"Plan digest: {digest}",
             "Plan check: ok",
         ]

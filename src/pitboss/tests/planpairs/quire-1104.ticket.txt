@@ -1,0 +1,40 @@
+Priority p1 (inherited from bats-lang/bats#425).
+
+This ticket cannot be worked on until bats-lang/bats#642 is resolved (the checklist entries from the repository's CLAUDE.md rules by heading keyword and the main-merge paragraph). PR 1104 is a draft with its scope frozen (the `[prcheck]` table and the churn command, Done-when 2 done); it never merges partly done. bats-lang/bats#424, #529 and #639 (`bats prcheck --checklist`) are merged; the compiler pin of quire moves by the relock or the adopt script.
+
+Piece of bats-lang/bats#425 (reviewer brief: one generated checklist up front): the piece in quire, one repository, one PR. bats#425 spans five repositories, each with its own reviewer brief; it is broken up at the repository boundary, one ticket per repository, each with its own `Fixes`.
+
+**Why (from bats#425):** in 3 of 8 two-blocking-round PRs (quire#725, #683, #741) a finding appeared in round N that round N-1 had not raised, because a different reviewer agent each time finds more. One checklist up front, built from the rules `bats prcheck` knows plus the repository's CLAUDE.md rules by heading keyword and the main-merge paragraph, makes round 1 complete.
+
+**What this PR does in quire:** the reviewer brief of quire includes the output of `bats prcheck --checklist`; a review states each checklist line as `checked, ok` or as a finding, names its model on the `Reviewer:` line and carries a `Cost:` line (tokens and minutes); the orchestrator runs bats#529's review check before it posts a review.
+
+## Done when
+
+Data (read from GitHub, 2026-11-10): the round-2 review of each PR is the second review comment that carries a verdict: quire#741 comment 6286818144 (head 13719ef8c19e85d45c5728d54ace7695b39cf077), quire#725 comment 6283167507 (head 6b1f11853dba5850496e1aeca4a9379a604d16d5), quire#683 comment 6243571912 (head 48a3aa736859f6a72531aece61103e0f64977b42). Round 1 is the first comment: 6285402719 (head 4c43bc5f2d355d5ad04f98fdc7302d04c646dae5), 6282158037 (head 8d1949a90d49b14c85cf585a954f4cd24ba3e619), 6242531488 (head a67bca03418c7ee21c04c0038b1da17ab3c6a5d2).
+
+"New in round N" is mechanical: a finding of round N whose text and file/line anchor appear in no earlier round's review of that PR.
+
+The 8 round-2 items (blocking findings new in round 2; each quoted from the review, round 1 was searched for its anchor words and does not raise it), and what catches each:
+
+1. quire#741: "Please add an on/off run of the stall-capture spec (`QUIRE_NO_STALL_ARM=1` against armed, same tests) or say why it is not needed." No generated entry: a design finding.
+2. quire#741: "The freeze is not only the page's renderer: `frozenPids = (await rendererPids(browser)).filter((pid) => !live.pids.includes(pid))` freezes every other renderer of the browser." No generated entry: a design finding.
+3. quire#741: "The `CAPTURE_MOST_MS` comment says the Mojo trace is awaited \"at most TRACE_END_MS\", but `endMojoTrace` can wait up to `MOJO_END_MOST_MS`". Out: `bats prcheck --diff d741.diff --body body741.md --checks "2"` at head 13719ef8 prints `bats prcheck: ok` and exits 0, so check 2 does not catch it.
+4. quire#741: "Make each comment one line." Caught by entry 1: the same command with `--checks "1"` prints `check 1: e2e/stall-capture.js:211: a comment goes on over more than one line: it is one line with its keyword` (and three width findings), exit 1.
+5. quire#725: "A. The kernel evidence is taken last, so the case it is for loses it." No generated entry: a design finding.
+6. quire#725: "B. The history is kept for unarmed pages, which defeats the documented purpose of `QUIRE_NO_STALL_ARM=1`". No generated entry: a design finding.
+7. quire#725: "C. Comment density breaks the one-line rule (quire#728, which the task applies here)." Caught by entry 1: at head 6b1f1185 `--checks "1"` prints `check 1: e2e/page-history.js:1: a comment goes on over more than one line: it is one line with its keyword` and more, exit 1.
+8. quire#683: "some files that a rule's text is about are not covered by that rule's globs, so a worker editing them does not get the rule" (library-records.md, reader.md, dictionaries-catalogues.md). Entry 9 (the paths of a rule file) states the rule on the checklist; its run needs a checkout of the head.
+
+Items 1, 2, 5 and 6 have no CLAUDE.md heading to select and no generated entry can name them; none is written by hand. Not counted: quire#741's "span assertion is still there" (round 1 raised the same assertion as a flake risk, so it is not new in round 2).
+
+1. MEASURE: named catches, not a share (Moshe, bats#424, 2026-11-09 16:19Z: a hoped-for percentage "was never part of the criteria"): with the compiler of bats#642's merge, `bats prcheck --checklist` run in a checkout of quire at the first reviewed head of quire#741, #725 and #683 (the round 1 heads above) prints entry 1 and entry 9, the catches of items 4, 7 and 8; the command and its raw output are posted on the PR. (The compiler pin `.github/bats-version` c2983c2 predates `--checklist`, so the pin moves by the relock first, and quire's `bats.toml` gets the `[prcheck]` table.)
+2. COMMAND: the share of two-blocking-round PRs with a finding new in round N (defined above), among the 20 most recent quire PRs that had two blocking rounds, is printed by a named command (a bats program, not shell or Python) over their review comments and recorded on this ticket (baseline 3 of 8).
+
+## Not in this ticket
+
+* `bats prcheck` (bats-lang/bats#424) and its `--checklist` output (bats-lang/bats#639).
+* The review check and its fixtures: bats-lang/bats#529.
+* The reviewer brief in the other repositories: bats-lang/bats#529 for bats, and the pieces in the three of quire, bridge, pwa and capacitor-plugins that are not this one (numbers in the comment on bats-lang/bats#425).
+* The reviewer instruction to run `bats prcheck --checklist` is in the review brief that pitboss prints (Opus ruling 2026-11-10 00:50Z: no new .md file; dev-skill-up/pitboss#438), and the flag is bats-lang/bats#639.
+
+Refs bats-lang/bats#425.

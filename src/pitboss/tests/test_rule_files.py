@@ -10,11 +10,10 @@ import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actcore, actverbs, rulecount, rulefiles, totalroutes
-from . import fakehub, scratch
-from .knownkit import CHECKOUTS, made, shipped_kit
+from .. import actcore, actrules, actverbs, rulecount, rulefiles
+from . import fakegiven, knownshipped, scratch
+from .knownkit import CHECKOUTS, made
 from .fakes import write
-from .totalworld import ticket_item
 from .says import raises_with
 
 PLANTED = {
@@ -175,25 +174,28 @@ class TestRecount(unittest.TestCase):
         assert_that(rulecount.missing(rulefiles.write(ticket), ticket), empty())
 
 
-FIFTH = ticket_item("o/r#5", "2026-11-01", "p1")
-
-
 class TestDispatchBrief(unittest.TestCase):
     """``act dispatch-next`` with a checkout writes the brief."""
 
     def test_444_the_brief_carries_the_rules_and_the_instructions(self) -> None:
         """The item, then the rule files, then what each actor writes."""
         ticket = _planted()
-        hub = made(shipped_kit())
-        state = fakehub.state(items=[FIFTH])
-        world = dataclasses.replace(hub.act, work=lambda: state)
+        given = knownshipped.shipped()
+        hub = made(given, owner=None)
+        world = dataclasses.replace(
+            hub.act,
+            questions=dataclasses.replace(
+                hub.act.questions,
+                decided=lambda asked: fakegiven.work("o/r#5"),
+            ),
+        )
         options = {
             "checkout": str(ticket.checkout),
             "paths": "src/x.bats",
             "home": str(ticket.home),
         }
         said = actverbs.dispatch_next(world, actcore.Target(repo=""), options)
-        ends = said.endswith(totalroutes.instructions())
+        ends = said.endswith(actrules.instructions())
         assert_that(
             (said.startswith("o/r#5\n"), "ROOT" in said, ends),
             equal_to((True, True, True)),

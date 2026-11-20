@@ -5,8 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
-from .. import brief, forms, noxrow, plancheck, plancommands
-from .briefmake import pinned
+from .. import forms, noxrow, plancheck
 
 SENTENCE = (
     "Nox rows: a Plan row never runs `nox`, `pitboss nox` or `uvx ... nox`; give"
@@ -83,35 +82,19 @@ class TestNoxRow(unittest.TestCase):
         for each in OTHER_ROWS:
             assert_that(noxrow.runs_nox(each), equal_to(False), each)
 
-    def test_plan_check_refuses_a_plan_with_a_nox_row(self) -> None:
+    def test_plan_check_does_not_run_a_nox_row(self) -> None:
         """The nox row did not run, the git row did."""
         rows, bad, _ = plancheck.report(PLAN_WITH_NOX, ran_nothing)
         assert_that(bad, equal_to([1]))
-        assert_that(rows[0], contains_string(SENTENCE))
+        assert_that(rows[0], contains_string("NOT RUN"))
         assert_that(plancheck.verdict(bad), contains_string("refused"))
 
     def test_plan_check_accepts_the_ci_pointer_and_git_rows(self) -> None:
         """The same Plan with the pointer passes."""
         assert_that(refused(PLAN_WITH_POINTER), empty())
 
-    def test_lint_finds_the_nox_row_and_only_it(self) -> None:
-        """The finding names the line and says the sentence."""
-        found = noxrow.findings("body", plancommands.planned(PLAN_WITH_NOX))
-        assert_that(found, has_length(1))
-        assert_that(found[0], contains_string("line 4 timeout 598 nox"))
-        assert_that(found[0], contains_string(SENTENCE))
-        assert_that(found[0], contains_string("(plan-nox)"))
-        pointer = plancommands.planned(PLAN_WITH_POINTER)
-        assert_that(noxrow.findings("body", pointer), empty())
-
     def test_the_form_check_carries_it(self) -> None:
         """pr_body reports the nox row."""
         subject = forms.Subject(name="body", body=PLAN_WITH_NOX, head="")
         found = [each for each in forms.pr_body(subject) if "plan-nox" in each]
         assert_that(found, has_length(1))
-
-    def test_the_plan_writing_briefs_say_the_same_sentence(self) -> None:
-        """A new PR and a Plan fix carry the sentence of the refusal."""
-        assert_that(noxrow.SENTENCE, equal_to(SENTENCE))
-        for kind in (brief.Kind.NEW_PR, brief.Kind.REVISE_PLAN):
-            pinned(kind, [SENTENCE])

@@ -1,11 +1,12 @@
 """Tests for reading reviews."""
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, mergesonly, report, reviews, shapes, unreadableform
-from . import fakes, test_report
+from . import blank, fakes, test_report
 
 
 def form(*lines: str) -> config.ReviewForm:
@@ -84,7 +85,9 @@ class TestReading(unittest.TestCase):
 
 
 def _comment(body: str, when: str, association: str) -> shapes.Comment:
-    return shapes.Comment(body=body, author_association=association, created_at=when)
+    return dataclasses.replace(
+        blank.COMMENT, body=body, author_association=association, created_at=when
+    )
 
 
 def _review(state: str, when: str, association: str) -> shapes.PullReview:
@@ -93,6 +96,8 @@ def _review(state: str, when: str, association: str) -> shapes.PullReview:
         commit_id=fakes.OLDER,
         author_association=association,
         submitted_at=when,
+        body="",
+        login="",
     )
 
 
@@ -109,8 +114,12 @@ SOURCES = reviews.Sources(
     ],
 )
 NEWEST = {
-    "o/open": reviews.Found(sha=fakes.OLDER, verdict=CHANGES, when="2"),
-    "o/gated": reviews.Found(sha=fakes.HEAD, verdict=APPROVED, when="1"),
+    "o/open": dataclasses.replace(
+        reviews.BARE, sha=fakes.OLDER, verdict=CHANGES, when="2"
+    ),
+    "o/gated": dataclasses.replace(
+        reviews.BARE, sha=fakes.HEAD, verdict=APPROVED, when="1"
+    ),
 }
 
 
@@ -216,8 +225,12 @@ class TestStanding(unittest.TestCase):
 
     def test_standings(self) -> None:
         """Each case of the newest review gives its standing."""
-        approved = reviews.Found(sha="aaaaaaa", verdict=APPROVED, when="")
-        changes = reviews.Found(sha="aaaaaaa", verdict=CHANGES, when="")
+        approved = dataclasses.replace(
+            reviews.BARE, sha="aaaaaaa", verdict=APPROVED, when=""
+        )
+        changes = dataclasses.replace(
+            reviews.BARE, sha="aaaaaaa", verdict=CHANGES, when=""
+        )
         found = [
             reviews.head_standing(None, fakes.HEAD),
             reviews.head_standing(approved, fakes.HEAD),

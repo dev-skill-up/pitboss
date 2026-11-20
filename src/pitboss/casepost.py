@@ -9,7 +9,7 @@ pitboss#444). The module reads nothing: the texts are given.
 
 from typing import Sequence
 
-from . import config, fixnames, ledger, ticketwhen
+from . import config, pullnames, ticketwhen
 
 STARTED = (
     "PR {pull} says it fixes {ticket}, so a worker started: the body is edited only"
@@ -29,8 +29,7 @@ def started_by(ticket: str, pulls: Sequence[tuple[int, str]], repo: config.Repo)
         The PR's number; 0 when no PR fixes the ticket (no worker started).
     """
     for number, body in pulls:
-        named = [ledger.reference(each, repo) for each in fixnames.FIXES.findall(body)]
-        if ticket in named:
+        if ticket in pullnames.closed(body, repo):
             return number
     return 0
 

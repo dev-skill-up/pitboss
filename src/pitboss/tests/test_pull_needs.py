@@ -17,10 +17,8 @@ from .. import (
     steps,
     updateline,
 )
+from .. import headsignals
 from . import quietworld, test_flow, test_work, world
-from .test_commands import sweep
-from .test_flow_sweep import TWO_PLAN_REJECTIONS, world_with
-from .test_slot_commands import next_output
 
 QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 DISPATCH = " ".join(
@@ -31,10 +29,10 @@ DISPATCH = " ".join(
 )
 BEHIND = "merge main into branch-3, check, push"
 PASSED = dataclasses.replace(test_flow.GREEN, id=3, name="test")
-ANSWERED = headchecks.HeadSignals(
-    fixed=[basefix.Answer(failed=test_flow.RED, passed=PASSED)]
+ANSWERED = dataclasses.replace(
+    headsignals.NONE, fixed=[basefix.Answer(failed=test_flow.RED, passed=PASSED)]
 )
-OPEN = headchecks.HeadSignals()
+OPEN = headsignals.NONE
 GREEN = test_work.GREEN
 RED = test_flow.RED
 RED_NEED = "the CI is red: fix it (merge main first if it is behind)"
@@ -137,23 +135,6 @@ class TestNeeds(unittest.TestCase):
         assert_that(found, contains_string("(SHARED RED): no fix here"))
 
 
-class TestListed(unittest.TestCase):
-    """The need reaches ``slots next`` and the sweep."""
-
-    def test_the_list_and_the_sweep_say_what_a_red_pr_needs(self) -> None:
-        """A NEXT line ends with the need; the sweep has a NEEDS line."""
-        here = world_with(TWO_PLAN_REJECTIONS, mergeable_state="behind")
-        listed = next_output(here)
-        swept = sweep(here).out
-        assert_that(
-            [
-                "PR 1; needs: the CI is red: fix it" in listed,
-                "NEEDS owner/project#1: " in swept,
-            ],
-            equal_to([True, True]),
-        )
-
-
 class TestB20Relock(unittest.TestCase):
     """The hold withholds the re-dispatch of relock.yml (B20)."""
 
@@ -161,7 +142,7 @@ class TestB20Relock(unittest.TestCase):
         """The re-dispatch of relock.yml a PR needs is held, with the reason."""
         pull = pull_in("clean", True, (RED,), ANSWERED)
         held = dataclasses.replace(
-            pull, signals=dataclasses.replace(pull.signals, hold=lambda: True)
+            pull, signals=dataclasses.replace(pull.signals, hold=True)
         )
         settings = settings_of("")
         free, withheld = (updateline.needs(each, settings) for each in (pull, held))

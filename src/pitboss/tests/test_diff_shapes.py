@@ -12,7 +12,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import lintchange, markercheck, markupclaim, markuplines
+from .. import markercheck, markupclaim, markuplines
 
 PLAIN = "diff --git a/a.md b/a.md\n--- a/a.md\n+++ b/a.md\n@@ -1 +1 @@\n-x\n+y\n"
 
@@ -58,25 +58,6 @@ class TestHunks(unittest.TestCase):
         cut = PLAIN.replace("-x\n+y", "-xy\n+x") + "\\ No newline at end of file\n"
         found = (paths(PLAIN + second), markuplines.added_lines(cut))
         assert_that(found, equal_to((["a.md", "b.md", "b.md"], [])))
-
-
-class TestLintChange(unittest.TestCase):
-    """``lintchange.changed_lines`` counts the code rows of a hunk."""
-
-    def test_blank_and_comment_rows_are_no_code(self) -> None:
-        """Only a row with code counts as a change."""
-        rows = "+\n+# note\n+x = 1\n-\n-# gone\n-y = 2"
-        found = lintchange.changed_lines(10, rows)
-        assert_that([line for line, _ in found], equal_to([12, 13]))
-
-    def test_a_hunk_that_only_removes_is_a_deletion(self) -> None:
-        """A docstring there is no change (``in_place`` is false)."""
-        assert_that(lintchange.changed_lines(4, "-x = 1"), equal_to([(4, False)]))
-
-    def test_a_missing_newline_row_is_ignored(self) -> None:
-        """The marker row has no sign."""
-        found = lintchange.changed_lines(3, "+x = 1\n\\ No newline at end of file")
-        assert_that(found, equal_to([(3, True)]))
 
 
 def said(text: str) -> int:

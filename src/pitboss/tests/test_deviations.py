@@ -65,22 +65,6 @@ class TestTheBriefs(unittest.TestCase):
             contains_string("a hand-back without it is NOT STARTED and is sent back"),
         )
 
-    def test_the_review_of_an_execution_reads_the_line_and_records_it(self) -> None:
-        """Only what cost something is a finding; a harmless habit never fails."""
-        for kind in EXECUTION_REVIEWS:
-            assert_that(text(kind), contains_string(READS))
-        for kind in (brief.Kind.REVIEW_PLAN, brief.Kind.REVIEW_FIX_ROUND):
-            assert_that(READS in text(kind), equal_to(False))
-        for part in (
-            "a departure from the Plan's commands or the ticket's Done-when",
-            "`pitboss nox` run more than once on one head is one",
-            "a trace in the tree that the Edit tool would not have",
-            "how a file is edited (a heredoc, the Edit tool, `sed`)",
-            "is never a deviation and never fails a PR",
-            "for the sweep's ledger line for the worker",
-        ):
-            assert_that(READS, contains_string(part))
-
     def test_the_sentence_names_only_a_departure_from_the_plan_or_the_done_when(
         self,
     ) -> None:

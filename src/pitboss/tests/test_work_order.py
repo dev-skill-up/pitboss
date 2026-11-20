@@ -14,7 +14,7 @@ from .test_slot_commands import next_output
 OPEN = "issues?state=open"
 OLDER_PULL = "2026-09-15T00:00:00+00:00"
 RULE_LINE = unlabeled.RULE
-NEXT_STEP = re.compile(r"^NEXT (\d+)\. (\S+) ")
+NEXT_STEP = re.compile(r"^NEXT \d+ of \d+\. [A-Z]+: (\S+): ", re.MULTILINE)
 
 
 def _ticket(number: int, created: str, *labels: str) -> Mapping[str, object]:
@@ -90,40 +90,50 @@ def ordered_world() -> world.World:
     head = {"sha": fakes.HEAD, "ref": "branch-4"}
     older = fakes.pull_body(4, head=head, created_at=OLDER_PULL)
     here.bodies[f"{world.LIBRARY}/pulls/4"] = older
+    fakes.listed_row(here.bodies, world.LIBRARY, 4, created_at=OLDER_PULL)
     return here
 
 
 def listed(output: str) -> Sequence[str]:
-    """The work order of an output: unlabeled lines, the rule, then the steps.
+    """The item of each ``NEXT`` line of an output, in order.
 
     Args:
         output: what a command printed.
 
     Returns:
-        The ``NO PRIORITY LABEL`` lines and the rule's line whole, and the
-        reference of each ``NEXT`` step after the first.
+        The references.
     """
-    found = []
-    for line in output.splitlines():
-        step = NEXT_STEP.match(line)
-        if line.startswith(unlabeled.NO_LABEL) or line == RULE_LINE:
-            found.append(line)
-        elif step and step.group(1) != "1":
-            found.append(step.group(2))
-    return found
+    return [step.group(1) for step in NEXT_STEP.finditer(output)]
 
 
+def unlabeled_lines(output: str) -> Sequence[str]:
+    """The ``NO PRIORITY LABEL`` lines of an output and the rule's line, whole.
+
+    Args:
+        output: what a command printed.
+
+    Returns:
+        The lines, in order.
+    """
+    lines = output.splitlines()
+    return [x for x in lines if x.startswith(unlabeled.NO_LABEL) or x == RULE_LINE]
+
+
+# keyword: one-path: the decisions, the open PRs oldest first across repositories,
+# then the labelled tickets by priority and age, oldest first as the search
+# answers (keyword: org-search): 9 of the project is older than 16 of the library
 WHOLE_ORDER = [
-    "NO PRIORITY LABEL owner/lib#14",
-    "NO PRIORITY LABEL owner/project#11",
-    "NO PRIORITY LABEL owner/project#13",
-    RULE_LINE,
     "owner/lib#4",
     "owner/project#1",
     "owner/project#3",
     "owner/project#9",
     "owner/lib#16",
-    # the tickets after the first five items are not read (pitboss#453)
+]
+UNLABELED_LINES = [
+    "NO PRIORITY LABEL owner/lib#14",
+    "NO PRIORITY LABEL owner/project#11",
+    "NO PRIORITY LABEL owner/project#13",
+    RULE_LINE,
 ]
 
 
@@ -134,12 +144,11 @@ class TestTheWholeOrder(unittest.TestCase):
         """The p3 ticket is labeled; the PRs come before every ticket."""
         assert_that(listed(next_output(ordered_world())), equal_to(WHOLE_ORDER))
 
-    def test_the_unlabeled_lines_come_before_the_first_step(self) -> None:
-        """After the slot header, only the unlabeled tickets and the rule."""
-        shown = next_output(ordered_world()).splitlines()
-        assert_that(shown[0], starts_with("SLOTS "))
-        assert_that(shown[6], equal_to(RULE_LINE))
-        assert_that(shown[7], starts_with("NEXT 1. "))
+    def test_the_list_says_no_unlabeled_ticket(self) -> None:
+        """The list is the decisions: no unlabeled line and no rule (one-path)."""
+        shown = next_output(ordered_world())
+        assert_that(shown, starts_with("NEXT 1 of 5. "))
+        assert_that(unlabeled_lines(shown), equal_to([]))
 
     def test_next_with_no_ticket_prints_it_too(self) -> None:
         """``next`` is what ``slots next`` prints."""
@@ -151,7 +160,7 @@ class TestTheWholeOrder(unittest.TestCase):
         swept = sweep(ordered_world()).out.splitlines()
         marked = [at for at, line in enumerate(swept) if unlabeled.NO_LABEL in line]
         task = next(at for at, line in enumerate(swept) if line.startswith("TASK LIST"))
-        assert_that(swept[marked[0] : marked[0] + 4], equal_to(WHOLE_ORDER[:4]))
+        assert_that(swept[marked[0] : marked[0] + 4], equal_to(UNLABELED_LINES))
         assert_that(marked[-1] < task, equal_to(True))
 
     def test_no_unlabeled_ticket_prints_neither_line_nor_rule(self) -> None:
@@ -171,7 +180,7 @@ class TestTheWholeOrder(unittest.TestCase):
 
     def test_a_label_that_is_no_priority_leaves_the_ticket_unlabeled(self) -> None:
         """``bug`` is no priority; ``p3`` and the configured ``low`` are."""
-        shown = next_output(ordered_world())
+        shown = sweep(ordered_world()).out
         assert_that(shown, contains_string("NO PRIORITY LABEL owner/project#13"))
         assert_that("owner/lib#15" in shown, equal_to(False))
         assert_that("NO PRIORITY LABEL owner/project#12" in shown, equal_to(False))
@@ -180,10 +189,11 @@ class TestTheWholeOrder(unittest.TestCase):
         """The issues list holds PRs: 99 tickets and a PR are a full page."""
         here = ordered_world()
         full = [
-            _ticket(n, "2026-02-01T00:00:00+00:00", "urgent") for n in range(100, 200)
+            _ticket(n, "2026-02-01T00:00:00+00:00", "urgent") for n in range(100, 199)
         ]
-        here.bodies[fakes.page(SEARCH)] = {"items": _found("project", full)}
+        request = {**_ticket(199, "2026-02-01T00:00:00+00:00"), "pull_request": {}}
+        here.bodies[fakes.page(f"{world.PROJECT}/{OPEN}")] = [*full, request]
         later = [_ticket(200, "2026-02-01T00:00:00+00:00")]
-        here.bodies[fakes.page(SEARCH, 2)] = {"items": _found("project", later)}
-        found = [each for each in listed(next_output(here)) if "#200" in each]
+        here.bodies[fakes.page(f"{world.PROJECT}/{OPEN}", 2)] = later
+        found = [each for each in unlabeled_lines(sweep(here).out) if "#200" in each]
         assert_that(found, equal_to(["NO PRIORITY LABEL owner/project#200"]))

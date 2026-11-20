@@ -35,7 +35,7 @@ def unmoved(pr: flow.PullState) -> flow.PullState:
     Returns:
         The PR with that recorded.
     """
-    return dataclasses.replace(pr, unchanged_since=lambda sha: True)
+    return dataclasses.replace(pr, unchanged=frozenset(each.sha for each in pr.graded))
 
 
 def ruled(word: str, second: int = 2) -> Sequence[shapes.Comment]:

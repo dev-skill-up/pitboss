@@ -1,21 +1,20 @@
 """The open PRs of the project and its libraries, and what each needs."""
 
 import dataclasses
-import subprocess
+import json
 from typing import AbstractSet, Sequence
 
 from . import (
-    analysis,
     basefix,
     bodydigest,
     concurrently,
     config,
-    conflicts,
     expansion,
     dispatchruns,
     draftfacts,
     earlyfound,
     flow,
+    flowquestions,
     flowstate,
     folds,
     headchecks,
@@ -23,145 +22,27 @@ from . import (
     mergesonly,
     parsing,
     pinsask,
+    pullfacts,
+    pullobject,
+    pullrecords,
     pullfiles,
     pullref,
     pullsource,
     relock,
     reviews,
     reviewunread,
-    rulingreason,
     rounds,
     shapes,
-    steps,
     straycomments,
+    totalschema,
     unreadableform,
 )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class PullFacts:
-    """What one open PR looks like now.
-
-    Attributes:
-        repo: its repository.
-        pull: the PR.
-        checks: the check runs of its head.
-        review: its newest review that counts.
-        standing: where its head stands with that review.
-        signals: what may block it besides its checks (keyword: red-status).
-        unreadable: its comments that try to be reviews and are not (keyword:
-            unreadable-review).
-        step: the one step the PR is at (keyword: review-flow).
-        review_rounds: what its review rounds show.
-        relock: whether its head branch starts with the relock prefix
-            (keyword: relock).
-    """
-
-    repo: config.Repo
-    pull: shapes.Pull
-    checks: Sequence[shapes.CheckRun]
-    review: reviews.Found | None
-    standing: reviews.Standing
-    signals: headchecks.HeadSignals = dataclasses.field(
-        default_factory=headchecks.HeadSignals
-    )
-    unreadable: straycomments.StrayComments = dataclasses.field(
-        default_factory=straycomments.StrayComments
-    )
-    step: steps.Next
-    review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
-    relock: bool = False
-
+from .pullfacts import PullFacts as PullFacts
+from .pullfacts import PullRead as PullRead
+from .pullfacts import Read as Read
 
 reference = pullref.reference
 failed_checks = pullref.failed_checks
-
-
-def unhealthy(facts: PullFacts) -> bool:
-    """Whether the PR has a failed check, a conflict or is a draft.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when it is any of them.
-    """
-    return bool(failed_checks(facts)) or conflicted(facts) or facts.pull.draft
-
-
-def pending(facts: PullFacts) -> int:
-    """How many of the head's checks have not finished.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        The count.
-    """
-    return sum(1 for check in facts.checks if not check.finished)
-
-
-def waiting_for_ci(facts: PullFacts) -> bool:
-    """Whether the head has no completed check run.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when no check run of the head has completed.
-    """
-    return not any(check.finished for check in facts.checks)
-
-
-def green(facts: PullFacts) -> bool:
-    """Whether a check of the head finished, all did, and none failed.
-
-    A head with no completed check run is waiting for CI, never green.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when green.
-    """
-    return not waiting_for_ci(facts) and not pending(facts) and not failed_checks(facts)
-
-
-def conflicted(facts: PullFacts) -> bool:
-    """Whether the PR has a merge conflict.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True on a conflict.
-    """
-    return conflicts.is_dirty(facts.pull)
-
-
-def approved(facts: PullFacts) -> bool:
-    """Whether the head's review approves it, no ruling having voided it.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when approved (keyword: ruling-voids, pitboss#467).
-    """
-    counted = (reviews.Standing.APPROVED, reviews.Standing.APPROVED_BEFORE_MERGES)
-    return facts.standing in counted and facts.step.task is not steps.Task.RULING_STEPS
-
-
-def at_merge(facts: PullFacts) -> bool:
-    """Whether the PR's step is the merge.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True at the merge.
-    """
-    return facts.step.step is steps.Step.MERGE
 
 
 Source = pullsource.Source
@@ -206,8 +87,11 @@ class Fetched:
 
     Attributes:
         pull: its details.
+        object: the PR as the gate reads it, from the same answer as ``pull``
+            (keyword: gate).
         labels: its labels.
         posted: its comments and GitHub reviews that count.
+        sent: every comment and GitHub review of it, as read (keyword: gate).
         checks: the check runs of its head.
         statuses: the newest commit status of each context of its head.
         premature: its Execution reviews left out of ``posted``.
@@ -216,17 +100,20 @@ class Fetched:
     """
 
     pull: shapes.Pull
+    object: pullrecords.PullObject
     labels: AbstractSet[str]
     posted: reviews.Sources
+    sent: reviews.Sources
     checks: Sequence[shapes.CheckRun]
-    statuses: Sequence[shapes.CommitStatus] = ()
-    premature: Sequence[earlyfound.Premature] = ()
-    fixed: Sequence[basefix.Answer] = ()
+    statuses: Sequence[shapes.CommitStatus]
+    premature: Sequence[earlyfound.Premature]
+    fixed: Sequence[basefix.Answer]
 
 
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
     pull = parsing.pull(text)
+    gated = pullobject.pull_object(json.loads(text), totalschema.schema())
     posted, sent = concurrently.pair(
         lambda: headchecks.statuses(source.github, repo, pull.head.sha),
         lambda: _sources(source, repo, number),
@@ -237,8 +124,10 @@ def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     base = pull.base
     return Fetched(
         pull=pull,
+        object=gated,
         labels=parsing.labels(text),
         posted=reviews.Sources(comments=kept, reviews=sent.reviews),
+        sent=sent,
         checks=current,
         statuses=posted,
         premature=early,
@@ -247,6 +136,36 @@ def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
 
 
 def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
+    # the questions the flow asks are read here, each only where it is asked
+    found = _base_state(source, repo, got)
+    needs = _needs_e2e(source, repo, found)
+    draft = dataclasses.replace(found.draft, needs_e2e=needs)
+    unchanged = _unchanged(source, repo, found)
+    return dataclasses.replace(found, draft=draft, unchanged=unchanged)
+
+
+def _unchanged(
+    source: Source, repo: config.Repo, state: flow.PullState
+) -> AbstractSet[str]:
+    # keyword: unfixed-execution: asked only of the rejecting review's head
+    asked = flowquestions.asked_rejection(state)
+    if asked is None:
+        return frozenset()
+    same = mergesonly.unchanged(source.github, repo, state.pull, asked.sha)
+    return frozenset({asked.sha}) if same else frozenset()
+
+
+def _needs_e2e(source: Source, repo: config.Repo, state: flow.PullState) -> bool:
+    # keyword: run-e2e: asked only for a draft whose Plan is approved
+    pull = state.pull
+    if not (pull.draft and flowquestions.plan_approved(state)):
+        return False
+    github, slug = source.github, repo.slug
+    touched = pullfiles.touches(github, slug, pull.number, source.run_by_e2e)
+    return touched and not dispatchruns.completed(github, slug, pull.head.sha)
+
+
+def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
     return flow.PullState(
         pull=got.pull,
         labels=got.labels,
@@ -256,15 +175,12 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
-        unchanged_since=mergesonly.unchanged_since(source.github, repo, got.pull),
+        unchanged=frozenset(),
         draft=draftfacts.Draft(
-            needs_e2e=lambda: pullfiles.touches(
-                source.github, repo.slug, got.pull.number, source.run_by_e2e
-            )
-            and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
+            needs_e2e=False,
             plan_review_check=source.plan_review_check,
             no_drafts=source.no_drafts(repo.slug),
-            hold=lambda: not source.undraft(),
+            hold=not source.undraft(),
         ),
     )
 
@@ -281,7 +197,6 @@ def _unreadable(
     return straycomments.StrayComments(
         newer=unreadableform.unread(*seen, rules, found.when if found else ""),
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
-        unanalysed=analysis.unanalysed(*seen),
         premature=earlyfound.newer(got.premature, found.when if found else ""),
         no_execution=reviewunread.without_execution(state),
     )
@@ -297,31 +212,22 @@ def _signals(
     plans = flowstate.approved_digests(state.graded)
     # keyword: pins-only (pitboss#34): asked only where a review would be offered
     pins = pinsask.at_review(source.pins, repo, got.pull, flow.next_step(state))
-    # keyword: superseded-pointer (pitboss#317)
-    gone = pullfiles.superseded(source.github, repo.slug, got.pull)
     return dataclasses.replace(
         found,
         gate=unmet,
         approved_plans=plans,
         pins=pins,
         fixed=got.fixed,
-        gone=gone,
         hold=state.draft.hold,
     )
 
 
-def _step(
-    state: flow.PullState, signals: headchecks.HeadSignals, trusted: AbstractSet[str]
-) -> steps.Next:
-    # keyword: fixed-on-base: the flow read the answered failures as passed
-    step = pinsask.unreviewed(flow.next_step(state), signals.pins)
-    ruled = rulingreason.times(state.comments, trusted, step)  # keyword: ruling-reason
-    return dataclasses.replace(
-        step, on_base=bool(signals.fixed), reason=rulingreason.reason(ruled)
-    )
+def _posted(got: Fetched) -> pullfacts.Posted:
+    # what the gate reads of the PR, from this one read (keyword: gate)
+    return pullfacts.Posted(object=got.object, statuses=got.statuses, sources=got.sent)
 
 
-def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
+def fetch(source: Source, repo: config.Repo, number: int) -> PullRead:
     """Read one PR: its details, its head's checks and its review.
 
     Args:
@@ -330,14 +236,14 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         number: its number.
 
     Returns:
-        The PR's facts.
+        The PR as read; ``decide.facts_of`` gives its step.
     """
     got = _fetched(source, repo, number)
     found = reviews.newest(got.posted, source.review, repo.slug)
     standing, merged = _standing(source, repo, got.pull, found)
     state = _state(source, repo, got)
     signals = _signals(source, repo, got, state)
-    return PullFacts(
+    return PullRead(
         repo=repo,
         pull=got.pull,
         checks=got.checks,
@@ -345,13 +251,10 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         standing=standing,
         signals=signals,
         unreadable=_unreadable(source, repo, got, (found, state)),
-        step=_step(state, signals, source.review.trusted),
         review_rounds=rounds.of(state, merged),
-        relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
+        state=state,
+        posted=_posted(got),
     )
-
-
-Read = PullFacts | shapes.Unreadable
 
 
 def readable(found: Sequence[Read]) -> Sequence[PullFacts]:
@@ -364,24 +267,3 @@ def readable(found: Sequence[Read]) -> Sequence[PullFacts]:
         The ones that were read.
     """
     return [each for each in found if isinstance(each, PullFacts)]
-
-
-def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:
-    """Read one PR, or say which of its API calls failed.
-
-    Args:
-        source: where to read from.
-        repo: its repository.
-        number: its number.
-
-    Returns:
-        The PR's facts, or the failed call.
-    """
-    try:
-        return fetch(source, repo, number)
-    except subprocess.CalledProcessError as error:
-        return shapes.Unreadable(
-            reference=f"{repo.slug}#{number}",
-            call=ghapi.call_of(error),
-            status=ghapi.status_of(error),
-        )

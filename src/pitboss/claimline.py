@@ -9,7 +9,7 @@ step the PR is at printed after it (the refresh of the body is a step of its own
 
 from typing import Sequence
 
-from . import headline, pulls, steps
+from . import headline, pulls, steps, stepwords
 from .markers import Marker
 
 
@@ -28,5 +28,10 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
     return [
         f"{Marker.STALE_CLAIM.text} {pulls.reference(pull)}: the body's Head line"
         f" names {headline.last_head(body)}, the PR head is {head} on"
-        f" {pull.pull.head.branch}; step: {steps.describe(pull.step)}"
+        f" {pull.pull.head.branch}{_step(pull.step)}"
     ]
+
+
+def _step(step: steps.Move) -> str:
+    # keyword: one-path: an idle PR's step is not said
+    return f"; step: {stepwords.describe(step)}" if isinstance(step, steps.Next) else ""

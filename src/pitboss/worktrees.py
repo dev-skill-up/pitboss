@@ -21,6 +21,7 @@ from . import (
     dead,
     devpath,
     disk,
+    ghstore,
     judging,
     local,
     mergetime,
@@ -60,7 +61,7 @@ def _listed(look: dead.Look) -> tuple[local.Sweeper, Sequence[local.Worktree]]:
     sweeper = local.Sweeper(
         run=look.run,
         settings=look.settings,
-        outcomes=local.read_outcomes(look.github, project.repo),
+        outcomes=ghstore.read_outcomes(look.github, project.repo),
     )
     return sweeper, _porcelain(look)
 

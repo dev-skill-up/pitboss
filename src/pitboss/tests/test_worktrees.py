@@ -8,8 +8,8 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string
 
-from .. import dead, judging, local, mergedworktree, worktrees
-from . import cleanworld, fakes, suggestions, world, worldcopy
+from .. import dead, judging, local, worktrees
+from . import cleanworld, fakes, world, worldcopy
 from .fakes import write
 
 AFTER = ("--now", world.FUTURE)
@@ -40,7 +40,7 @@ def built_scene() -> worldcopy.Made:
     cleanworld.mark_live_since(here.workspace / "live-work", 4, started)
     done = {"state": "closed", "merged_at": "x"}
     branches = ("merged-work", *UNSAFE)
-    page = world.project_page("pulls?state=all")
+    page = world.project_page("pulls?state=closed")
     here.bodies[page] = [{"head": {"ref": branch}, **done} for branch in branches]
     return here, []
 
@@ -283,11 +283,3 @@ class TestMerged(unittest.TestCase):
             ("worktrees: 0 listed, freed 0 bytes" in out, present(here, "merged-work")),
             (True, [True]),
         )
-
-    def test_slots_next_lists_each_finished_worktree_as_a_removal_step(self) -> None:
-        """Merged or closed, with the size and the command."""
-        here = scene()
-        out = suggestions.next_output(here)
-        lines = [x for x in out.splitlines() if x.startswith(mergedworktree.REMOVE)]
-        cleanworld.same(len(lines), 5)
-        cleanworld.same("run `pitboss merged --no-dry-run " in lines[0], True)

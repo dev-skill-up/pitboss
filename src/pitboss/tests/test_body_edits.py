@@ -12,11 +12,11 @@ import tempfile
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
-from .. import capture, capture_commands
+from .. import capture_commands
 from . import scenario
-from .test_scenarios import EDITS_ANSWER, GRAPHQL, arguments
+from .test_scenarios import EDITS_ANSWER, arguments
 
 OPUS_MARK = "2026-11-11T08:22:47Z"
 
@@ -46,6 +46,21 @@ def kinds(timelines: Sequence[scenario.Timeline], when: str) -> Sequence[str]:
         The names of the steps.
     """
     return [scenario.kind(scenario.step_at(each, when, True)) for each in timelines]
+
+
+def edits_file(case: unittest.TestCase) -> str:
+    """A file of the canned body edits, removed with the test.
+
+    Args:
+        case: the test that owns the file.
+
+    Returns:
+        Its name.
+    """
+    given = case.enterContext(tempfile.NamedTemporaryFile("w", suffix=".json"))
+    given.write(json.dumps(EDITS_ANSWER))
+    given.flush()
+    return given.name
 
 
 class TestTheBodyAtAMark(unittest.TestCase):
@@ -93,31 +108,20 @@ class TestCaptureOfBodyEdits(unittest.TestCase):
             {"created_at": "T1", "editor": None, "body": ""},
             {"created_at": "T2", "editor": "w", "body": "second"},
         ]
-        assert_that(printed(None)["body_edits"], equal_to(want))  # type: ignore[index]
+        got = printed(None, edits_file(self))
+        assert_that(got["body_edits"], equal_to(want))  # type: ignore[index]
 
-    def test_capture_timeline_reads_the_edits_from_graphql(self) -> None:
-        """Live, the edits come from one `gh api graphql` call with the query."""
-        args = arguments(None)
+    def test_capture_timeline_edits_file_is_read(self) -> None:
+        """`--edits FILE` is read, and no GraphQL call is made."""
+        args = arguments(None, edits_file(self))
         self.enterContext(contextlib.redirect_stdout(io.StringIO()))
         capture_commands.capture_timeline(args)
         asked = [each for each in args.safe_run.calls if "graphql" in each]
-        assert_that(len(asked), equal_to(1))
-        assert_that(asked[0][-1], equal_to(GRAPHQL))
-        assert_that("owner=o" in asked[0] and "number=7" in asked[0], equal_to(True))
+        assert_that(asked, equal_to([]))
 
-    def test_capture_timeline_edits_file_replaces_graphql(self) -> None:
-        """`--edits FILE` is read, and GraphQL is not asked (it would be refused)."""
-        given = self.enterContext(tempfile.NamedTemporaryFile("w", suffix=".json"))
-        given.write(json.dumps(EDITS_ANSWER))
-        given.flush()
-        got = printed(None, given.name, None)  # a GraphQL call would be refused
-        assert_that(len(got["body_edits"]), equal_to(2))  # type: ignore[index]
-
-    def test_capture_timeline_says_when_graphql_refuses(self) -> None:
-        """A refused GraphQL call exits naming `--edits`."""
-        with self.assertRaises(SystemExit) as raised:
-            capture_commands.capture_timeline(arguments(None, graphql=None))
-        assert_that(str(raised.exception), contains_string("--edits FILE"))
+    def test_capture_timeline_without_a_file_records_no_edits(self) -> None:
+        """REST keeps no earlier body, so without `--edits` none are recorded."""
+        assert_that(printed(None)["body_edits"], equal_to([]))  # type: ignore[index]
 
     def test_the_committed_captures_end_with_their_body(self) -> None:
         """The newest edit of each capture is the body the capture holds."""
@@ -134,4 +138,3 @@ class TestCaptureOfBodyEdits(unittest.TestCase):
             equal_to(["bats-lang-quire-1083"]),
         )
         assert_that(len(ends), equal_to(8))
-        assert_that(capture.EDITS_QUERY, contains_string("userContentEdits"))

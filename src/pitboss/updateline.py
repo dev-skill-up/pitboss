@@ -7,7 +7,7 @@ a re-run of its job but by dispatching the repository's ``relock.yml`` again.
 
 from typing import Sequence
 
-from . import config, pulls, shapes, steps
+from . import config, pullchecks, pullref, pulls, shapes, steps
 from .markers import Marker
 
 
@@ -27,8 +27,8 @@ def needs_update(facts: pulls.PullFacts, settings: config.Config) -> bool:
     """
     return (
         facts.pull.mergeable_state is shapes.MergeState.BEHIND
-        and not pulls.waiting_for_ci(facts)
-        and not pulls.pending(facts)
+        and not pullref.waiting_for_ci(facts)
+        and not pullref.pending(facts)
         and facts.repo.slug not in settings.merge_queue.repositories
     )
 
@@ -58,9 +58,7 @@ RELOCK_WORKFLOW = "relock.yml"
 
 def _in_shared_red(pull: pulls.PullFacts) -> bool:
     # keyword: shared-red: the one ticket is the step, no fix of this PR
-    return pull.step.task is steps.Task.SHARED_RED or (
-        pull.step.step is steps.Step.WAIT_FOR_SHARED_RED
-    )
+    return steps.task_of(pull.step) is steps.Task.SHARED_RED
 
 
 RED_FIX = "the CI is red: fix it"  # the plain fix line; MECHANICAL-FIX replaces it
@@ -81,9 +79,9 @@ def needs(pull: pulls.PullFacts, settings: config.Config) -> str:
         f"re-dispatch {pull.repo.slug}'s {RELOCK_WORKFLOW} (workflow_dispatch),"
         " never a re-run of the failed job"
     )
-    if pull.signals.hold():  # keyword: hold-scope (B20): a dispatch is held too
+    if pull.signals.hold:  # keyword: hold-scope (B20): a dispatch is held too
         dispatch = f"HOLD: {dispatch} is withheld while the RUNNER PRESSURE hold lasts"
-    if pull.relock and pull.signals.fixed and not pulls.conflicted(pull):
+    if pull.relock and pull.signals.fixed and not pullchecks.conflicted(pull):
         return f"the red check passed on {base} since: {dispatch}"
     if needs_update(pull, settings):
         again = f", then {dispatch}" if pull.relock else ""

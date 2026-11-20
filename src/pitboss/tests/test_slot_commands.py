@@ -7,12 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from . import liveagents, slot_refusals, world
-from .says import exits
-
-UNREAD_TICKETS_LINE = (
-    "UNREADABLE tickets: not offered as new work, 1 open PR(s) could not be read"
-    " and may already work on them; sweep again"
-)
+from .says import exits, read_failed
 
 LEDGER_STEPS = (
     ("set", "tiny", "agent-1", "#9", "--running", "agent-1"),
@@ -31,59 +26,35 @@ CHECK_LINES = [
     "slot spare (large): owner/lib#1 (agent-2)",
     "slots: the ledger says all full",
 ]
-RUNNING_FIRST = (
-    "NEXT 1. running workers and reviewers: never interrupted, never stopped"
-)
-NEXT_THREE = [
-    RUNNING_FIRST,
-    "NEXT 2. owner/project#1",
-    "NEXT 3. owner/project#3",
-    "NEXT 4. owner/project#9",
+# keyword: one-path: ``slots next`` prints the decisions; the ledger's slots that
+# hold other items, and the models that failed one, change none of them
+DECIDED = [
+    "NEXT 1 of 3. WORKER: owner/project#1: resolve the conflict",
+    "NEXT 2 of 3. REVIEWER: owner/project#3: grade Plan and Execution together",
+    "NEXT 3 of 3. WORKER: owner/project#9: write the code, open the PR as a draft"
+    " whose body has a Plan section and an Execution section; no open PR says it"
+    " fixes this ticket",
 ]
-CONFLICT_HOLDS = "SLOT HELD: owner/project#1 (resolve the conflict)"
-TICKET_LINE = (
-    "EMPTY SLOT: tiny (small): start owner/project#9 (start a PR urgent,"
-    " opened 2026-09-01, 1218 days, smallest model small): A ticket"
-)
-REVIEW_LINE = (
-    "EMPTY SLOT: {slot}: start owner/project#3 (review it (a reviewer that"
-    " is not its author), opened 2026-10-01, 1188 days, smallest model {model}): PR 3"
-)
-NEXT_CASES: Sequence[tuple[Sequence[Sequence[str]], Sequence[str]]] = [
-    (
-        [],
-        [
-            *NEXT_THREE,
-            CONFLICT_HOLDS,
-            REVIEW_LINE.format(slot="tiny (small)", model="small"),
-        ],
-    ),
-    (
-        [("failed", "#1", "small"), ("failed", "#3", "small")],
-        [*NEXT_THREE, CONFLICT_HOLDS, TICKET_LINE],
-    ),
-    (
-        [
-            ("set", "tiny", "a", "#50", "--running", "a"),
-            ("set", "big", "b", "#50", "--running", "a", "b"),
-        ],
-        [*NEXT_THREE, "slots: the ledger says all full: start nothing"],
-    ),
-    (
-        [
-            ("remove", "big"),
-            ("failed", "#9", "small"),
-            ("failed", "#3", "small"),
-            ("failed", "#1", "small"),
-        ],
-        [*NEXT_THREE, CONFLICT_HOLDS],
-    ),
+NEXT_CASES: Sequence[Sequence[Sequence[str]]] = [
+    [],
+    [("failed", "#1", "small"), ("failed", "#3", "small")],
+    [
+        ("set", "tiny", "a", "#50", "--running", "a"),
+        ("set", "big", "b", "#50", "--running", "a", "b"),
+    ],
+    [
+        ("remove", "big"),
+        ("failed", "#9", "small"),
+        ("failed", "#3", "small"),
+        ("failed", "#1", "small"),
+    ],
 ]
+REFILL = "SLOT tiny NEXT: "
 FREE_CASES: Sequence[tuple[str, Sequence[Sequence[str]], str]] = [
     (
         "a ticket waits",
         [("remove", "big"), ("failed", "#1", "small"), ("failed", "#3", "small")],
-        CONFLICT_HOLDS,
+        REFILL + DECIDED[2].removeprefix("NEXT 3 of 3. "),
     ),
     (
         "none waits",
@@ -93,10 +64,9 @@ FREE_CASES: Sequence[tuple[str, Sequence[Sequence[str]], str]] = [
             ("failed", "#3", "small"),
             ("failed", "#1", "small"),
         ],
-        CONFLICT_HOLDS,
+        REFILL + DECIDED[0].removeprefix("NEXT 1 of 3. "),
     ),
 ]
-MARKERS = ("NEXT", "EMPTY SLOT", "SLOT HELD", "slots:")
 
 
 def run_all(
@@ -145,7 +115,7 @@ next_output = liveagents.next_output
 
 
 def next_lines(here: world.World) -> Sequence[str]:
-    """The lines of ``slots next`` that start with a marker, a NEXT line cut short.
+    """The NEXT lines of ``slots next``, each cut before its `` (`` note.
 
     Args:
         here: the world.
@@ -153,10 +123,8 @@ def next_lines(here: world.World) -> Sequence[str]:
     Returns:
         The lines.
     """
-    lines = [
-        line for line in next_output(here).splitlines() if line.startswith(MARKERS)
-    ]
-    return [line.split(" (")[0] if line.startswith("NEXT") else line for line in lines]
+    lines = next_output(here).splitlines()
+    return [line.split(" (")[0] for line in lines if line.startswith("NEXT")]
 
 
 class TestLedger(unittest.TestCase):
@@ -265,19 +233,17 @@ class TestNext(unittest.TestCase):
     """What to start next."""
 
     def test_cases(self) -> None:
-        """The list is sorted; each empty slot takes what it may, or nothing."""
-        for steps, expected in NEXT_CASES:
+        """The same decisions, whatever the ledger holds of other items."""
+        for steps in NEXT_CASES:
             here = world.make_world()
             run_all(here, steps)
-            assert_that(next_lines(here), equal_to(expected))
+            assert_that(next_lines(here), equal_to(DECIDED))
 
     def test_an_unread_pull_keeps_tickets_back(self) -> None:
-        """Ticket 9 is not offered while PR 1, which may take it, is unread (#101)."""
+        """PR 1, which may take ticket 9, is unread: nothing is decided (#101)."""
         here = world.make_world()
         world.unread_first(here, "Fixes #9")
-        shown = next_output(here).splitlines()
-        offered = [x for x in shown if x.startswith("UNREADABLE tickets") or "#9" in x]
-        assert_that(offered, equal_to([UNREAD_TICKETS_LINE]))
+        read_failed(next_result(here))
 
 
 class TestFreeRefill(unittest.TestCase):
@@ -289,10 +255,12 @@ class TestFreeRefill(unittest.TestCase):
             with self.subTest(name):
                 assert_that(freed_world(setup)[1][-1], equal_to(expected))
 
-    def test_is_the_line_next_prints(self) -> None:
-        """The refill line is one of the lines ``slots next`` prints."""
+    def test_b2_the_refill_line_is_a_line_next_prints(self) -> None:
+        """The refill's decision is one of the decisions ``slots next`` prints."""
         here, lines = freed_world([("remove", "big")])
-        assert_that(lines[-1] in next_output(here), equal_to(True))
+        said = lines[-1].removeprefix(REFILL)
+        shown = (lines[-1] != said, said in next_output(here))
+        assert_that(shown, equal_to((True, True)))
 
 
 MISSING_STEPS = (

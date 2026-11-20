@@ -1,18 +1,15 @@
 """An approved Plan is not judged by the Plan-row rule (pitboss#296, plan-approved)."""
 
-import dataclasses
 import json
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import expansion, forms, plandigest
 from . import world
 from .formchecks import subject
 from .linting import HEAD, lint, write_text
-from .test_commands import sweep
-from .test_flow_sweep import APPROVED, graded, world_with
 from .test_plan_command_lint import body_of as plan_body
 
 COMMAND = "sha256sum a.txt b.txt c.txt"
@@ -112,14 +109,3 @@ class TestApprovedPlan(unittest.TestCase):
         assert_that(found(PROSE, [DIGEST]), equal_to([]))
         refused = found(wrong, [digest_of(wrong)])
         assert_that(any("(plan-command)" in each for each in refused), equal_to(True))
-
-    def test_the_sweep_prints_no_line_for_an_approved_plan(self) -> None:
-        """The PLAN ROW line is for a Plan with no approval only."""
-        unapproved = sweep(world_with([], body=PROSE)).out
-        assert_that(unapproved, contains_string("PLAN ROW"))
-        review_comment = graded(APPROVED, None, 1)
-        approving = dataclasses.replace(
-            review_comment, body=review_comment.body + f"Plan digest: {DIGEST}\n"
-        )
-        printed = sweep(world_with([approving], body=PROSE)).out
-        assert_that("PLAN ROW" in printed, equal_to(False))

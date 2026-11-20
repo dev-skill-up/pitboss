@@ -2,6 +2,7 @@
 name: mutation
 
 on:
+  pull_request:
   workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
@@ -10,7 +11,28 @@ permissions:
   contents: read
 
 jobs:
+  # each one-path proof fails on a seeded violation (the plan's section 6.5); the
+  # seeds are edits parsed in memory, never run
+  seeded:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b
+        with:
+          python-version: "3.14"
+
+      - name: Install Nox
+        run: pip install nox
+
+      - name: Run the seeded violations
+        run: nox --force-color --python=3.14 --session=seeded
+
   mutation:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:

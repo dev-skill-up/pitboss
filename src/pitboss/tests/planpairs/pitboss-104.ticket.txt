@@ -1,0 +1,6 @@
+An orchestrator ran `python -m pitboss sweep` from a scratch copy that was not a git checkout and was about a day behind main, and the sweeps crashed on bugs that main had already fixed (pitboss#98, then #101). The installed package was `2026.10.28.62127.dev1` while PyPI had `2026.10.30.50353`; `release.yml` publishes to PyPI on every push to main, but nothing makes a running orchestrator use it.
+
+## Done when
+
+* The sweep skill's rules say to run pitboss as `uvx pitboss <command>` (the form quire's `.claude/settings.json` already allows), which resolves the newest PyPI release, and say what to do when that form is denied (check the allow list for an equivalent).
+* `pitboss sweep` prints one line `OUTDATED pitboss <running> < <newest on PyPI>` when a newer release exists, and nothing when it is current or PyPI cannot be read, with a test for each of the three cases (the PyPI answer injected).

@@ -2,26 +2,27 @@
 
 import argparse
 
-from gather.commands import add_argument
-
-from . import ENTRY_DATA, ghapi, ownerpause, pullfile, steps
+from . import ghclient, ownerpause, pullfile, steps
 
 
-def _check(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
+def _check(github: ghclient.GitHub, slug: str, number: int, text: str) -> str:
     return ownerpause.refusal(text)
 
 
-def _label(github: ghapi.GitHub, slug: str, number: int) -> None:
-    label = ["-f", f"labels[]={steps.PAUSED_LABEL}"]
+def label(github: ghclient.GitHub, slug: str, number: int) -> None:
+    """Put the ``paused-owner`` label on a PR.
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        number: the PR's number.
+    """
+    named = ["-f", f"labels[]={steps.PAUSED_LABEL}"]
     path = ownerpause.label_path(slug, number)
-    github.mutate(["gh", "api", "-X", "POST", *label, path])
+    github.mutate(["gh", "api", "-X", "POST", *named, path])
 
 
-@ENTRY_DATA.register(
-    add_argument("pull", help="OWNER/NAME#NUMBER: the pull request"),
-    add_argument("file", help="the question for the owner, in a file"),
-    name="owner-pause",
-)
+@pullfile.register("owner-pause", "the question for the owner, in a file")
 def owner_pause(args: argparse.Namespace) -> None:
     """Pause a PR for the owner: put the ``paused-owner`` label, post the question.
 
@@ -35,4 +36,4 @@ def owner_pause(args: argparse.Namespace) -> None:
         args: the parsed arguments.
 
     """
-    pullfile.post_comment(args, "owner-pause", _check, _label)
+    pullfile.post_comment(args, "owner-pause", _check, label)

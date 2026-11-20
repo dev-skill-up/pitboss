@@ -2,14 +2,18 @@
 
 (Keyword: markup-lines, pitboss#343.) A marker in ``markers.SELF_EXPLAINED`` says
 its own action in its line, so no reference has to name it; every other printed
-marker must be named, and no reference may name a marker that is never printed.
+marker must be named, and no reference may name a marker that is never printed
+but a retired one (``markers.RETIRED``).
 """
 
 from typing import AbstractSet, Sequence
 
 
 def errors(
-    printed: AbstractSet[str], self_explained: AbstractSet[str], named: AbstractSet[str]
+    printed: AbstractSet[str],
+    self_explained: AbstractSet[str],
+    named: AbstractSet[str],
+    retired: AbstractSet[str] = frozenset(),
 ) -> Sequence[str]:
     """The disagreements between the printed markers and the named ones.
 
@@ -17,6 +21,7 @@ def errors(
         printed: the text of every marker pitboss prints.
         self_explained: the text of those whose line says its own action.
         named: the markers the references name.
+        retired: the markers no longer printed that the references may name.
 
     Returns:
         One text for each marker that is printed, not self-explained and not
@@ -29,7 +34,7 @@ def errors(
         ),
         *(
             f"the references name {name!r}, which pitboss never prints"
-            for name in sorted(named - printed)
+            for name in sorted(named - printed - retired)
         ),
     ]
 

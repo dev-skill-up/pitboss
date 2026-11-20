@@ -9,9 +9,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, brieftextci, planbody, steps
+from .. import planbody, steps
 from . import test_flow, test_flow_sweep
-from .briefmake import EXECUTION_REVIEWS, pinned, text
 
 QUOTES_PLAN = "## Plan\n1. CI quote: the Run Nox step of the head\n"
 PLAN_ONLY_APPROVED = test_flow_sweep.graded("approved", None, 1)
@@ -86,25 +85,5 @@ class TestSweep(unittest.TestCase):
             [PLAN_ONLY_APPROVED], body=body(QUOTES_PLAN, UNQUOTED), draft=False
         )
         listed = "".join(test_flow_sweep.listed_for_third(here))
-        assert_that(listed, contains_string(f"({WANTED},"))
-        assert_that("review it" in listed, equal_to(False))
-
-
-class TestBriefs(unittest.TestCase):
-    """The briefs of the ruling, the reviews and the worker."""
-
-    def test_the_ruling_asks_for_no_pasted_output_and_reviews_accept_a_pointer(
-        self,
-    ) -> None:
-        """(c): a ruling points to the run; a CI row's pointer is the evidence."""
-        pinned(brief.Kind.RULING, [brieftextci.RULING_NO_CI_QUOTES])
-        for kind in EXECUTION_REVIEWS:
-            pinned(kind, [brieftextci.REVIEW_CI_ACCEPTED])
-        assert_that(
-            brieftextci.RULING_NO_CI_QUOTES,
-            contains_string("never ask for CI log lines or pasted CI output"),
-        )
-        assert_that(
-            brieftextci.REVIEW_CI_ACCEPTED in text(brief.Kind.REVIEW_PLAN),
-            equal_to(False),
-        )
+        assert_that(listed, contains_string(f"WORKER: owner/project#3: {WANTED}"))
+        assert_that("REVIEWER" in listed, equal_to(False))

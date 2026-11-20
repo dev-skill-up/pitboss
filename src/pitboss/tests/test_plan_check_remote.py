@@ -308,6 +308,15 @@ class TestCommand(unittest.TestCase):
                 lines = run_check(make(), fixes, plan(), *options)
                 assert_that(said(lines, "plan-done-when:", words), equal_to(True))
 
+    def test_plan_with_no_ticket_is_not_reported_fully_checked(self) -> None:
+        """Done-when: no `Fixes` ticket, so no Done-when was read, and it says so."""
+        lines = run_check(ticket_world(), "", full_plan(), digest="")
+        words = [["not checked", "no ticket", "not fully checked"]]
+        assert_that(said(lines, "plan-done-when:", words), equal_to(True))
+        # the nearest input it must still pass: a Plan that names its ticket
+        named = run_check(ticket_world(), "owner/project#9", full_plan())
+        assert_that(said(named, "plan-done-when:", []), equal_to(True))
+
     def test_the_comments_are_never_read(self) -> None:
         """Done-when: no call asks for the ticket's comments, and they add nothing."""
         here = ticket_world()

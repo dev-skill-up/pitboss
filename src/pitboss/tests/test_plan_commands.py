@@ -3,7 +3,7 @@
 import unittest
 
 from .. import brief
-from .briefmake import EXECUTION_REVIEWS, PLAN_REVIEWS, pinned, text
+from .briefmake import pinned, text
 from .says import has_none
 
 BODY = (
@@ -52,21 +52,6 @@ OTHERS = (
 
 class TestPlanCommands(unittest.TestCase):
     """The Plan names its commands, the worker runs them, the review checks."""
-
-    def test_the_plan_review_rejects_a_command_without_its_precise_form(self) -> None:
-        """Done-when 1: the Plan and full review briefs say it."""
-        for kind in PLAN_REVIEWS:
-            pinned(kind, [BODY])
-
-    def test_the_execution_review_grades_against_the_plan_as_written(self) -> None:
-        """Done-when 2: the Execution and full review briefs say it."""
-        for kind in EXECUTION_REVIEWS:
-            pinned(kind, [EXECUTION])
-
-    def test_the_execution_review_allows_a_cut_of_the_output(self) -> None:
-        """pitboss#195: the brief says a cut or a pipe is never a finding."""
-        for kind in EXECUTION_REVIEWS:
-            pinned(kind, [CUT_ALLOWED])
 
     def test_the_worker_runs_each_command_as_written(self) -> None:
         """Done-when 3: the worker briefs that run a Plan say it."""

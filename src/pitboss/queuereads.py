@@ -2,7 +2,7 @@
 
 from typing import Iterable, Sequence
 
-from . import concurrently, config, configrepos, queue, reading
+from . import concurrently, config, configrepos, ghapi, queue, reading
 
 
 def _runs(
@@ -60,3 +60,13 @@ def read_runner_runs(found: reading.Reading) -> Sequence[queue.QueueRun]:
         The runs.
     """
     return _runs(found, found.settings.runners.repositories)
+
+
+def cancel(found: reading.Reading, stale: queue.QueueRun) -> None:
+    """Cancel a queue run (a dry run unless asked).
+
+    Args:
+        found: the context.
+        stale: the run.
+    """
+    ghapi.post(found.github, queue.run_path(stale, "cancel"))

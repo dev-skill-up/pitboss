@@ -1,10 +1,9 @@
 """The briefs ``pitboss next`` prints (keyword: brief, pitboss#118).
 
 A brief is built from what pitboss reads of a PR or a ticket and from the project's own
-rules, and the orchestrator pastes it unchanged, but for the one line of a ruling brief
-(``How we got here:``) that it replaces with the analysis, a fact the tool cannot know
-(pitboss#168). The sentences are in ``brieftext`` and are pinned by tests, so a change
-to them is a reviewed code change.
+rules, and the orchestrator pastes it unchanged (a ruling brief names the reviews its
+agent analyses, pitboss#168). The sentences are in ``brieftext`` and are pinned by
+tests, so a change to them is a reviewed code change.
 Every brief starts with the ticket's original goal in one line; a review
 judges the change against that goal, and its scope is exclusive.
 """
@@ -14,24 +13,21 @@ from typing import Mapping, Sequence
 
 from . import (
     briefconfig,
-    briefgrade,
+    briefpost,
     briefkind,
     briefruling,
-    briefslot,
     brieftext as text,
     brieftextbody,
     brieftextci,
     brieftextconflict,
     brieftextdraft,
-    brieftextfailure,
     brieftextfix,
     brieftextlint,
     brieftextfolded,
     brieftextnote,
-    brieftextorder,
     brieftextowner,
-    brieftextpins,
     brieftextprcheck,
+    briefwhen,
     brieftextwhen,
     brieftextwork,
     envrules,
@@ -46,57 +42,27 @@ SCOPED = frozenset({Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND, Kind.REVIEW_R
 
 TASKS = brieftextwork.TASKS
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
+    # keyword: reviewer-only (owner ruling 2026-11-15): a check pitboss can make in
+    # code, or a worker made, is not a line of a reviewer's brief
     Kind.REVIEW_FULL: [
         text.SCOPE_FULL,
-        text.ALL_FINDINGS,
-        text.MISSED_EARLIER,
-        brieftextci.QUARANTINE_REVIEW,
-        text.CHECK,
-        text.GREP,
-        text.PLAN_COMMANDS_PLAN,
-        *brieftextci.PLAN_CI_REVIEW,
-        text.PLAN_DRY_RUN,
-        brieftextci.PLAN_CHECK,
-        *brieftextnote.EXECUTION_REVIEW,
-        brieftextlint.LINT_TEST_REVIEW,
+        brieftextnote.REVIEW_NOTES,
         brieftextlint.MARKUP_LINES_REVIEW,
-        brieftextorder.ORDER_REVIEW,
-        brieftextfailure.FAILURE_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
         *brieftextfolded.EXECUTION_REVIEW,
         *brieftextfolded.PLAN_REVIEW,
-        text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
         text.SCOPE_EXECUTION,
         text.NO_PLAN_FINDING,
-        text.ALL_FINDINGS,
-        text.MISSED_EARLIER,
-        brieftextci.QUARANTINE_REVIEW,
-        text.CHECK,
-        text.GREP,
-        *brieftextnote.EXECUTION_REVIEW,
-        brieftextlint.LINT_TEST_REVIEW,
+        brieftextnote.REVIEW_NOTES,
         brieftextlint.MARKUP_LINES_REVIEW,
-        brieftextorder.ORDER_REVIEW,
-        brieftextfailure.FAILURE_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
         *brieftextfolded.EXECUTION_REVIEW,
     ],
     Kind.REVIEW_PLAN: [
         text.SCOPE_PLAN,
-        text.ALL_FINDINGS,
-        text.MISSED_EARLIER,
-        brieftextci.QUARANTINE_REVIEW,
-        text.GREP,
-        text.PLAN_COMMANDS_PLAN,
-        *brieftextci.PLAN_CI_REVIEW,
-        text.PLAN_DRY_RUN,
-        brieftextci.PLAN_CHECK,
-        brieftextorder.ORDER_REVIEW,
-        brieftextfailure.FAILURE_REVIEW,
         *brieftextfolded.PLAN_REVIEW,
-        text.PLAN_DIGEST,
     ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
     Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.NO_PLAN_FINDING, text.CARRIED],
@@ -106,12 +72,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextfolded.RELOCK_TEST_FIX,
         text.CARRIED,
     ],
-}
-# keyword: all-findings (pitboss#169): the reviews of a Plan try its commands
-DRY_RUNNERS: Mapping[Kind, str] = {
-    Kind.REVIEW_FULL: text.SEPARATE_DRY,
-    Kind.REVIEW_PLAN: text.SEPARATE_DRAFT_DRY,
-    Kind.REVIEW_RELOCK: brieftextpins.SEPARATE_PINS,
 }
 PLAN_RUNNERS = frozenset(
     {Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW, Kind.FIX_ROUND}
@@ -158,21 +118,23 @@ class Heads:
         approved: the head an earlier review graded.
         findings: the address of the review whose findings are to be fixed or
             checked, empty when it has none.
-        body_digest: the digest of the PR body now (``bodydigest.digest``),
-            empty for a ticket (keyword: review-brief, pitboss#338).
-        plan_digest: the digest of the body's Plan section, empty when the
-            body has none.
         ruling: the address of the Opus ruling a round follows or does,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
+        branch: the PR's head branch, empty for a ticket (keyword: branch-naming).
+        plan_approved: whether a review that counts approved the PR's Plan
+            (keyword: plan-digest).
+        graded: the stage an earlier review graded, ``plan``, ``execution`` or
+            empty (keyword: all-findings, so the brief says which round it is).
     """
 
     head: str
     base: str
     approved: str
     findings: str
-    body_digest: str = ""
-    plan_digest: str = ""
     ruling: str = ""
+    branch: str = ""
+    plan_approved: bool = False
+    graded: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -183,10 +145,6 @@ class Rules:
         config: the configuration, as given to the command.
         form: the lines of the review form, filled in for this PR.
         project: what the project's briefs say beyond the process.
-        gate_note: what a gated repository's gate also requires of the comment
-            (keyword: review-gate, pitboss#166), empty when it is not gated.
-        plan_check: the check a draft's Plan review reads first (keyword:
-            plan-review-check, pitboss#275), empty when the project has none.
         verdicts: the form's word for an approval and its word for changes
             (keyword: grade-spellings, rp#684).
     """
@@ -194,8 +152,6 @@ class Rules:
     config: str
     form: Sequence[str]
     project: briefconfig.Brief
-    gate_note: str = ""
-    plan_check: str = ""
     verdicts: tuple[str, str] = ("approved", "changes needed")
 
 
@@ -213,10 +169,9 @@ class Spec:
         e2e: whether the PR's diff touches what the e2e suite runs on, so that
             a review reads the run of its head that ran e2e, the dispatched one
             for a draft (keyword: run-e2e, pitboss#199).
-        logs: `<check name>: <url>` of each failed check, for a FIX_CI brief
-            (keyword: red-cause, pitboss#420).
         conflict: the lines of a rule conflict a RULING brief adds (keyword:
             rule-conflicts, quire#1115).
+        paths: the files the PR changes, None when not read (keyword: brief-when).
     """
 
     kind: Kind
@@ -225,8 +180,8 @@ class Spec:
     rules: Rules
     ready: bool = False
     e2e: bool = False
-    logs: Sequence[str] = ()
     conflict: Sequence[str] = ()
+    paths: Sequence[str] | None = None
 
 
 def fields(spec: Spec) -> Mapping[str, str]:
@@ -242,7 +197,6 @@ def fields(spec: Spec) -> Mapping[str, str]:
         **_about(spec.subject),
         **_named(spec.heads, CHECKOUTS[spec.kind is Kind.NEW_PR]),
         "config": spec.rules.config,
-        "logs": "".join(f"\nFailed check log: {each}" for each in spec.logs),
     }
 
 
@@ -267,9 +221,7 @@ def _named(heads: Heads, where: str) -> Mapping[str, str]:
         "base": heads.base,
         "approved": heads.approved,
         "review": review,
-        "checkout": where.format(base=heads.base),
-        "body_digest": heads.body_digest,
-        "plan_digest_line": brieftextwhen.plan_digest_line(heads.plan_digest),
+        "checkout": where.format(base=heads.base, branch=heads.branch),
     }
 
 
@@ -281,11 +233,11 @@ def _opening(spec: Spec) -> Sequence[str]:
     # keyword: conflict-body (pitboss#208): a conflict merge refreshes the body
     if spec.kind is Kind.RESOLVE_CONFLICT:
         return [brieftextconflict.CONFLICT_BODY]
-    shown = spec.kind in (Kind.NEW_PR, Kind.FIRST_ROUND)
-    if not shown:
+    if spec.kind not in (Kind.NEW_PR, Kind.FIRST_ROUND):
         return []
     recorded = [brieftextwhen.DONE_WHEN_DIGEST] if spec.subject.done_when_digest else []
-    return [text.BODY, *recorded]
+    drafts = [DRAFTS[spec.rules.project.drafts]] if spec.kind is Kind.NEW_PR else []
+    return [*drafts, text.BODY, *recorded]
 
 
 # keyword: ci-pointer (pitboss#179): the sentences of the Plan a worker writes
@@ -318,20 +270,20 @@ def _push_lines(kind: Kind, project: briefconfig.Brief) -> Sequence[str]:
 
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     project = spec.rules.project
-    new = spec.kind is Kind.NEW_PR
+    # keyword: plan-digest: only a Plan a review approved is not to be edited
+    locked = spec.kind in APPROVED_PLAN_WORKERS and spec.heads.plan_approved
     sentences = [
         TASKS[spec.kind],
         *_ruling(spec),
         brieftextwhen.ONE_PR,
         text.WORKTREE,
         brieftextwhen.DONE_WHEN,
-        *([DRAFTS[project.drafts]] if new else []),
         *_opening(spec),
-        *([text.NO_PLAN_EDIT] if spec.kind in APPROVED_PLAN_WORKERS else []),
+        *([text.NO_PLAN_EDIT] if locked else []),
         text.EDIT,
         text.DENIED,
         text.LOCAL,
-        *envrules.lines(values["repo"]),  # keyword: env-check
+        *envrules.lines(values["repo"], spec.heads.branch),  # keyword: env-check
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
         brieftextlint.MARKUP_LINES,
@@ -347,30 +299,28 @@ def _e2e(spec: Spec) -> Sequence[str]:
     return [brieftextci.E2E] if spec.e2e and spec.kind in E2E_KINDS else []
 
 
-def _after_form(spec: Spec, values: Mapping[str, str]) -> Sequence[str]:
-    # keyword: grade-spellings (rp#684): the exact grade lines and the check to run
-    rules = spec.rules
-    gate = [text.GATED.format(note=rules.gate_note)] if rules.gate_note else []
-    reads = f" --gated --repository {values['repo']} --config {rules.config}"
-    arguments = f"--head {values['head']}{reads if rules.gate_note else ''}"
-    return [*gate, *briefgrade.lines(spec.kind, rules.verdicts, arguments)]
+def _round(spec: Spec) -> list[str]:
+    # keyword: all-findings (pitboss#169): pitboss knows the round, the brief says it
+    if spec.kind not in (Kind.REVIEW_FULL, Kind.REVIEW_EXECUTION, Kind.REVIEW_PLAN):
+        return []
+    stage = "plan" if spec.kind is Kind.REVIEW_PLAN else "execution"
+    later = spec.heads.graded == stage or spec.heads.graded == "execution"
+    return [text.LATER_ROUND, text.MISSED_EARLIER] if later else [text.FIRST_ROUND]
 
 
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
-    # keyword: draft-review (pitboss#156): the Plan stage is a draft's
-    # a Plan revised on a PR that is not a draft has its checks (pitboss#167)
+    # keyword: draft-review (pitboss#156, #167): a draft has the Plan stage, its checks
     draft = spec.kind is Kind.REVIEW_PLAN and not spec.ready
-    ci = brieftextdraft.draft_ci(spec.rules.plan_check) if draft else text.CI
     separate = text.SEPARATE_DRAFT if draft else text.SEPARATE
-    separate = DRY_RUNNERS.get(spec.kind, separate)
-    head = [text.REVIEW, *SCOPE_LINES[spec.kind], separate, ci, *_e2e(spec), text.FORM]
+    separate = briefwhen.DRY_RUNNERS.get(spec.kind, separate)
+    lines = briefwhen.kept(SCOPE_LINES[spec.kind], values["repo"], spec.paths)
+    head = [text.REVIEW, *lines, *_round(spec), *([separate] if separate else [])]
+    head = [*head, *_e2e(spec)]
     return [
         *_filled(head, values),
-        *(f"    {line}" for line in spec.rules.form),
-        *_after_form(spec, values),
-        *_filled([text.BODY_DIGEST], values),
+        *briefpost.lines(spec.kind, values),
         text.HONEST,
         brieftextowner.OWNER,
         *tail,
@@ -395,5 +345,5 @@ def build(spec: Spec) -> str:
         rules = [*briefruling.lines(values), *spec.conflict]
     else:
         rules = _worker(spec, values)
-    slot = briefslot.line(spec.kind, spec.subject.reference)
-    return "\n".join([slot, f"Goal: {spec.subject.goal}", *rules])
+    # the brief starts at its Goal line; what precedes it is for the thread
+    return "\n".join([f"Goal: {spec.subject.goal}", *rules])

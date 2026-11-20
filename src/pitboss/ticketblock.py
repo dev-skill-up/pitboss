@@ -17,15 +17,7 @@ blocked by the open blockers of the ticket it fixes (keyword: blocked-pull).
 import re
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, ghapi, ledger, parsing
-
-# a bare ``#n`` is a ticket of the blocked ticket's own repository
-BLOCKER = re.compile(
-    r"(?:cannot\s+be\s+worked\s+on\s+until|blocked[\s-]+(?:by|on)|depends\s+on):?\s+"
-    r"((?:[\w.-]+/[\w.-]+)?#\d+)",
-    re.IGNORECASE,
-)
-
+from . import blockedform, config, ghapi, ledger, parsing
 
 # keyword: closes-when (pitboss#388): a status comment of a tracking ticket
 CLOSING = re.compile(
@@ -67,19 +59,6 @@ def closing(text: str, repo: config.Repo) -> Sequence[str]:
         return ledger.reference(token, repo)
 
     return [spelled(each) for each in TOKEN.findall(found.group(1))]
-
-
-def named(text: str, repo: config.Repo) -> Sequence[str]:
-    """The tickets and PRs a text says it cannot be worked on until.
-
-    Args:
-        text: a ticket's body or one of its comments.
-        repo: the repository of a bare ``#n``.
-
-    Returns:
-        The references as ``owner/name#number``, in the order of the text.
-    """
-    return [ledger.reference(found, repo) for found in BLOCKER.findall(text)]
 
 
 def comments_of(
@@ -125,7 +104,7 @@ def open_blockers(
         the texts name them.
     """
     newest = found[-1:] if len(found) > 1 else []
-    every = [each for text in found for each in named(text, repo)]
+    every = [each for text in found for each in blockedform.named(text, repo.slug)]
     every += [each for text in newest for each in closing(text, repo)]
     distinct = dict.fromkeys(each for each in every if each not in own)
     return [each for each in distinct if is_open(each)]

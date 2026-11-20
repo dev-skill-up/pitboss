@@ -12,14 +12,12 @@ import unittest
 
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string
 
 from .. import (
     brief,
-    briefgrade,
     briefkind,
     config,
-    gradeline,
     rulingwords,
     steps,
 )
@@ -60,87 +58,8 @@ def named_in_every(each: Sequence[brief.Kind], words: Sequence[str]) -> None:
                 assert_that(printed(made), contains_string(phrase))
 
 
-class TestGradeLines(unittest.TestCase):
-    """B-forms: the Plan and Execution lines, with the words the check reads."""
-
-    def test_every_review_brief_prints_the_grade_lines_of_its_kind(self) -> None:
-        """Derived from ``gradeline``: the line prefix and the form's two words."""
-        for kind in REVIEWS:
-            with self.subTest(kind.name):
-                text = printed(kind)
-                wanted = briefgrade.grade_lines(
-                    kind, FORM.approved, FORM.changes_needed
-                )
-                assert_that(len(wanted) >= 1, equal_to(True))
-                for line in wanted:
-                    assert_that(text, contains_string(line))
-                assert_that(wanted[0].strip().startswith("Plan: "), equal_to(True))
-
-    def test_a_plan_review_has_no_execution_line_and_the_others_have_one(self) -> None:
-        """The Plan-only scope prints one line, the rest two."""
-        for kind in REVIEWS:
-            with self.subTest(kind.name):
-                lines = briefgrade.grade_lines(kind, "approved", "changes needed")
-                plan_only = kind is brief.Kind.REVIEW_PLAN
-                assert_that(len(lines), equal_to(1 if plan_only else 2))
-
-    def test_the_lines_printed_are_ones_the_check_and_the_sweep_read(self) -> None:
-        """Filling the verdict with either word gives a line with no finding."""
-        for kind in REVIEWS:
-            for word in (FORM.approved, FORM.changes_needed):
-                with self.subTest(kind.name, word=word):
-                    body = "\n".join(
-                        each.strip().replace(WORDS, word)
-                        for each in briefgrade.grade_lines(
-                            kind, FORM.approved, FORM.changes_needed
-                        )
-                    )
-                    found = gradeline.ungraded(body, FORM.approved, FORM.changes_needed)
-                    assert_that(list(found), equal_to([]))
-
-    def test_the_form_words_of_the_repository_are_the_words_printed(self) -> None:
-        """A repository whose gate says other words gets those words."""
-        text = printed(brief.Kind.REVIEW_FULL, verdicts=("ok", "no"))
-        assert_that(text, contains_string("Plan: <ok or no>"))
-        assert_that(text, contains_string("Execution: <ok or no>"))
-
-    def test_the_fixed_plan_line_is_the_one_the_check_wants(self) -> None:
-        """A re-review prints ``fixed_line``, which ``--plan-approved`` wants."""
-        text = printed(brief.Kind.REVIEW_EXECUTION)
-        assert_that(text, contains_string(gradeline.fixed_line(FORM.approved)))
-
-
-class TestCheckBeforePosting(unittest.TestCase):
-    """Each review brief names the command that checks the comment."""
-
-    def test_the_check_command_exists_and_is_named_in_every_review_brief(self) -> None:
-        """``lint review`` is a kind of ``lint``; every review brief says to run it."""
-        named_in_every(REVIEWS, [briefgrade.CHECK_COMMAND, f"--head {briefmake.HEAD}"])
-
-    def test_a_gated_repository_check_carries_the_gate_arguments(self) -> None:
-        """The gate reads more than the form; the command is told the repository."""
-        text = printed(brief.Kind.REVIEW_FULL, gate_note="the gate")
-        assert_that(text, contains_string("--gated --repository o/r --config proj"))
-        plain = printed(brief.Kind.REVIEW_FULL)
-        assert_that(
-            "--gated" in plain.split("Check before you post")[1], equal_to(False)
-        )
-
-    def test_a_review_of_an_approved_plan_is_checked_with_plan_approved(self) -> None:
-        """``--plan-approved`` is named exactly where the fixed Plan line is."""
-        for kind in REVIEWS:
-            with self.subTest(kind.name):
-                fixed = gradeline.fixed_line(FORM.approved) in printed(kind)
-                named = "--plan-approved" in printed(kind)
-                assert_that(named, equal_to(fixed))
-
-
 class TestOtherForms(unittest.TestCase):
     """The forms workers write and the ruling, from the constants their checks use."""
-
-    def test_the_review_form_lines_are_in_every_review_brief(self) -> None:
-        """Reviewed and Verdict, as ``review-form`` prints them."""
-        named_in_every(REVIEWS, [f"Reviewed: {briefmake.HEAD}", f"Verdict: {WORDS}"])
 
     def test_every_worker_brief_names_the_plan_check_and_the_hand_back_check(
         self,

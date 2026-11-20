@@ -5,7 +5,7 @@ import json
 import shutil
 from typing import Sequence
 
-from . import fakes, quietworld, world, worldcomments
+from . import cleanworld, decisionline, fakes, quietworld, world, worldcomments
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -72,7 +72,7 @@ def relock(command: str) -> world.World:
     Returns:
         The world.
     """
-    return make(RELOCK_BRANCH, command)
+    return make(RELOCK_BRANCH, command, PIN_FILES)
 
 
 def with_bats(here: world.World, script: str = BATS_OK) -> world.World:
@@ -112,19 +112,6 @@ def without_bats() -> world.World:
     return with_bats(relock(""), script="")
 
 
-def lines_of(out: str, start: str) -> str:
-    """The lines of an output that start with a word.
-
-    Args:
-        out: the output.
-        start: how they start.
-
-    Returns:
-        Those lines, one on each line.
-    """
-    return "\n".join(line for line in out.splitlines() if line.startswith(start))
-
-
 def swept(here: world.World) -> str:
     """What a sweep of the world prints.
 
@@ -135,18 +122,6 @@ def swept(here: world.World) -> str:
         Its output.
     """
     return sweep(here).out
-
-
-def pins_lines(out: str) -> str:
-    """The lines about pins in a sweep's output.
-
-    Args:
-        out: the output.
-
-    Returns:
-        The lines that start with a pins marker, one on each line.
-    """
-    return lines_of(out, "PINS-ONLY")
 
 
 def files(here: world.World, names: Sequence[object]) -> world.World:
@@ -164,16 +139,15 @@ def files(here: world.World, names: Sequence[object]) -> world.World:
 
 
 def offered(here: world.World) -> str:
-    """PR 3's lines of ``slots next``.
+    """PR 3's decision in ``slots next``.
 
     Args:
         here: the world.
 
     Returns:
-        The lines, none when PR 3 is offered for nothing.
+        The line, empty when PR 3 is in no answer.
     """
-    out = next_output(here)
-    return "".join(line for line in out.splitlines() if "project#3 (" in line)
+    return decisionline.of(next_output(here), "owner/project#3")
 
 
 def ran_commands(here: world.World) -> Sequence[Sequence[str]]:
@@ -208,7 +182,5 @@ def with_library(here: world.World) -> world.World:
         "issues/4/comments": [worldcomments.CLEAN_CHECK],
         "pulls/4/files": PIN_FILES,
     }
-    here.bodies.update(
-        {fakes.page(f"{world.LIBRARY}/{k}"): v for k, v in tails.items()}
-    )
+    here.bodies.update({cleanworld.library_page(k): v for k, v in tails.items()})
     return here

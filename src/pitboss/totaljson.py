@@ -6,7 +6,7 @@ row reads is read as empty, so the row that needs it stops; nothing here raises.
 
 import json
 import pathlib
-from typing import AbstractSet, Collection, Mapping, Sequence
+from typing import Mapping, Sequence
 
 JsonMap = Mapping[str, object]
 EMPTY: JsonMap = {}
@@ -49,6 +49,19 @@ def text(value: object) -> str:
     return value if isinstance(value, str) else ""
 
 
+def count(item: Mapping[str, object], key: str) -> int:
+    """A JSON object's whole number at a key, 0 when it has none.
+
+    Args:
+        item: the object.
+        key: the key.
+
+    Returns:
+        The number.
+    """
+    return int(str(item.get(key) or 0))
+
+
 def listing(value: object) -> Sequence[object]:
     """A JSON array, or an empty one.
 
@@ -86,21 +99,6 @@ def listed(value: object, key: str) -> Sequence[JsonMap]:
     return records(field(value, key))
 
 
-def strings(value: object) -> AbstractSet[str]:
-    """A collection of names.
-
-    Args:
-        value: what was read (a list, a tuple or a set).
-
-    Returns:
-        The strings in it; none when it is no collection.
-    """
-    given: Collection[object] = (
-        value if isinstance(value, (list, tuple, set, frozenset)) else ()
-    )
-    return frozenset(each for each in given if isinstance(each, str))
-
-
 def at(value: object, *keys: str) -> object:
     """A value reached by a path of fields.
 
@@ -127,18 +125,6 @@ def name_at(value: object, *keys: str) -> str:
         The string there, ``""`` when any step is missing or of another shape.
     """
     return text(at(value, *keys))
-
-
-def failed_read(value: object) -> str:
-    """Why a read failed, when the value is the record of a failed read.
-
-    Args:
-        value: what was read; a failed read is an object with ``_error``.
-
-    Returns:
-        The error, ``""`` for a value that was read.
-    """
-    return text(field(value, "_error")) if "_error" in members(value) else ""
 
 
 def lines_of(out: str) -> Sequence[object]:

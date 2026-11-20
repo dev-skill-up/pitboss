@@ -12,7 +12,7 @@ from . import (
     config,
     gateform,
     gates,
-    ghapi,
+    ghclient,
     gradeline,
     headchecks,
     reviewci,
@@ -39,7 +39,7 @@ def _require_green(args: argparse.Namespace, repo: config.Repo) -> None:
     # exit 1, each run and its state printed, while a CI run of --head is not green
     if not args.head:
         return
-    github = ghapi.read_only(args.safe_run)  # case 38 (keyword: review-ci)
+    github = ghclient.read_only(args.safe_run)  # case 38 (keyword: review-ci)
     runs = checkruns.current_checks(
         headchecks.runs_of(github, repo, args.head), args.head
     )

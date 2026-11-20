@@ -16,9 +16,13 @@ class Rounds:
         missed_after: the findings the reviews after that ruling mark so.
     """
 
-    merges_only: bool = False
-    missed_before: int = 0
-    missed_after: int = 0
+    merges_only: bool
+    missed_before: int
+    missed_after: int
+
+
+# no round missed
+NONE = Rounds(merges_only=False, missed_before=0, missed_after=0)
 
 
 def of(state: flowstate.PullState, merges_only: bool) -> Rounds:

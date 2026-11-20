@@ -8,7 +8,7 @@ as given. The flow reads the table ``AFTER`` (``flow.AFTER``);
 
 from typing import Sequence
 
-from . import conflicts, flow, rulingafter, rulingwords, steps
+from . import checkoutcome, conflicts, flow, rulingafter, rulingwords, steps
 
 RULING_LINE_PREFIX = rulingwords.RULING_LINE_PREFIX
 Ruling = rulingwords.Ruling
@@ -17,7 +17,7 @@ AS_RULED = rulingafter.AS_RULED
 AFTER = flow.AFTER
 
 
-def after_opus_ruling(pr: flow.PullState, ruling: Ruling) -> Sequence[steps.Next]:
+def after_opus_ruling(pr: flow.PullState, ruling: Ruling) -> Sequence[steps.Move]:
     """The steps that follow a recorded ruling; the ruling is taken as given.
 
     A split, reshape or abandon is carried out as ruled and is not checked
@@ -35,7 +35,7 @@ def after_opus_ruling(pr: flow.PullState, ruling: Ruling) -> Sequence[steps.Next
     return AFTER[ruling]
 
 
-def merge_when_green(pr: flow.PullState) -> steps.Next:
+def merge_when_green(pr: flow.PullState) -> steps.Move:
     """Merge when the checks of the head are green and there is no conflict.
 
     Else what the gate says: wait for CI, fix a red CI, resolve the conflict.
@@ -46,9 +46,9 @@ def merge_when_green(pr: flow.PullState) -> steps.Next:
     Returns:
         The step.
     """
-    ci = flow.ci_result(pr)
+    ci = checkoutcome.result(pr.checks)
     if ci is None:
-        return steps.wait_for_ci()
+        return steps.IDLE
     green = ci is flow.Ci.GREEN
     return (
         conflicts.merge_unless_conflict(pr)

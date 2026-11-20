@@ -13,7 +13,7 @@ import re
 import subprocess
 from typing import Sequence
 
-from . import config, ghapi, handbackcheck, handbackrecord
+from . import config, ghclient, handbackcheck, handbackrecord
 
 
 def git_out(args: argparse.Namespace, *words: str) -> str:
@@ -73,7 +73,7 @@ def _slug(args: argparse.Namespace, settings: config.Config) -> str:
 def _pull_lines(
     args: argparse.Namespace, settings: config.Config, head: str
 ) -> Sequence[str]:
-    github = ghapi.read_only(args.safe_run)
+    github = ghclient.read_only(args.safe_run)
     slug = _slug(args, settings)
     number = args.pr
     if number is None:

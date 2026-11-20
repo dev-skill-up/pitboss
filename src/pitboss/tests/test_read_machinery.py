@@ -12,7 +12,7 @@ from typing import Mapping, MutableSequence, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import concurrently, dead, ghapi, ghmemo, measured, prefetch, scanning, survey
+from .. import concurrently, dead, ghapi, ghmemo, measured, scanning, survey
 from . import fakes, world
 
 MEMO_PATH = "repos/owner/project/issues/9"
@@ -207,15 +207,6 @@ class TestTheMemoOfWalks(unittest.TestCase):
         scan = scanning.Scanning()
         scan.lap("section", 3, "things")
         assert_that((scan.walks, scan.lap is scanning.untimed), equal_to((None, True)))
-
-
-class TestTheStartedReads(unittest.TestCase):
-    """A read started early that fails fails again where its answer is taken."""
-
-    def test_a_failure_is_left_for_the_stage_that_takes_the_answer(self) -> None:
-        """Nothing is raised where the read was started; it says it failed."""
-
-        assert_that(prefetch.quietly(fail), equal_to(False))
 
 
 class TestTheEarlyOut(unittest.TestCase):

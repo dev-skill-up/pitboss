@@ -11,7 +11,7 @@ from . import (
     ENTRY_DATA,
     config,
     configrepos,
-    ghapi,
+    ghclient,
     red,
     redrender,
     redreport,
@@ -39,9 +39,9 @@ def _sources(
     args: argparse.Namespace, settings: config.Config, repo: config.Repo
 ) -> redreport.Sources:
     reader = args.safe_run
-    github = ghapi.GitHub(run=reader, mutate=reader)
+    github = ghclient.GitHub(run=reader, mutate=reader)
     wanted = _repos(settings, repo)
-    failures = ghapi.unreadable(github, [each.slug for each in wanted])
+    failures = redreport.unreadable(github, wanted)
     if repo.slug in failures:
         raise SystemExit(f"cannot read {repo.slug}")
     return redreport.Sources(

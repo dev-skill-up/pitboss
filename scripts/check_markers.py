@@ -11,7 +11,7 @@ import re
 import sys
 
 from pitboss import markercheck
-from pitboss.markers import SELF_EXPLAINED, Marker
+from pitboss.markers import RETIRED, SELF_EXPLAINED, Marker
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REFERENCES = sorted(ROOT.glob("plugins/*/skills/*/references/*.md"))
@@ -22,7 +22,7 @@ def main():
     text = "\n".join(path.read_text() for path in REFERENCES)
     printed = {marker.text for marker in Marker}
     own = {marker.text for marker in SELF_EXPLAINED}
-    found = markercheck.errors(printed, own, set(NAMED.findall(text)))
+    found = markercheck.errors(printed, own, set(NAMED.findall(text)), RETIRED)
     for error in found:
         print(f"FAIL: {error}")
     if found:

@@ -40,7 +40,7 @@ def built_scene() -> worldcopy.Made:
     added = [fakes.add_worktree(here.clone, name) for name in NAMES]
     for path in added:
         test_autoclean_world.touch_all(path, 99)
-    page = world.project_page("pulls?state=all")
+    page = world.project_page("pulls?state=closed")
     here.bodies.update({page: pulls()})
     return here, []
 

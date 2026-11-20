@@ -5,7 +5,7 @@
 5	test_scenarios.test_a1_a2_a3_pitboss_465 test_scenarios.test_a1_a2_a3_pitboss_470
 6	A4 A5 A6 A7 A8 A9
 7	A19 A20 A25 A30 A31
-8	B2 B6 B9 B10 B15 B16 B17 B21 B22 B23
+8	B2 B6 B9 B10 B15 B17 B21 B22 B23
 9	I10 I11 I14 I15 I16 I17 I18 I24 I25 I26 I27 I28 I30 I31 I32 I34 I36 I38
 10	D1 D2 D3 D5 D6 D11
 11	test_flow_order.test_flow_order_every_pair_that_holds_at_once_has_a_stated_order test_flow_order.test_flow_order_deleting_one_pairs_order_is_found

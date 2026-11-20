@@ -3,19 +3,23 @@
 Rule ids A7 and A8 of ``rules.tsv`` (pitboss#444, items 4 and 38).
 """
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
 from .. import brief, config, reviewrules, reviews, shapes
-from . import briefmake
+from . import blank, briefmake
 
 HEAD = "a" * 40
 
 
 def _read(body: str) -> reviews.Found:
-    comment = shapes.Comment(
-        body=body, author_association="MEMBER", created_at="2026-11-11T00:00:00Z"
+    comment = dataclasses.replace(
+        blank.COMMENT,
+        body=body,
+        author_association="MEMBER",
+        created_at="2026-11-11T00:00:00Z",
     )
     trusted = frozenset({"MEMBER"})
     form = config.DEFAULT_REVIEW_FORM

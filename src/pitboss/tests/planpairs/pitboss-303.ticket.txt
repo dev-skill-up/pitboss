@@ -1,0 +1,11 @@
+## What happened
+
+The quire sweep config (`[libraries] repositories`) is a hand-kept list. It did not name `zip` (nor `env`, `argparse`, `sha256`, `decompress`, `path`, `arith`, `dict`, `promise`, `sort`, `result`, `file-input`, `list`). `pitboss next` therefore showed no PR STATE line for bats-lang/zip#97, which was green and waiting for its Execution review, nor for the relock bats-lang/zip#94 (open since 2026-10-30). A new ticket was started in the slot ahead of both. Wrong data from the sweep: the work order it prints is not the real order of the open PRs.
+
+## Done-when
+
+- `pitboss next CONFIG` lists the non-archived repositories of the project's owner itself (the owner is `[project] owner`), so a repository that is not in `[libraries] repositories` still has its open PRs and tickets in the sweep; a repository named in an `exclude` list of the config (for fixtures such as relock-scratch) is left out, and a test shows both.
+- A test shows a repository of the owner that is missing from the config list, and has an open PR, appears as a PR STATE line.
+- When the org listing cannot be read, the sweep prints a line saying so and which repositories it did not check, never a silent shorter list.
+
+Priority: p0 (wrong data).

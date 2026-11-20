@@ -10,11 +10,62 @@ version, so a subcommand is parsed with it.
 
 import argparse
 import contextlib
-from collections.abc import Iterator, Sequence
+import dataclasses
+import subprocess
+import sys
+from collections.abc import Iterator, Mapping, Sequence
+from typing import Protocol, runtime_checkable
 
 from gather import commands as gather_commands
 
-from . import ENTRY_DATA, commanddoc, commandscan, configsettle, disk
+from . import ENTRY_DATA, commanddoc, commandscan, configsettle, disk, retrying
+
+
+@runtime_checkable
+class Command(Protocol):
+    """A command, which gather calls with the keyword ``args``."""
+
+    def __call__(self, *, args: argparse.Namespace) -> None:
+        """Run the command.
+
+        Args:
+            args: the parsed arguments.
+        """
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Entered:
+    """A command run from the command line: the one place a failed read ends it.
+
+    Attributes:
+        command: the function the command runs.
+    """
+
+    command: Command
+
+    def __call__(self, *, args: argparse.Namespace) -> None:
+        """Run the command; a read that failed on every try ends it (read-retry).
+
+        Args:
+            args: the parsed arguments.
+
+        Raises:
+            SystemExit: a read failed: status 1, the request on standard error.
+            subprocess.CalledProcessError: a command other than a read failed.
+        """
+        try:
+            self.command(args=args)
+        except retrying.ReadFailed as failed:
+            print(f"READ FAILED: {failed}", file=sys.stderr)
+            raise SystemExit(1) from failed
+        except subprocess.CalledProcessError as answered:
+            # a 404, 410 or 422 is an answer; one no reader takes is a failed read,
+            # and no decision is made on a partial world (keyword: read-retry)
+            if not retrying.reads(list(answered.cmd)):
+                raise
+            said = f"{answered.cmd[-1]}: {retrying.said(answered)}"
+            print(f"READ FAILED: {said}", file=sys.stderr)
+            raise SystemExit(1) from answered
 
 
 @contextlib.contextmanager
@@ -52,11 +103,12 @@ class IntermixedParser(argparse.ArgumentParser):  # noqa: SLD504,SLD401
             **kwargs: the defaults; ``__gather_command__`` is the function a
                 subcommand runs (keyword: command-help, pitboss#301).
         """
-        super().set_defaults(**kwargs)
         command = kwargs.get("__gather_command__")
-        if command is not None:
+        if isinstance(command, Command):
             self.description = commanddoc.text(command)
             self.formatter_class = argparse.RawDescriptionHelpFormatter
+            kwargs = {**kwargs, "__gather_command__": Entered(command=command)}
+        super().set_defaults(**kwargs)
 
     def parse_known_args(  # type: ignore[override]
         self,
@@ -81,6 +133,23 @@ class IntermixedParser(argparse.ArgumentParser):  # noqa: SLD504,SLD401
             return self.parse_known_intermixed_args(args, namespace)
 
 
+# each command, with the arguments it declares: what the parser is built from
+Declared = Mapping[str, Sequence[object]]
+
+
+def table(collect: commandscan.Collect = ENTRY_DATA.collector.collect) -> Declared:
+    """The declared commands, each with its arguments (keyword: one-path).
+
+    Args:
+        collect: the scan of the commands; it is made on the first call of the
+            process only (keyword: scan-once).
+
+    Returns:
+        Each command's registrations, ``--config`` given where it is taken.
+    """
+    return configsettle.with_option(commandscan.scanned(collect))
+
+
 def make_parser(
     usage: disk.Reader,
     collect: commandscan.Collect = ENTRY_DATA.collector.collect,
@@ -99,7 +168,7 @@ def make_parser(
     Returns:
         The parser.
     """
-    collected = configsettle.with_option(commandscan.scanned(collect))
+    collected = table(collect)
     made: argparse.ArgumentParser = gather_commands.set_parser(
         collected=collected, parser=kind()
     )

@@ -9,7 +9,7 @@ The lines are the project's (``[slots.brief] flake_worker_lines``,
 import enum
 import pathlib
 import re
-from typing import AbstractSet, Iterator, Sequence
+from typing import AbstractSet, Iterator, Protocol, Sequence
 
 from . import donewhen
 
@@ -44,6 +44,46 @@ def is_flake(labels: AbstractSet[str], title: str, body: str) -> bool:
     """
     named = f"{title}\n{donewhen.section(body)}"
     return Word.PRIORITY.value in labels and _NAMES_TEST.search(named) is not None
+
+
+class Ticket(Protocol):
+    """A ticket as read: its title, labels and text."""
+
+    @property
+    def title(self) -> str:
+        """Its title.
+
+        Returns:
+            The title.
+        """
+
+    @property
+    def labels(self) -> AbstractSet[str]:
+        """Its labels.
+
+        Returns:
+            The labels' names.
+        """
+
+    @property
+    def body(self) -> str:
+        """Its text.
+
+        Returns:
+            The text.
+        """
+
+
+def issue_is_flake(issue: Ticket | None) -> bool:
+    """Whether a ticket, as read, is a flake (``is_flake`` of its parts).
+
+    Args:
+        issue: the ticket; None when it could not be read.
+
+    Returns:
+        True for a flake.
+    """
+    return issue is not None and is_flake(issue.labels, issue.title, issue.body)
 
 
 def _cites(text: str, ticket: str) -> bool:

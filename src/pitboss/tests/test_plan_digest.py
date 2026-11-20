@@ -4,11 +4,10 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, is_not
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import (
     bodydigest,
-    brief,
     brieftext,
     flow,
     flowstate,
@@ -16,10 +15,9 @@ from .. import (
     shapes,
     steps,
 )
-from . import fakes, world
+from . import blank, decisionline, fakes, world
 from . import test_plan_digest_urls as urls
 from .test_plan_digest_urls import pointed
-from .briefmake import text as brief_text
 from .test_commands import sweep
 from .test_plan_digest_collapse import digest, legacy_digest
 from .test_plan_digest_collapse import plan as expanded_plan
@@ -28,7 +26,6 @@ from .test_flow_sweep import (
     CHANGES,
     DIRTY,
     graded,
-    listed_for_third,
     world_with,
 )
 from .test_slot_commands import next_output
@@ -40,9 +37,11 @@ EDITED_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work, and more\n"
 
 
 LINE = f"Plan digest: {digest(PLAN)}"
-EDIT_LINE = "PLAN EDITED owner/project#3"
-RULING_DUE = "RULING DUE owner/project#3"
+# keyword: one-path: the decisions of PR 3 the sweep and the list print
+EDIT_LINE = "RULING: owner/project#3: the Plan was edited after its approval"
+RULING_DUE = "RULING: owner/project#3: start an Opus agent"
 RULING_WORDS = "revise the plan"
+THIRD = "owner/project#3"
 PLAN_DIGEST_START = "Plan digest: you grade the Plan, so add "
 NO_PLAN = "## Execution\nwork\n"
 
@@ -73,7 +72,8 @@ def ruling(second: int, word: str = RULING_WORDS) -> shapes.Comment:
     Returns:
         The comment.
     """
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body=f"Opus ruling\nRuling: {word}\n",
         author_association="MEMBER",
         created_at=f"2026-10-30T00:00:{second:02d}Z",
@@ -92,8 +92,7 @@ def looked_at(rounds: Sequence[shapes.Comment], body: str) -> tuple[str, str]:
     """
     here = world_with(rounds, body=body)
     swept = [x for x in sweep(here).out.splitlines() if "project#3 " in x]
-    listed = [x for x in next_output(here).splitlines() if "project#3 (" in x]
-    return "".join(swept), "".join(listed)
+    return "".join(swept), decisionline.of(next_output(here), "owner/project#3")
 
 
 def plan_digest_run(text: str) -> tuple[object, str, str]:
@@ -161,7 +160,7 @@ class TestThePlanEditedLine(unittest.TestCase):
     """The sweep's line and the list of ``slots next``."""
 
     def test_an_edited_plan_is_named_and_offered_for_no_round(self) -> None:
-        """The sweep prints PLAN EDITED, and slots next prints the ruling brief for it.
+        """The decision is the ruling on the edit, with the ruling brief for it.
 
         Keyword plan-edited-brief, quire#1115: no brief was offered, so one was
         built by hand.
@@ -169,16 +168,22 @@ class TestThePlanEditedLine(unittest.TestCase):
         here = world_with([approving(1)], body=EDITED_PLAN)
         swept, listed = looked_at([approving(1)], EDITED_PLAN)
         assert_that(swept, contains_string("review=changes-needed"))
-        assert_that(listed, equal_to(""))
+        assert_that(listed, contains_string(EDIT_LINE))
         offered = next_output(here)
         assert_that(offered, contains_string("make an Opus ruling: owner/project#3"))
-        assert_that(offered, contains_string("PITBOSS-SLOT: owner/project#3 ruling"))
+        assert_that(
+            offered,
+            contains_string(
+                "Ruling: you are an Opus agent whose only brief is to make a ruling"
+                " on PR owner/project#3"
+            ),
+        )
 
     def test_the_sweep_prints_the_line(self) -> None:
         """The line names the PR and the way out."""
         out = sweep(world_with([approving(1)], body=EDITED_PLAN)).out
         assert_that(out, contains_string(EDIT_LINE))
-        assert_that(out, contains_string("only a ruling `revise the plan`"))
+        assert_that(out, contains_string("a ruling that says `revise the plan`"))
 
     def test_an_unedited_plan_has_no_line_and_the_ruling_is_due(self) -> None:
         """The Execution rejection is ruled on against the Plan as written."""
@@ -213,17 +218,17 @@ class TestThePlanEditedLine(unittest.TestCase):
         rounds = [approving(1), graded(CHANGES, None, 2)]
         _, edited = looked_at(rounds, EDITED_PLAN)
         _, unedited = looked_at(rounds, PLAN)
-        assert_that(edited, equal_to(""))
-        assert_that(unedited, contains_string("(revise the plan,"))
+        assert_that(edited, contains_string(EDIT_LINE))
+        assert_that(unedited, contains_string(": revise the PLAN only"))
 
-    def test_a_dirty_pr_with_an_edited_plan_waits_for_the_restoring(self) -> None:
-        """The conflict waits like the other holds: PLAN_EDITED is in WAITS."""
-        assert_that(steps.Step.PLAN_EDITED in steps.WAITS, equal_to(True))
+    def test_a_dirty_pr_with_an_edited_plan_is_ruled_on_first(self) -> None:
+        """The edit is decided before the conflict: PLAN_EDITED is unresolved."""
+        assert_that(steps.Step.PLAN_EDITED in steps.UNRESOLVED, equal_to(True))
         here = world_with([approving(1)], body=EDITED_PLAN, **DIRTY)
         out = sweep(here).out
         assert_that(out, contains_string(EDIT_LINE))
-        assert_that(out, contains_string("CONFLICT owner/project#3"))
-        assert_that(listed_for_third(here), equal_to([]))
+        third = decisionline.of(out, THIRD)
+        assert_that("resolve the conflict" in third, equal_to(False))
 
     def test_a_ruling_before_the_approval_does_not(self) -> None:
         """The ruling must come after the approval."""
@@ -233,9 +238,9 @@ class TestThePlanEditedLine(unittest.TestCase):
     def test_a_ruling_of_another_word_is_executed_not_held(self) -> None:
         """pitboss#475: `do these steps` is offered at once, not PLAN EDITED."""
         rounds = [approving(1), ruling(2, "do these steps")]
-        swept, listed = looked_at(rounds, EDITED_PLAN)
-        assert_that(listed, contains_string("(do the ruling's steps,"))
-        assert_that(EDIT_LINE in swept, equal_to(False))
+        _, listed = looked_at(rounds, EDITED_PLAN)
+        steps_line = ": do exactly the steps of the Opus ruling"
+        assert_that(listed, contains_string(steps_line))
 
 
 class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):
@@ -254,7 +259,9 @@ class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):
     def test_t475_a_revision_then_do_these_steps_is_not_plan_edited(self) -> None:
         """Done-when 1: the approving review, the edited Plan, both rulings."""
         pr = urls.edited(urls.PLAN, urls.EDITED_PLAN, urls.revised_then_steps(3))
-        assert_that(flow.next_step(pr).step, is_not(steps.Step.PLAN_EDITED))
+        assert_that(
+            steps.step_of(flow.next_step(pr)) is steps.Step.PLAN_EDITED, equal_to(False)
+        )
 
 
 class TestTheOldDigestIsStillAccepted(unittest.TestCase):
@@ -286,26 +293,6 @@ class TestTheCommand(unittest.TestCase):
 
 class TestTheBriefs(unittest.TestCase):
     """The briefs say that an approved Plan is not edited."""
-
-    def test_each_sentence_is_in_the_briefs_it_belongs_to(self) -> None:
-        """Who is told not to edit the Plan, who not to ask for it, who records it."""
-        Kind = brief.Kind
-        belongs = {
-            brieftext.NO_PLAN_EDIT: {
-                Kind.FIX_REVIEW,
-                Kind.FIX_CI,
-                Kind.RESOLVE_CONFLICT,
-                Kind.RULING_STEPS,
-                Kind.RUN_PLAN,
-                Kind.ADD_CI_QUOTES,
-            },
-            brieftext.NO_PLAN_FINDING: {Kind.REVIEW_EXECUTION, Kind.REVIEW_FIX_ROUND},
-            PLAN_DIGEST_START: {Kind.REVIEW_FULL, Kind.REVIEW_PLAN},
-        }
-        for sentence, kinds in belongs.items():
-            found = {kind for kind in Kind if sentence in brief_text(kind)}
-            with self.subTest(sentence):
-                assert_that(found, equal_to(kinds))
 
     def test_a_plan_problem_is_handed_back_as_not_proceeding(self) -> None:
         """The worker's sentence names the hand-back and the evidence."""

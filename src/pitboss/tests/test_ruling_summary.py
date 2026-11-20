@@ -1,13 +1,14 @@
 """Tests for the daily Opus ruling summary and the owner's artifact (pitboss#237)."""
 
+import dataclasses
 import datetime
 import pathlib
 import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import roundline, rulingsummary, shapes, steps
-from . import fakes, world
+from .. import rulingsummary, shapes
+from . import blank, fakes, world
 from .test_evidence_rules import read, words
 
 AFTER = ("--now", world.FUTURE)
@@ -68,8 +69,8 @@ def ruled(when: str, author: str = "MEMBER", url: str = "") -> shapes.Comment:
     Returns:
         The comment.
     """
-    return shapes.Comment(
-        body=RULING, author_association=author, created_at=when, url=url
+    return dataclasses.replace(
+        blank.COMMENT, body=RULING, author_association=author, created_at=when, url=url
     )
 
 
@@ -96,7 +97,9 @@ def plain(when: str) -> shapes.Comment:
     Returns:
         The comment.
     """
-    return shapes.Comment(body="LGTM", author_association="MEMBER", created_at=when)
+    return dataclasses.replace(
+        blank.COMMENT, body="LGTM", author_association="MEMBER", created_at=when
+    )
 
 
 def ran(here: world.World, command: str) -> str:
@@ -264,23 +267,6 @@ class TestNote(unittest.TestCase):
         for path in (here.clone, here.clone / "missing" / "record.log"):
             with self.subTest(path=path), self.assertRaises(SystemExit):
                 rulingsummary.note(path, NOW)
-
-
-class TestEscalationCard(unittest.TestCase):
-    """The step that has the orchestrator ask the owner carries the artifact."""
-
-    def test_the_sentence_is_pinned(self) -> None:
-        """Each escalation step and its sweep line carry the sentence."""
-        assert_that(steps.OWNER_ARTIFACT, equal_to(ARTIFACT))
-        shown = [
-            steps.TEXTS[steps.Step.PAUSE_FOR_OWNER],
-            steps.TEXTS[steps.Step.RULING_ESCALATES],
-            roundline.LINES[steps.Step.PAUSE_FOR_OWNER][1],
-            roundline.LINES[steps.Step.RULING_ESCALATES][1],
-        ]
-        for text in shown:
-            with self.subTest(text=text):
-                assert_that(text, contains_string(ARTIFACT))
 
 
 class TestRules(unittest.TestCase):

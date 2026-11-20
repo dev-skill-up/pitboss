@@ -4,16 +4,8 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import (
-    bodydigest,
-    config,
-    gradeline,
-    missed,
-    reviewnote,
-    reviewplain,
-    sessionurl,
-    shapes,
-)
+from . import bodydigest, config, gradeline, missed, reviewnote
+from . import reviewplain, sessionurl, shapes
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -49,13 +41,28 @@ class Found:
     sha: str
     verdict: Verdict
     when: str
-    plan_approved: bool | None = None
-    plan_alone: bool = False
-    url: str = ""
-    body: str = ""
-    missed: int = 0
-    plan_digest: str = ""
-    note: str = ""
+    plan_approved: bool | None
+    plan_alone: bool
+    url: str
+    body: str
+    missed: int
+    plan_digest: str
+    note: str
+
+
+# a review with no line but its head and verdict: a GitHub review is one
+BARE = Found(
+    sha="",
+    verdict=Verdict.APPROVED,
+    when="",
+    plan_approved=None,
+    plan_alone=False,
+    url="",
+    body="",
+    missed=0,
+    plan_digest="",
+    note="",
+)
 
 
 def names(found: Found, head: str) -> bool:
@@ -89,25 +96,8 @@ def line_pattern(template: str, form: config.ReviewForm) -> re.Pattern[str]:
     return re.compile(escaped)
 
 
-def literal_prefix(template: str) -> str:
-    """The fixed text a template starts with.
-
-    Args:
-        template: a line template of the form.
-
-    Returns:
-        The text before the first ``{sha}`` or ``{verdict}``, stripped.
-    """
-    return re.split(r"\{(?:sha|verdict)\}", template)[0].strip()
-
-
 is_plain = reviewplain.is_plain
-
-
-def _matches_strictly(lines: Sequence[str], template: str, count: int) -> bool:
-    prefix = literal_prefix(template)
-    containing = sum(1 for line in lines if prefix and prefix in line)
-    return count == 1 and (not prefix or containing == 1)
+literal_prefix = reviewplain.literal_prefix
 
 
 Reading = tuple[str, Verdict]
@@ -182,7 +172,8 @@ def read_gated(body: str, form: config.ReviewForm) -> Reading | None:
     if matches is None or not is_plain(body):
         return None
     pairs = zip(form.lines, matches)
-    if not all(_matches_strictly(lines, line, len(group)) for line, group in pairs):
+    strict = reviewplain.matches_strictly
+    if not all(strict(lines, line, len(group)) for line, group in pairs):
         return None
     found = _reading(matches, form)
     return found if found and len(found[0]) == _FULL_SHA else None
@@ -254,7 +245,8 @@ def from_reviews(
         if approved is None or item.author_association not in review.trusted:
             continue
         verdict = Verdict.APPROVED if approved else Verdict.CHANGES_NEEDED
-        yield Found(sha=item.commit_id, verdict=verdict, when=item.submitted_at)
+        when = item.submitted_at
+        yield dataclasses.replace(BARE, sha=item.commit_id, verdict=verdict, when=when)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

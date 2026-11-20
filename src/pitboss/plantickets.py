@@ -14,6 +14,10 @@ from typing import Sequence
 
 from . import cirun, ghapi, plandigest, plandonewhen, ticketwhen, totaljson
 
+NOT_CHECKED = (
+    "{check}: not checked: the body names no ticket (no `Fixes` line), so the"
+    " Plan was not compared with any Done-when; the Plan is not fully checked"
+)
 ORIGIN = re.compile(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
 
@@ -36,6 +40,18 @@ def run_head(github: ghapi.GitHub) -> cirun.HeadOf:
         return sha if isinstance(sha, str) else None
 
     return head_of
+
+
+def no_ticket_note() -> Sequence[str]:
+    """The note for a Plan with no ticket (keyword: no-ticket-note).
+
+    A body that names no ticket has no Done-when to hold the Plan to, and a
+    clean report would say it was fully checked when the item checks never ran.
+
+    Returns:
+        One line that says the Plan is not fully checked. It refuses nothing.
+    """
+    return [NOT_CHECKED.format(check=plandonewhen.CHECK)]
 
 
 def slug_of(origin: str) -> str:

@@ -5,10 +5,22 @@ from typing import Mapping, MutableMapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import failures, pullread, pulls, reviews, shapes, steps
+from .. import (
+    config,
+    failures,
+    flowstep,
+    pullchecks,
+    pullread,
+    pullref,
+    pulls,
+    reviews,
+    shapes,
+    steps,
+)
 from . import fakes
 
 GATED = "[review]\ngated = ['gated']\n[libraries]\nrepositories = ['gated']\n"
+GATED_REPO = config.make_repo("owner", "gated")
 AUTHORED = {"sha": "1", "parents": [{"sha": "0"}]}
 MERGE = {"sha": "2", "parents": [{"sha": "1"}, {"sha": "9"}]}
 FIX = {"sha": "3", "parents": [{"sha": "2"}]}
@@ -104,7 +116,15 @@ def read(found: MutableMapping[str, object]) -> Sequence[pulls.PullFacts]:
         The PRs.
     """
     settings = fakes.settings(fakes.directory(), GATED)
-    return pullread.read_open(fakes.github(found), settings, lambda: False)
+    github = fakes.github(found)
+    return [
+        flowstep.at_flow(
+            pulls.fetch(
+                pullread.source_for(github, settings, lambda: False, repo), repo, number
+            )
+        )
+        for repo, number in [(settings.project.repo, 1), (GATED_REPO, 2)]
+    ]
 
 
 def summary(facts: pulls.PullFacts) -> Mapping[str, object]:
@@ -119,11 +139,11 @@ def summary(facts: pulls.PullFacts) -> Mapping[str, object]:
     return {
         "reference": pulls.reference(facts),
         "standing": facts.standing,
-        "approved": pulls.approved(facts),
-        "conflicted": pulls.conflicted(facts),
+        "approved": pullchecks.approved(facts),
+        "conflicted": pullchecks.conflicted(facts),
         "failed": [check.id for check in pulls.failed_checks(facts)],
-        "pending": pulls.pending(facts),
-        "green": pulls.green(facts),
+        "pending": pullref.pending(facts),
+        "green": pullref.green(facts),
     }
 
 
@@ -182,7 +202,7 @@ def rejection(sha: str, plan: str | None, second: int) -> Mapping[str, object]:
     }
 
 
-def step_after_two_rejections(since_head: Sequence[object]) -> steps.Next:
+def step_after_two_rejections(since_head: Sequence[object]) -> steps.Move:
     """The step of a PR whose execution was rejected at two heads.
 
     Args:
@@ -316,3 +336,22 @@ class TestFailures(unittest.TestCase):
         empty = shapes.Failure(steps=[], title="", summary="", annotations=[])
         found = (len(failures.describe(long)), failures.describe(empty))
         assert_that(found, equal_to((300, "")))
+
+
+class TestCarryOver(unittest.TestCase):
+    """An approval of the plan alone is not carried over merges of the base."""
+
+    def test_older_plan_approval_is_not_an_approval(self) -> None:
+        """Only merges since the head it named: the standing is the older head's."""
+        for plan_line, expected in [
+            ("", reviews.Standing.APPROVED_BEFORE_MERGES),
+            ("Plan: approved\n", reviews.Standing.OLDER_HEAD),
+        ]:
+            found = bodies([AUTHORED, MERGE])
+            comment = dict(OLD_GATED_APPROVAL)
+            comment["body"] = str(comment["body"]).replace(
+                "Verdict:", plan_line + "Verdict:"
+            )
+            found[fakes.page("repos/owner/project/issues/1/comments")] = [comment]
+            project, _ = read(found)
+            assert_that(project.standing, equal_to(expected))

@@ -1,11 +1,13 @@
 """Tests for the plan revision round (keyword: plan-revision, pitboss#82)."""
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, equal_to
 
 from .. import gradeline, reviews, shapes, work
-from . import fakes, quietworld, test_commands, test_pulls, world
+from . import blank, decisionline, fakes, quietworld, test_commands, world
+from .actreviewed import TO_REVIEW
 
 APPROVED = reviews.Verdict.APPROVED
 CHANGES = reviews.Verdict.CHANGES_NEEDED
@@ -36,7 +38,8 @@ def review_comment(
         *([f"Execution: {execution}"] if execution else []),
         f"Verdict: {verdict}",
     ]
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body="\n".join(lines).replace("a" * 40, HEAD) + "\n",
         author_association="MEMBER",
         created_at="2026-10-30T00:00:01Z",
@@ -57,22 +60,20 @@ def world_with(posted: shapes.Comment) -> world.World:
     return quietworld.at_rest(here)
 
 
-def outputs(posted: shapes.Comment) -> tuple[str, str, str]:
-    """What the sweep and ``slots next`` print for a world with PR 3's comment.
+def outputs(posted: shapes.Comment) -> tuple[str, str]:
+    """PR 3's line of the sweep and its decision, in a world with its comment.
 
     Args:
         posted: PR 3's only comment.
 
     Returns:
-        The sweep, PR 3's line of it, and PR 3's line of ``slots next``.
+        PR 3's state line of the sweep, and its decision.
     """
     here = quietworld.calm(world_with(posted))
     swept = world.invoke(here, "sweep", here.config, *AFTER).out
-    listed = world.invoke(here, "slots", "next", here.config, *AFTER).out
     return (
-        swept,
         next(line for line in swept.splitlines() if "owner/project#3 [" in line),
-        "".join(line for line in listed.splitlines() if "project#3 (" in line),
+        decisionline.of(swept, "owner/project#3"),
     )
 
 
@@ -89,8 +90,13 @@ def review_of(
     Returns:
         The standing.
     """
-    found = reviews.Found(
-        sha=HEAD, verdict=verdict, when="", plan_approved=plan, plan_alone=alone
+    found = dataclasses.replace(
+        reviews.BARE,
+        sha=HEAD,
+        verdict=verdict,
+        when="",
+        plan_approved=plan,
+        plan_alone=alone,
     )
     return reviews.head_standing(found, HEAD)
 
@@ -143,6 +149,8 @@ class TestReadingLines(unittest.TestCase):
             commit_id=HEAD,
             author_association="MEMBER",
             submitted_at="1",
+            body="",
+            login="",
         )
         sources = [
             reviews.Sources(comments=comments, reviews=submitted)
@@ -157,39 +165,39 @@ class TestReadingLines(unittest.TestCase):
 
 NEEDED = "changes needed"
 OUTPUT_CASES = [
-    # (verdict, plan, execution), the PR line, the kind listed, ready to merge
-    ((NEEDED, NEEDED, NEEDED), "review=plan-changes-needed", "(revise the plan,", 0),
-    ((NEEDED, None, NEEDED), "review=changes-needed", "", 0),
-    ((NEEDED, "approved", NEEDED), "review=changes-needed", "", 0),
-    (("approved", "approved", None), "review=plan-approved", "(review it", 0),
-    (("approved", "approved", "approved"), "review=approved-this-head", "", 1),
+    # (verdict, plan, execution), the PR line, PR 3's decision
+    ((NEEDED, NEEDED, NEEDED), "review=plan-changes-needed", "revise the PLAN only"),
+    ((NEEDED, None, NEEDED), "review=changes-needed", "RULING: owner/project#3"),
+    ((NEEDED, "approved", NEEDED), "review=changes-needed", "RULING: owner/project#3"),
+    (("approved", "approved", None), "review=plan-approved", "grade the Execution"),
+    (("approved", "approved", "approved"), "review=approved-this-head", TO_REVIEW),
 ]
 
 
 class TestSweepAndNext(unittest.TestCase):
     """The sweep's PR line and ``slots next``, from the comments."""
 
-    def test_each_review_has_its_line_and_kind(self) -> None:
+    def test_each_review_has_its_line_and_decision(self) -> None:
         """A rejected plan is revised, a plan approved alone is no approval to merge.
 
         A review that approves the plan and asks for changes is listed for
         no round, as the ruling is due first (keyword: ruling-first, pitboss#390).
+        Only the approval of both is the merge step (the gate's ``act review``).
         """
-        for grades, line, kind, ready in OUTPUT_CASES:
-            swept, pull_line, listed = outputs(review_comment(*grades))
-            merges = "READY TO MERGE owner/project#3" in swept
-            assert_that(
-                (line in pull_line, kind in listed and bool(listed) == bool(kind)),
-                equal_to((True, True)),
-            )
-            assert_that(merges, equal_to(bool(ready)))
+        for grades, line, decision in OUTPUT_CASES:
+            with self.subTest(str(grades)):
+                pull_line, decided = outputs(review_comment(*grades))
+                assert_that(
+                    (line in pull_line, decision in decided), equal_to((True, True))
+                )
+                merges = TO_REVIEW in decided
+                assert_that(merges, equal_to(decision == TO_REVIEW))
 
-    def test_a_plan_approved_alone_gets_no_auto_merge_line(self) -> None:
+    def test_a_plan_approved_alone_is_never_the_merge(self) -> None:
         """Auto-merge is never armed on an approval of the plan alone.
 
-        The control is a review that also grades the execution: that head is
-        told to arm auto-merge again (it is not clean, so it is not ready), so
-        the line is not missing for another reason.
+        The control is a review that also grades the execution: that head, not
+        clean, is at the merge step all the same.
         """
         armed = []
         for posted in (
@@ -199,24 +207,5 @@ class TestSweepAndNext(unittest.TestCase):
             here = quietworld.calm(world_with(posted))
             test_commands.unclean_third(here)
             swept = world.invoke(here, "sweep", here.config, *AFTER).out
-            armed.append("AUTO MERGE OFF owner/project#3" in swept)
+            armed.append(TO_REVIEW in decisionline.of(swept, "owner/project#3"))
         assert_that(armed, equal_to([False, True]))
-
-
-class TestCarryOver(unittest.TestCase):
-    """An approval of the plan alone is not carried over merges of the base."""
-
-    def test_older_plan_approval_is_not_an_approval(self) -> None:
-        """Only merges since the head it named: the standing is the older head's."""
-        for plan_line, expected in [
-            ("", STANDING.APPROVED_BEFORE_MERGES),
-            ("Plan: approved\n", STANDING.OLDER_HEAD),
-        ]:
-            found = test_pulls.bodies([test_pulls.AUTHORED, test_pulls.MERGE])
-            comment = dict(test_pulls.OLD_GATED_APPROVAL)
-            comment["body"] = str(comment["body"]).replace(
-                "Verdict:", plan_line + "Verdict:"
-            )
-            found[fakes.page("repos/owner/project/issues/1/comments")] = [comment]
-            project, _ = test_pulls.read(found)
-            assert_that(project.standing, equal_to(expected))

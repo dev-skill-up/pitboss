@@ -11,19 +11,21 @@ from typing import AbstractSet, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, configfile, flow, forms, relock, shapes, steps
-from . import fakes, test_flow, world
-from .says import says
+from . import decisionline, fakes, test_flow, world
 from .formchecks import body_checks, checks, subject
 from .linting import BODY, FOOTER, HEAD, lines, lint, write_text
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, CHANGES, OLDER, HEAD as HEAD_OF_THIRD
 from .test_flow_sweep import graded, listed_for_third, world_with
+from .test_slot_commands import next_output
 from .suggestions import kind_of_third, third
 
 RELOCK_BRANCH = "relock/2026-10-31"
 # what the relock workflow writes: no ticket, no Plan, no Evidence
 RELOCK_BODY = f"Moves the pins.\n\nHead: {HEAD}\n\n{FOOTER}\n"
 RELOCK_REVIEW = "review the relock"
+REVIEWED = "REVIEWER: owner/project#3: grade Plan and Execution together"
+WRITTEN = "WORKER: owner/project#3: fix as best it can and write Plan and Execution"
 
 
 def relocked(
@@ -172,7 +174,11 @@ class TestFlow(unittest.TestCase):
             flow.next_step(paused),
             flow.next_step(approved),
         ]
-        want = [steps.worker(steps.Task.FIX_CI), steps.wait_for_owner(), steps.merge()]
+        want = [
+            steps.worker(steps.Task.FIX_CI),
+            steps.IDLE,
+            steps.merge(),
+        ]
         assert_that(found, equal_to(want))
 
 
@@ -180,11 +186,11 @@ class TestSweepAndBrief(unittest.TestCase):
     """What ``sweep`` and ``slots next`` print for a relock PR."""
 
     def test_the_list_offers_a_review_not_a_body(self) -> None:
-        """The relock's line is a review; a normal PR's is the body."""
+        """The relock's decision is a review; a normal PR's is the body."""
         relock_line = "".join(listed_for_third(relocked()))
         normal_line = "".join(listed_for_third(relocked(branch="fix-126")))
-        assert_that(relock_line, contains_string("(review it"))
-        assert_that(normal_line, contains_string("(write the Plan and Execution body"))
+        assert_that(relock_line, contains_string(REVIEWED))
+        assert_that(normal_line, contains_string(WRITTEN))
 
     def test_the_sweep_does_not_ask_for_a_body(self) -> None:
         """No sweep line names a body to write for the relock PR."""
@@ -241,10 +247,7 @@ class TestSweepAndBrief(unittest.TestCase):
         old = relocked()
         prefixed(old, "bump/")
         assert_that(kind_of_third(bumped), equal_to(RELOCK_REVIEW))
-        assert_that(
-            "".join(listed_for_third(old)),
-            contains_string("(write the Plan and Execution body"),
-        )
+        assert_that("".join(listed_for_third(old)), contains_string(WRITTEN))
 
 
 class TestConfigDefault(unittest.TestCase):
@@ -256,9 +259,15 @@ class TestConfigDefault(unittest.TestCase):
 
 
 class TestOutsideTheSlot(unittest.TestCase):
-    """I16: the line of a relock review names the command it runs."""
+    """I16: a relock review ranks last (keyword: one-path).
 
-    def test_i16_a_relock_review_is_run_with_pins_review_outside_the_slot(self) -> None:
-        """The line of the relock PR names the command, and the PR ranks last."""
-        listed = "\n".join(listed_for_third(relocked()))
-        says(listed, "run outside the slot: pitboss pins-review", "owner/project#3")
+    The queue's ``run outside the slot`` note is a line no decision says, so it
+    is retired; the review is the relock's own brief.
+    """
+
+    def test_i16_a_relock_review_ranks_last(self) -> None:
+        """The relock PR's decision is the last one, and its brief is the relock's."""
+        here = relocked()
+        listed = decisionline.listed(next_output(here))
+        assert_that(listed[-1], contains_string(REVIEWED))
+        assert_that(kind_of_third(here), equal_to(RELOCK_REVIEW))

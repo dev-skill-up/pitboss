@@ -1,7 +1,6 @@
-"""A green PR that is behind the base says BEHIND, with no merge offer (pitboss#369)."""
+"""A green PR that is behind the base is updated, never merged (pitboss#369)."""
 
 import unittest
-from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -15,10 +14,7 @@ from .test_flow_sweep import (
 )
 from .test_flow_sweep import world_with as held_world
 
-LINE = (
-    "BEHIND: update the branch, then the merge-main proof (bats merge-proof)"
-    " is the review"
-)
+LINE = "ORCHESTRATOR: owner/project#3: `act update-branch`"
 
 
 def world_with(*args: object, **changes: object) -> world.World:
@@ -29,61 +25,47 @@ def world_with(*args: object, **changes: object) -> world.World:
         **changes: the fields to replace.
 
     Returns:
-        The world; a hold would show the HOLD wait, not BEHIND.
+        The world; a hold would stop the decision before BEHIND.
     """
     return quietworld.unheld(held_world(*args, **changes))  # type: ignore[arg-type]
 
 
 QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
-
-
-def offers(swept: str) -> Sequence[bool]:
-    """Whether the sweep offers a merge: ready, by hand, or auto-merge to arm.
-
-    Args:
-        swept: the sweep's output.
-
-    Returns:
-        One flag for each of the three lines of PR 3.
-    """
-    words = ("READY TO MERGE", "MERGE BY HAND", "AUTO MERGE OFF")
-    return [f"{word} owner/project#3" in swept for word in words]
+# the branch rules the gate reads: GitHub says the base has a merge queue
+RULES = f"{world.PROJECT}/rules/branches/main"
 
 
 class TestBehind(unittest.TestCase):
-    """The line, for an approved green PR and for the nearest inputs."""
+    """The decision, for an approved green PR and for the nearest inputs."""
 
-    def test_an_approved_green_pr_that_is_behind_gets_the_line_and_no_merge(
+    def test_an_approved_green_pr_that_is_behind_is_updated_not_merged(
         self,
     ) -> None:
-        """BEHIND before any merge offer; the body-head command is named."""
+        """The gate's BEHIND row is the decision: update the branch, never merge."""
         rounds = [*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED]
         swept = sweep(world_with(rounds, mergeable_state="behind")).out
         assert_that(swept, contains_string(LINE))
-        assert_that(swept, contains_string("pitboss body-head owner/project#3"))
-        assert_that(offers(swept), equal_to([False] * 3))
+        assert_that("act merge" in swept, equal_to(False))
 
-    def test_a_directly_approved_behind_pr_gets_no_merge_offer(self) -> None:
-        """Auto-merge off and approved by a review: BEHIND, and no merge offer."""
+    def test_a_directly_approved_behind_pr_is_updated(self) -> None:
+        """Approved by a review at the merge step and behind: update the branch."""
         here = world_with([graded(APPROVED, APPROVED, 9)], mergeable_state="behind")
-        said = ["BEHIND:" in sweep(here).out, *offers(sweep(here).out)]
-        assert_that(said, equal_to([True, False, False, False]))
+        assert_that(sweep(here).out, contains_string(LINE))
 
-    def test_a_queued_repository_is_not_told_behind(self) -> None:
-        """A merge-queue repository builds each entry on the base: no BEHIND."""
+    def test_a_queued_repository_is_not_told_to_update(self) -> None:
+        """A merge-queue repository builds each entry on the base: no update."""
         rounds = [*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED]
         here = world_with(rounds, mergeable_state="behind")
         extra = world.EXTRA.format(ledger=here.ledger) + QUEUE
         fakes.settings(here.workspace, extra)
-        assert_that("BEHIND:" in sweep(here).out, equal_to(False))
+        here.bodies[RULES] = [{"type": "merge_queue", "parameters": {}}]
+        assert_that(LINE in sweep(here).out, equal_to(False))
 
-    def test_a_clean_pr_or_one_with_no_approval_is_not_told_behind(self) -> None:
-        """Clean and approved is ready to merge; behind and not approved is not told."""
+    def test_a_clean_pr_or_one_with_no_approval_is_not_told_to_update(self) -> None:
+        """Clean is not behind; behind and not approved is not at the merge step."""
         rounds = [*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED]
         clean = sweep(world_with(rounds)).out
         unapproved = sweep(
             world_with(TWO_PLAN_REJECTIONS, mergeable_state="behind")
         ).out
-        assert_that(
-            ["BEHIND:" in clean, "BEHIND:" in unapproved], equal_to([False] * 2)
-        )
+        assert_that([LINE in clean, LINE in unapproved], equal_to([False] * 2))

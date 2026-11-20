@@ -14,7 +14,7 @@ import datetime
 import json
 import os
 import pathlib
-from typing import Sequence
+from typing import Iterable, Sequence
 
 from . import disk, ledger, slotlog
 
@@ -202,3 +202,15 @@ def post(log: pathlib.Path) -> None:
     for each in fresh:
         print(text(each))
     put(beside(log, ".posted"), str(len(events)))
+
+
+def after(lines: Iterable[str], log: pathlib.Path) -> None:
+    """Print lines, then the ``LOG`` lines not yet posted (keyword: log-line).
+
+    Args:
+        lines: what the command says first.
+        log: the slot log.
+    """
+    for each in lines:
+        print(each)
+    post(log)

@@ -2,12 +2,13 @@
 
 import functools
 import json
-from typing import Sequence
+from typing import Callable, Mapping, Sequence, TypeVar
 
-from . import evidencesplit, ghapi, totaljson
+from . import config, evidencesplit, ghapi, parsing, shapes, totaljson
 from .running import Run
 
 DRY_RUN_URL = "(dry run: no URL yet)"
+Item = TypeVar("Item")
 
 
 def made(text: str, body: str) -> evidencesplit.Comment:
@@ -138,3 +139,103 @@ def store_of(runners: tuple[Run, Run], slug: str, pull: int) -> evidencesplit.St
         delete=functools.partial(delete, github, every),
         set_body=functools.partial(set_body, github, f"repos/{slug}/pulls/{pull}"),
     )
+
+
+def body(github: ghapi.GitHub, path: str) -> str:
+    """The description of a pull request or an issue.
+
+    Args:
+        github: the API.
+        path: its path.
+
+    Returns:
+        The text; empty when it has none.
+    """
+    return totaljson.text(ghapi.get_object(github, path).get("body"))
+
+
+def _texts(page: str) -> Sequence[str]:
+    return [totaljson.text(each.get("body")) for each in json.loads(page)]
+
+
+def comment_texts(github: ghapi.GitHub, path: str) -> Sequence[str]:
+    """The text of every comment of a pull request or an issue.
+
+    Args:
+        github: the API.
+        path: its path.
+
+    Returns:
+        The texts, oldest first.
+    """
+    return ghapi.pages(github, f"{path}/comments", _texts)
+
+
+def label_names(github: ghapi.GitHub, path: str) -> Sequence[str]:
+    """The names of the labels of a pull request or an issue.
+
+    Args:
+        github: the API.
+        path: its issue path.
+
+    Returns:
+        The names.
+    """
+    found = totaljson.listed(ghapi.get_object(github, path), "labels")
+    return [totaljson.text(each.get("name")) for each in found]
+
+
+def _bodies(text: str) -> Sequence[tuple[int, str]]:
+    found = json.loads(text)
+    return [(int(each["number"]), totaljson.text(each.get("body"))) for each in found]
+
+
+def pull_bodies(github: ghapi.GitHub, slug: str) -> Sequence[tuple[int, str]]:
+    """The number and description of every pull request of a repository.
+
+    Args:
+        github: the API.
+        slug: the repository.
+
+    Returns:
+        The pairs.
+    """
+    return every_pull(github, slug, _bodies)
+
+
+def every_pull(
+    github: ghapi.GitHub, slug: str, parse: Callable[[str], Sequence[Item]]
+) -> Sequence[Item]:
+    """Every PR of a repository, open ones first, then the closed ones.
+
+    Two listings, never one listing of every state (the one-path plan, P9).
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        parse: reads the items out of one page.
+
+    Returns:
+        The open PRs, newest first, then the closed ones, newest first.
+    """
+    listings = (f"repos/{slug}/pulls?state=open", f"repos/{slug}/pulls?state=closed")
+    return [item for path in listings for item in ghapi.pages(github, path, parse)]
+
+
+def read_outcomes(
+    github: ghapi.GitHub, repo: config.Repo
+) -> Mapping[str, shapes.Outcome]:
+    """What became of each branch's newest PR.
+
+    Args:
+        github: the API.
+        repo: the repository.
+
+    Returns:
+        The outcome of each branch.
+    """
+    found: dict[str, shapes.Outcome] = {}
+    listed = every_pull(github, repo.slug, parsing.outcomes)
+    for outcome in listed:
+        found.setdefault(outcome.branch, outcome)
+    return found

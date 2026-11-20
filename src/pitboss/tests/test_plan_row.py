@@ -13,8 +13,6 @@ from hamcrest import (
 
 from .. import forms, planrow
 from .linting import HEAD
-from .test_commands import sweep
-from .test_flow_sweep import world_with
 from .test_plan_command_lint import body_of as plan_body
 
 COMMAND = "sha256sum a.txt b.txt c.txt"
@@ -66,18 +64,6 @@ def refused(body: str) -> Sequence[str]:
     return planrow.findings("body", body)
 
 
-def swept(row: str) -> str:
-    """What the sweep prints for a PR whose Plan has one row.
-
-    Args:
-        row: the text of the row.
-
-    Returns:
-        The sweep's output.
-    """
-    return sweep(world_with([], body=body_of([row], [COMMAND]))).out
-
-
 class TestPlanRow(unittest.TestCase):
     """The pairing of the Evidence lines with the Plan rows."""
 
@@ -111,10 +97,3 @@ class TestPlanRow(unittest.TestCase):
         subject = forms.Subject(name="body", body=body, head=HEAD)
         found = forms.pr_body(subject)
         assert_that(sum("(plan-row)" in each for each in found), equal_to(1))
-
-    def test_the_sweep_prints_the_line_for_a_prose_row_only(self) -> None:
-        """The PLAN ROW line names the PR; an exact row has none."""
-        rows = ["by hand", f"`{COMMAND}`"]
-        named = ["PLAN ROW owner/project#3" in swept(each) for each in rows]
-        assert_that(named, equal_to([True, False]))
-        assert_that("PLAN ROW" in swept(rows[1]), equal_to(False))

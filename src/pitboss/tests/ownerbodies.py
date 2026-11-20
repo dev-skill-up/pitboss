@@ -93,9 +93,8 @@ def extra() -> Mapping[str, object]:
         "pulls?state=open": [{"number": 5}],
         "actions/runs?event=merge_group": {"workflow_runs": []},
         "issues/comments": [],
-        "pulls?state=all": [],
+        "pulls?state=closed": [],
         "issues?state=open&labels=urgent": [],
-        "issues?state=all": [],
     }
     found: dict[str, object] = {EXTRA: {}}
     found.update({page(f"{EXTRA}/{path}"): got for path, got in answers.items()})

@@ -11,6 +11,7 @@ jobs:
           - { python: "3.13", os: ubuntu-latest, check: "tests-3.13" }
           - { python: "3.14", os: ubuntu-latest, check: "tests-3.14" }
           - { python: "3.14", os: ubuntu-latest, check: "lint" }
+          - { python: "3.14", os: ubuntu-latest, check: "modes" }
           - { python: "3.14", os: ubuntu-latest, check: "docs" }
           - { python: "3.14", os: ubuntu-latest, check: "mypy" }
           - { python: "3.14", os: ubuntu-latest, check: "build" }

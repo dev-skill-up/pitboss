@@ -6,9 +6,10 @@ ruling. ``flow`` re-exports them under their names.
 """
 
 import dataclasses
-from typing import AbstractSet, Callable, Sequence
+from typing import AbstractSet, Sequence
 
 from . import (
+    checkoutcome,
     draftfacts,
     expansion,
     plandigest,
@@ -35,8 +36,9 @@ class PullState:
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
         draft: what the caller read for a draft (``draftfacts.Draft``).
-        unchanged_since: says whether no code moved between a reviewed head and
-            the head (the caller reads the base; keyword: unfixed-execution).
+        unchanged: the reviewed heads since which no code moved to the head (the
+            caller reads the base for the one ``flowquestions.asked_rejection``
+            asks of; keyword: unfixed-execution).
     """
 
     pull: shapes.Pull
@@ -45,10 +47,10 @@ class PullState:
     graded: Sequence[shapes.Graded]
     comments: Sequence[shapes.Comment]
     trusted: AbstractSet[str]
-    undraft_clear: bool = False
-    relock: bool = False
-    draft: draftfacts.Draft = draftfacts.Draft()
-    unchanged_since: Callable[[str], bool] = lambda sha: False
+    undraft_clear: bool
+    relock: bool
+    draft: draftfacts.Draft
+    unchanged: AbstractSet[str]
 
 
 def is_trusted_ruling(comment: shapes.Comment, trusted: AbstractSet[str]) -> bool:
@@ -283,7 +285,7 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     return None if reviewed or pushed else ruled
 
 
-def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Next:
+def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
     """The Plan review of a draft, once the check its repository requires is done.
 
     quire's lint refuses an approval of a head with no completed green ``check``
@@ -300,12 +302,12 @@ def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Next:
     """
     name = pr.draft.plan_review_check
     due = step.step is steps.Step.REGULAR_REVIEW and name
-    if due and not draftfacts.completed(pr.checks, name):
-        return steps.wait_for_ci()
+    if due and not checkoutcome.any_finished(draftfacts.of_name(pr.checks, name)):
+        return steps.IDLE
     return step
 
 
-def e2e_step(pr: PullState) -> steps.Next | None:
+def e2e_step(pr: PullState) -> steps.Move | None:
     """The step of a draft whose changed e2e suite has run in no check run.
 
     A draft's CI skips the e2e jobs, so an approval of it reads no e2e result
@@ -323,7 +325,7 @@ def e2e_step(pr: PullState) -> steps.Next | None:
         of the head has started and not finished (it is not dispatched again);
         else the dispatch.
     """
-    if not pr.draft.needs_e2e():
+    if not pr.draft.needs_e2e:
         return None
     running = [each for each in pr.checks if not each.finished]
-    return steps.wait_for_ci() if running else steps.run_e2e(pr.pull.head.branch)
+    return steps.IDLE if running else steps.run_e2e(pr.pull.head.branch)

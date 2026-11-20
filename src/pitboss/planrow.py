@@ -36,6 +36,22 @@ DIFFERS = (
 )
 
 
+def produced(body: str) -> Sequence[evidence.Block]:
+    """The produced blocks of the Evidence section.
+
+    Args:
+        body: the PR's body.
+
+    Returns:
+        Each block that ``pitboss expand`` produced, in the Evidence section.
+    """
+    return [
+        each
+        for each in evidence.blocks(body)
+        if evidence.produced(each) and each.in_evidence
+    ]
+
+
 def ran(body: str) -> Sequence[str]:
     """The commands of the produced blocks of the Evidence section.
 
@@ -47,8 +63,7 @@ def ran(body: str) -> Sequence[str]:
     """
     return [
         evidence.first_row(each).removeprefix(expansion.PROMPT)
-        for each in evidence.blocks(body)
-        if evidence.produced(each) and each.in_evidence
+        for each in produced(body)
     ]
 
 

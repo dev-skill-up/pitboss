@@ -12,7 +12,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, local, shapes
+from .. import config, ghstore, local, shapes
 from . import fakes, orphans, repositories, scratch
 
 OLD = time.time() - 10 * 3600
@@ -29,7 +29,8 @@ STALE = {
     "closed": local.Reason.CLOSED,
     "in-base": local.Reason.IN_BASE,
 }
-ALL_PULLS = fakes.page("repos/o/r/pulls?state=all")
+OPEN_PULLS = fakes.page("repos/o/r/pulls?state=open")
+CLOSED_PULLS = fakes.page("repos/o/r/pulls?state=closed")
 TWO_PULLS = [
     {"head": {"ref": "b"}, "state": "open"},
     {"head": {"ref": "b"}, "state": "closed", "merged_at": "x"},
@@ -239,8 +240,8 @@ class TestWorktrees(unittest.TestCase):
 
     def test_listing(self) -> None:
         """An empty listing has no worktrees; a branch keeps its newest PR."""
-        api = fakes.github({ALL_PULLS: TWO_PULLS})
-        found = local.read_outcomes(api, config.make_repo("o", "r"))
+        api = fakes.github({OPEN_PULLS: TWO_PULLS[:1], CLOSED_PULLS: TWO_PULLS[1:]})
+        found = ghstore.read_outcomes(api, config.make_repo("o", "r"))
         assert_that(
             (local.parse_worktrees(""), found["b"].still_open), equal_to(([], True))
         )

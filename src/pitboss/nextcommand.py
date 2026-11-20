@@ -1,14 +1,14 @@
-"""The words of ``slots next``: none, or one ticket or PR."""
+"""The words of an item form (``next``, ``slots next``): none, or one ticket or PR."""
 
 import re
 import sys
 from typing import NoReturn, Sequence
 
-from . import config, ledger
+from . import config, slotbook
 
 _FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
-TAKES_ONE = "slots next takes one ticket or PR, or none"
-TAKES_FULL = "slots next takes a ticket as owner/repo#N, repo#N or #N"
+TAKES_ONE = "next takes one ticket or PR, or none"
+TAKES_FULL = "next takes a ticket as owner/repo#N, repo#N or #N"
 
 
 def _refuse(message: str) -> NoReturn:
@@ -20,7 +20,7 @@ def reference(words: Sequence[str], repo: config.Repo) -> str | None:
     """The item the words name.
 
     Args:
-        words: the words after ``slots next``.
+        words: the words after ``next`` or ``slots next``.
         repo: the project's repository, the owner of a bare ``#N``.
 
     Returns:
@@ -31,7 +31,7 @@ def reference(words: Sequence[str], repo: config.Repo) -> str | None:
         _refuse(TAKES_ONE)
     if not words:
         return None
-    named = ledger.reference(words[0], repo)
+    named = slotbook.reference(words[0], repo)
     if not _FULL_REFERENCE.match(named):
         _refuse(TAKES_FULL)
     return named

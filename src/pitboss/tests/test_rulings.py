@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import rulings, steps
+from .. import rulings, steps, stepwords
 from . import test_flow
 
 GREEN = test_flow.GREEN
@@ -85,7 +85,7 @@ class TestAfter(unittest.TestCase):
         ]
         expected = [
             (steps.merge(),),
-            (steps.wait_for_ci(),),
+            (steps.IDLE,),
             (steps.worker(Task.FIX_CI),),
         ]
         assert_that(found, equal_to(expected))
@@ -126,8 +126,8 @@ class TestDescribe(unittest.TestCase):
         every = [
             steps.worker(Task.REVISE_PLAN),
             steps.regular_review(Stage.PLAN_ONLY),
-            *(steps.Next(step=each) for each in steps.TEXTS),
+            *(steps.Next(step=each) for each in stepwords.TEXTS),
         ]
-        found = [steps.describe(each) for each in every]
+        found = [stepwords.describe(each) for each in every]
         assert_that(all(text and "\n" not in text for text in found), equal_to(True))
         assert_that(len(set(found)), equal_to(len(every)))

@@ -129,5 +129,5 @@ class TestSweep(unittest.TestCase):
     def test_unreadable(self) -> None:
         """A PyPI that cannot be read gives no line, and the sweep goes on."""
         result = sweep_with(None)
-        found = ("OUTDATED" in result.out, "READY TO MERGE" in result.out)
+        found = ("OUTDATED" in result.out, "NEXT 1 of" in result.out)
         assert_that(found, equal_to((False, True)))

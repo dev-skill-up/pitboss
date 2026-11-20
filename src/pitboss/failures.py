@@ -7,7 +7,7 @@ failed step, the output and the annotations stand in for it.
 import subprocess
 from typing import Callable, Mapping, Sequence, TypeVar
 
-from . import config, ghapi, headchecks, parsing, pulls, shapes
+from . import config, ghapi, headchecks, parsing, pullfacts, shapes
 
 _Found = TypeVar("_Found")
 NONE: Sequence[str] = ()
@@ -51,7 +51,7 @@ def read(
 
 
 def read_all(
-    github: ghapi.GitHub, pull: pulls.PullFacts
+    github: ghapi.GitHub, pull: pullfacts.PullFacts
 ) -> Mapping[int, shapes.Failure]:
     """Read, for each failed check of a PR, what api.github.com gives of it.
 

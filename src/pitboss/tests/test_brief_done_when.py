@@ -6,7 +6,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftextwork, plandonewhen, ticketwhen
 from .briefmake import pinned, text
-from .says import has_all, has_none
+from .says import has_none
 
 DIGEST = ticketwhen.digest("Done-when:\n- one\n")
 RULE = "meet the Done-when as written, or prove it impossible"
@@ -19,15 +19,10 @@ ONE_PR = (
 )
 DONE_WHEN = (
     "Done-when: read the Done-when in the body of the ticket o/r#7; only the body"
-    " has it, and a comment adds nothing to it (owner, 2026-11-08T23:06Z: 'NOT"
-    " ADDING STUFF IN COMMENTS, ONLY BY EDITING THE BODY, AND ONLY BEFORE A WORKER"
-    " HAS STARTED'). Its Done-when, as written, is the standard: you copy each of"
-    " its bullets word for word into a numbered Plan row of its own, with the"
-    " exact evidence command (a measurement it names is the one the row runs,"
-    " never a substitute), and nobody narrows it or offers an alternative to it:"
-    f" {RULE} (owner, 2026-11-08T23:10Z: 'NO HAND BACK. FINISH PLAN AS WRITTEN OR"
-    " *DEMONSTRATE* IT'S IMPOSSIBLE, AND THERE BETTER BE A MATHEMATICAL THEOREM"
-    " BEHIND IT.')."
+    " has it, and a comment adds nothing to it. Copy each of its bullets word for"
+    " word into a numbered Plan row of its own, with the exact evidence command"
+    " (a measurement it names is the one the row runs, never a substitute); never"
+    f" narrow it or offer an alternative: {RULE}."
 )
 DIGEST_LINE = (
     f"Done-when digest: the PR body has the line `Done-when digest: {DIGEST}`, the"
@@ -110,12 +105,6 @@ class TestImpactListIsGone(unittest.TestCase):
         for kind in brief.Kind:
             with self.subTest(kind):
                 has_none(text(kind), ["Impact list", "pitboss impact", "disposition"])
-
-    def test_the_review_briefs_do_not_reject_a_missed_mention(self) -> None:
-        """Done-when: the grep line is about a docstring; a missed mention is none."""
-        for kind in GREPPING:
-            has_all(text(kind), [GREP])
-            has_none(text(kind), ["anywhere in the tree"])
 
     def test_the_conflict_brief_still_refreshes_the_body(self) -> None:
         """The sentence moved with the impact list's removal."""

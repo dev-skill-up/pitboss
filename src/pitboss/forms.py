@@ -50,6 +50,20 @@ class Subject:
     head: str
 
 
+def named_ticket(body: str) -> str:
+    """The ticket a body's ``Fixes`` line names.
+
+    Args:
+        body: the PR's body.
+
+    Returns:
+        The ticket as written (``#N`` or ``owner/name#N``); empty when the body
+        has no ``Fixes`` line.
+    """
+    found = FIXES.search(body)
+    return found.group(1) if found else ""
+
+
 def _clean(subject: Subject) -> Subject:
     # session-url: the harness's session URL is absent for every reader
     return dataclasses.replace(subject, body=sessionurl.strip(subject.body))

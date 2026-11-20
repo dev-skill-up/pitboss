@@ -4,27 +4,11 @@ The kit, a verb's refusal, the kinds of the writes made, and the worlds the
 tests start from.
 """
 
-from typing import Mapping, Sequence
+from typing import Sequence
 
-from .. import actcore
+from .. import actcore, actfacts
 from . import fakehub, knownkit
 from .totalworld import World
-
-GIVEN = knownkit.shipped_kit()
-
-
-def refusal(hub: fakehub.Made, verb: str, **options: str) -> str:
-    """Run a verb on the world's PR and say how it was refused.
-
-    Args:
-        hub: the hub and the verb's world.
-        verb: the verb.
-        **options: its options (``_`` for ``-``).
-
-    Returns:
-        The refusal's text, or "" when it went.
-    """
-    return knownkit.refused(lambda: knownkit.act(GIVEN, hub, verb, **options))
 
 
 def kinds(hub: fakehub.Made) -> Sequence[str]:
@@ -58,17 +42,18 @@ def hold_issue(number: int, scope: str) -> actcore.Pull:
     }
 
 
-def stop_line(world: World, prefix: str) -> str:
+def stop_line(kit: knownkit.Kit, world: World, prefix: str) -> str:
     """The first stop line of a merge of a world that starts with a prefix.
 
     Args:
+        kit: the kit the verbs and the gate are of.
         world: the world.
         prefix: the start of the line.
 
     Returns:
         The line.
     """
-    lines = knownkit.verdict(GIVEN, "merge", world).lines
+    lines = knownkit.verdict(kit, "merge", world).lines
     return [each for each in lines if each.startswith(prefix)][0]
 
 
@@ -99,18 +84,15 @@ def file_issue(
     hub.hub.issues_made[(repo, number)] = issue
 
 
-def verb_refusal(
-    verb: str, world: actcore.Act, target: actcore.Target, options: Mapping[str, str]
-) -> str:
-    """Run a verb of the kit and say how it was refused.
+def verb_refusal(kit: knownkit.Kit, world: actcore.Act, asked: actfacts.Asked) -> str:
+    """Run a verb of a kit as ``act`` runs it and say how it was refused.
 
     Args:
-        verb: the verb.
+        kit: the kit.
         world: the verb's world.
-        target: what it acts on.
-        options: its options.
+        asked: the verb, what it acts on and its options.
 
     Returns:
         The refusal's text, or "" when it went.
     """
-    return knownkit.refused(lambda: GIVEN.verbs[verb](world, target, options))
+    return knownkit.refused(lambda: knownkit.ran(kit, world, asked))

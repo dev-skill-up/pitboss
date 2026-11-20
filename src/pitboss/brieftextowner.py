@@ -11,7 +11,7 @@ OWNER = (
     "Owner: a ticket, brief, plan or review never states what the owner cannot or"
     " will not do, or that something is outside his reach, unless the sentence"
     " quotes his own words and their date; without a quote the step is asked of"
-    " him as a request in the hand-back, never assumed impossible (pitboss#352)."
+    " him as a request in the hand-back, never assumed impossible."
 )
 WORKER_ACTIONS = (
     "Worker actions: a statement about what a worker did is made from the output"
@@ -19,6 +19,6 @@ WORKER_ACTIONS = (
     ' calls and the final report` is reported with its count, never as "it did'
     ' not"; an unexplained action by the shared `moshez` account is ours until'
     " that command shows otherwise, and is never attributed to the owner"
-    " (pitboss#352)."
+    "."
 )
 REMINDERS = (OWNER, WORKER_ACTIONS, *brieftextrules.REMINDERS)

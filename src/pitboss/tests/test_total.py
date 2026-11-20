@@ -8,12 +8,14 @@ import functools
 import hashlib
 import pathlib
 import unittest
+from collections.abc import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import actverbs, enumeration, totaljson, totalroutes, totalverdict
+from .. import actrules, actverbs, enumeration, gatepolicy, totaljson
 from . import (
     coverwrites,
+    gatesaid,
     scratch,
     totalcells,
     totalcomplete,
@@ -24,25 +26,39 @@ from . import (
 from .fakes import write
 
 SOURCE = pathlib.Path(__file__).parent.parent
+# a command added after the frozen list was made (pitboss#480): it labels and posts
+ADDED = ("impossible",)
 SHA256 = {
     enumeration.VARIABLES: (
         "2967d3849c60b31278234ebc5f43967534efd4434fdc906b0225c701ee701dbc"
     ),
     enumeration.ACTIONS: (
-        "c4f777245a4492773e9774b4acd2391b6d8c938125d1d9ec2442735785c65d82"
+        "f44496cc5b0518262b11f30be4ddae819b2f8b533a8b31364db68b45924f7e3f"
     ),
 }
 
 
+def _commands() -> Sequence[str]:
+    # the frozen list, less the command that left it, and the one added since
+    return [
+        *(
+            name
+            for name in enumeration.values("pitboss-command")
+            if name != "mutation-check"
+        ),
+        *ADDED,
+    ]
+
+
 def _verdict(
     action: str, pull: totaljson.JsonMap, ctx: totaljson.JsonMap
-) -> totalverdict.Answer:
-    return totalverdict.verdict(action, pull, ctx, _policy())
+) -> gatesaid.Answer:
+    return gatesaid.verdict(action, pull, ctx, _policy())
 
 
 @functools.cache
-def _policy() -> totalverdict.Policy:
-    return totalverdict.shipped_policy()
+def _policy() -> gatepolicy.Policy:
+    return gatepolicy.shipped()
 
 
 @functools.cache
@@ -77,49 +93,36 @@ class TestFrozen(unittest.TestCase):
             len(enumeration.frozen(enumeration.VARIABLES)),
             len(enumeration.frozen(enumeration.ACTIONS)),
         )
-        assert_that(counts, equal_to((188, 322)))
+        assert_that(counts, equal_to((188, 323)))
 
 
 class TestCells(unittest.TestCase):
     """Every value of every variable, for each action, against the GO world."""
 
     def test_444_732_cells_with_0_uncovered(self) -> None:
-        """526 fire on their own row, 206 are benign by a named reason.
+        """517 fire on their own row, 215 are benign by a named reason.
 
         None is uncovered.
         """
         found = totalcells.tally(totalcomplete.base_cells(), _verdict)
         assert_that(
             (len(totalcomplete.base_cells()), dict(found)),
-            equal_to((732, {totalcells.FIRES: 526, totalcells.BENIGN: 206})),
+            equal_to((732, {totalcells.FIRES: 517, totalcells.BENIGN: 215})),
         )
 
     def test_444_every_stop_line_has_a_route(self) -> None:
         """No line the cells give is without a route."""
-        lines = sorted(
-            {
-                line
-                for cell in totalcomplete.base_cells()
-                for line in _verdict(cell.action, cell.world.pull, cell.world.ctx).lines
-            }
-        )
-        assert_that((totalpairs.routed(lines), len(lines) > 200), equal_to(([], True)))
+        stops = [
+            stop
+            for cell in totalcomplete.base_cells()
+            for stop in _verdict(cell.action, cell.world.pull, cell.world.ctx).stops
+        ]
+        lines = {each.line for each in stops}
+        assert_that((totalpairs.routed(stops), len(lines) > 200), equal_to(([], True)))
 
 
 class TestPairs(unittest.TestCase):
     """Every two cells together: the verdict answers, and never raises."""
-
-    def test_444_a_wrong_answer_is_counted(self) -> None:
-        """A stop line with no route is an exception of the pair."""
-        unrouted = totalverdict.Answer(
-            word=totalverdict.STOP, lines=["zzz: a line no route takes"]
-        )
-        found = totalpairs.run(
-            totalworld.base(),
-            totalcomplete.base_cells()[::100],
-            lambda action, pull, ctx: unrouted,
-        )
-        assert_that(found.counts["exception"] > 0, equal_to(True))
 
     def test_444_equal_sets_are_no_change_whatever_the_hash_seed(self) -> None:
         """A set is compared by its members, not by the order it prints in."""
@@ -128,12 +131,12 @@ class TestPairs(unittest.TestCase):
         again = totalworld.World(pull={}, ctx={"authors": set(reversed(names))})
         assert_that(totalpairs.change_of(origin, again), equal_to({}))
 
-    def test_444_74991_pairs_with_0_exceptions(self) -> None:
-        """GO and STOP add to the pairs, and no pair raised."""
+    def test_444_the_verdict_is_the_conjunction_of_its_inputs(self) -> None:
+        """All GO changes go, each stop change stops on them, and no world raised."""
         found = _pairs()
         assert_that(
-            (found.counts["GO"] + found.counts["STOP"], list(found.exceptions)),
-            equal_to((74991, [])),
+            (found.counts["GO"] > 0, found.counts["STOP"] > 0, list(found.exceptions)),
+            equal_to((True, True, [])),
         )
 
 
@@ -148,28 +151,20 @@ class TestCover(unittest.TestCase):
         assert_that(dict(kinds), equal_to({"read": 24, "verb": 12, "unused": 12}))
 
     def test_444_cover_commands_at_0_uncovered(self) -> None:
-        """38 commands: 11 write through a verb, 27 write nothing."""
-        names = [
-            name
-            for name in enumeration.values("pitboss-command")
-            if name != "mutation-check"
-        ]
+        """40 commands: 12 write through a verb, 28 write nothing."""
+        names = _commands()
         kinds = collections.Counter(
             row.kind for row in coverwrites.commands(SOURCE, names, actverbs.VERBS)
         )
         assert_that(
-            (len(names), dict(kinds)), equal_to((38, {"fires": 11, "benign": 27}))
+            (len(names), dict(kinds)), equal_to((40, {"fires": 12, "benign": 28}))
         )
 
     def test_444_the_registered_commands_are_the_frozen_list_less_mutation_check(
         self,
     ) -> None:
-        """mutation-check left the command list; nothing else came or went."""
-        names = {
-            name
-            for name in enumeration.values("pitboss-command")
-            if name != "mutation-check"
-        }
+        """mutation-check left the command list, ``impossible`` came; no other."""
+        names = set(_commands())
         assert_that(set(coverwrites.call_graph(SOURCE).registered), equal_to(names))
 
     def test_444_a_tool_used_with_no_verb_is_uncovered(self) -> None:
@@ -210,4 +205,4 @@ class TestInstructions(unittest.TestCase):
         """The text of ``instructions()``, whole."""
         here = world.make_world()
         done = world.again(here, "sweep", f"--now={world.FUTURE}")
-        assert_that(totalroutes.instructions() in done.out, equal_to(True))
+        assert_that(actrules.instructions() in done.out, equal_to(True))

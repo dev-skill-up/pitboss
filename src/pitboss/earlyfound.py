@@ -27,7 +27,7 @@ class Premature:
     when: str
     sha: str
     unfinished: str
-    ci_done: str = ""
+    ci_done: str
 
 
 def newer(found: Sequence[Premature], counted: str) -> Sequence[Premature]:

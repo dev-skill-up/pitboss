@@ -32,6 +32,17 @@ _GOAL = re.compile(
     r"^Goal:\s*(?P<kind>ticket|review|fix|ruling)\b.*?(?P<ref>[\w.-]+/[\w.-]+#\d+)",
     re.MULTILINE | re.IGNORECASE,
 )
+# the first line of a brief that names its item and kind (a brief has no marker line)
+_REF = r"(?P<ref>[\w.-]+/[\w.-]+#\d+)"
+_TASKS = tuple(
+    (re.compile(pattern.format(ref=_REF), re.MULTILINE), kind)
+    for pattern, kind in (
+        (r"^Task: do the whole of ticket {ref}", "start"),
+        (r"^Task: PR {ref}", "fix"),
+        (r"^Review: {ref}\.", "review"),
+        (r"^Ruling: .*? PR {ref}", "ruling"),
+    )
+)
 KINDS = {"ticket": "start", "review": "review", "fix": "fix", "ruling": "ruling"}
 
 
@@ -136,6 +147,9 @@ def _task(brief: str) -> tuple[str, str]:
     marked = _MARKER.search(brief)
     if marked:
         return marked.group("ref"), marked.group("kind")
+    for pattern, kind in _TASKS:
+        if found := pattern.search(brief):
+            return found.group("ref"), kind
     goal = _GOAL.search(brief)
     if goal:
         return goal.group("ref"), KINDS[goal.group("kind").lower()]

@@ -5,10 +5,13 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import slotheld
-from . import suggestions, test_flow_sweep as flows, world
+from . import decisionline, world
 from .liveagents import calm, ran, said
 from .test_slot_commands import run_all
 from .says import says
+
+NINTH = "owner/project#9"
+REFILL = "SLOT tiny NEXT: "
 
 
 def plain(here: world.World, *command: str) -> str:
@@ -39,14 +42,16 @@ class TestTheSlotsAreDerived(unittest.TestCase):
     """The held slots come from the running agents, not the ledger (pitboss#94)."""
 
     def test_a_finished_agent_does_not_fill_its_slot(self) -> None:
-        """Nothing runs: both slots are empty, as the live agents say."""
-        said(ran(stale_world(), ("slots", "next")), "EMPTY SLOT", 2)
+        """Nothing runs: both slots are free and ticket 9 is decided again."""
+        shown = ran(stale_world(), ("slots", "next"))
+        assert_that(shown, contains_string("SLOTS FREE: 2"))
+        assert_that(decisionline.of(shown, NINTH), contains_string("WORKER"))
 
     def test_a_running_agent_the_ledger_lacks_holds_a_slot(self) -> None:
-        """agent-2 runs, agent-1 is gone: agent-2 is unrecorded and nothing starts."""
+        """agent-2 runs, agent-1 is gone: the decisions are the same (one-path)."""
+        alone = ran(stale_world(), ("slots", "next"))
         shown = ran(stale_world(), ("slots", "next"), "agent-2")
-        said(shown, "UNRECORDED AGENT", 1)
-        said(shown, "EMPTY SLOT", 0)
+        assert_that(decisionline.listed(shown), equal_to(decisionline.listed(alone)))
 
     def test_show_does_not_list_the_finished_agent_as_holding_its_slot(self) -> None:
         """``slots show`` derives the rows: no row names agent-1."""
@@ -68,46 +73,27 @@ class TestTheSlotsAreDerived(unittest.TestCase):
         said(shown, "UNRECORDED AGENT", 0)
 
     def test_no_running_option_computes_no_occupancy(self) -> None:
-        """The agents are not known: no row, no held slot, the one line instead."""
-        for command in (("slots", "show"), ("sweep",), ("slots", "next")):
+        """The agents are not known: no row and no held slot, the one line instead."""
+        for command in (("slots", "show"), ("sweep",)):
             shown = plain(stale_world(), *command)
             said(shown, "slots: not computed", [slotheld.NOT_COMPUTED])
-            for text in ("slot tiny", "EMPTY SLOT", "SLOT HELD", "SLOTS FREE"):
+        for command in (("slots", "show"), ("sweep",), ("slots", "next")):
+            shown = plain(stale_world(), *command)
+            for text in ("slot tiny", "EMPTY SLOT", "UNRECORDED AGENT", "all full"):
                 assert_that(text in shown, equal_to(False))
-            for text in ("UNRECORDED AGENT", "all full", "TASK LIST in flight"):
-                assert_that(text in shown, equal_to(False))
-
-    def test_no_running_option_marks_nothing_queued(self) -> None:
-        """The steps of ``slots next`` and of the sweep list keep no queued words."""
-        for command in (("slots", "next"), ("sweep",)):
-            assert_that(
-                slotheld.QUEUED in plain(stale_world(), *command), equal_to(False)
-            )
-
-    def test_without_running_a_ruling_is_suggested_and_no_start_is(self) -> None:
-        """No slot is known free, so no start, review or fix; the ruling stays."""
-        shown = plain(flows.world_with(flows.TWO_PLAN_REJECTIONS), "slots", "next")
-        assert_that(shown, contains_string("make an Opus ruling: owner/project#3"))
-        assert_that(len(suggestions.parsed(shown)), equal_to(1))
-        assert_that(suggestions.parsed(plain(calm(), "slots", "next")), equal_to([]))
 
     def test_without_running_the_tasks_of_the_rows_are_still_left_out(self) -> None:
         """A ticket a row holds is not offered again, whether or not it runs."""
         shown = plain(stale_world(), "slots", "next")
-        assert_that("NEXT 4. owner/project#9" in shown, equal_to(False))
-
-    def test_a_ticket_of_a_finished_agent_is_offered_again(self) -> None:
-        """With the agents named, the finished agent's ticket comes back."""
-        shown = ran(stale_world(), ("slots", "next"))
-        assert_that(shown, contains_string("NEXT 4. owner/project#9"))
+        assert_that(decisionline.of(shown, NINTH), equal_to(""))
 
     def test_free_without_running_prints_the_rows_and_the_stand_in_line(self) -> None:
-        """No refill is computed: the rows as written, then the one line."""
+        """The rows as written, then the refill of the ledger as written."""
         here = stale_world()
         args = ("slots", "free", here.config, "tiny", "--done", "agent-1")
         lines = world.invoke(here, *args).out.splitlines()
         assert_that(lines[0], starts_with("EMPTY SLOT: tiny"))
-        assert_that(lines[-1], equal_to(slotheld.NOT_COMPUTED))
+        assert_that(lines[-1], starts_with(REFILL))
 
     def test_a_refill_counts_another_slot_whose_agent_is_gone(self) -> None:
         """Slot big records agent-2 on ticket 9, which no longer runs: 9 is offered."""
@@ -122,8 +108,7 @@ class TestTheSlotsAreDerived(unittest.TestCase):
         args = ("slots", "free", here.config, "tiny", "--done", "agent-1")
         freed = world.invoke(here, *args, "--now", world.FUTURE, "--running")
         refill = freed.out.splitlines()[-1]
-        assert_that(refill, starts_with("EMPTY SLOT: tiny (small): start "))
-        assert_that(refill, contains_string("owner/project#9 (start a PR"))
+        assert_that(refill, starts_with(f"{REFILL}WORKER: {NINTH}: write the code"))
 
     def test_a_slot_the_derivation_empties_is_refused_by_set_until_freed(self) -> None:
         """``set`` reads the rows as written: free the finished agent first."""

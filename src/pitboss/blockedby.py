@@ -5,11 +5,11 @@ its CI fix. A PR declares what it waits for with ``Blocked-by: owner/name#N``
 (``blockedform``), one line for each blocker. Each blocker is read once, and the PR's
 step becomes:
 
-* a blocker that is open: WAIT_FOR_BLOCKER naming it; no fix, review or merge;
-* a loop (A blocked by B blocked by A, found within ``LIMIT`` reads): FIX_BLOCKED_BY
-  and a ``BLOCKER LOOP`` line, never a wait for each other;
-* a blocker closed without merging, or unreadable: FIX_BLOCKED_BY and a
-  ``BLOCKER GONE`` line;
+* a blocker that is open: no step (``steps.Idle``), so no line names the PR; the
+  blocker has its own decision in its place (keyword: one-path);
+* a loop (A blocked by B blocked by A, found within ``LIMIT`` reads): FIX_BLOCKED_BY,
+  never a wait for each other;
+* a blocker closed without merging, or unreadable: FIX_BLOCKED_BY;
 * every blocker merged after the PR's red checks finished: AFTER_BLOCKER (merge the
   base into the branch, check, push, so CI runs again); once the head is newer the
   PR is at its own step.
@@ -17,55 +17,19 @@ step becomes:
 Shapes derived from the code and the register: a PR needing another PR merged, a
 relock pin waiting for a package publish (the PR names the publishing PR or
 ticket), and merge-queue ordering (the later PR names the earlier) are this form; a
-ticket blocked by a ticket (``ticketblock``) and a hold (``WAIT_FOR_HOLD``) were
+ticket blocked by a ticket (``ticketblock``) and a hold of the runners were
 modelled before; a folded ticket is one PR for several tickets (``folds``). A
 tracking ticket's ``closes when`` is ``ticketblock``'s.
 """
 
 import dataclasses
-import enum
-from typing import Mapping, MutableMapping, Sequence
+from typing import MutableMapping, Sequence
 
-from . import configrepos, ghapi, pulls, shapes, steps, ticketblock, ticketdata
+from . import blockedform, blockedstep, ghapi, pullfacts, pullref
+from . import ticketdata
+from .blockedstep import Blocker, Closure, State
 
 LIMIT = 32  # the most blockers read to look for a loop
-KEPT = steps.WAITS | {steps.Step.WAIT_FOR_OWNER, steps.Step.WAIT_FOR_HOLD}
-
-
-class State(enum.Enum):
-    """What a blocker is.
-
-    Attributes:
-        OPEN: still open.
-        MERGED: merged.
-        CLOSED: closed without merging.
-        UNREADABLE: the API does not give it.
-    """
-
-    OPEN = enum.auto()
-    MERGED = enum.auto()
-    CLOSED = enum.auto()
-    UNREADABLE = enum.auto()
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Blocker:
-    """A ticket or PR another PR waits for.
-
-    Attributes:
-        reference: ``owner/name#number``.
-        state: what it is.
-        merged_at: when it merged (ISO 8601), else empty.
-        body: its text.
-    """
-
-    reference: str
-    state: State
-    merged_at: str = ""
-    body: str = ""
-
-
-CLOSED = frozenset({State.CLOSED, State.UNREADABLE})
 
 
 def read(github: ghapi.GitHub, reference: str) -> Blocker:
@@ -80,7 +44,9 @@ def read(github: ghapi.GitHub, reference: str) -> Blocker:
     """
     found = ticketdata.read(github, reference)
     if found is None:
-        return Blocker(reference=reference, state=State.UNREADABLE)
+        return Blocker(
+            reference=reference, state=State.UNREADABLE, merged_at="", body=""
+        )
     state = State.OPEN if found.open else State.CLOSED
     return Blocker(
         reference=reference,
@@ -90,7 +56,7 @@ def read(github: ghapi.GitHub, reference: str) -> Blocker:
     )
 
 
-def declared(pull: pulls.PullFacts) -> Sequence[str]:
+def declared(pull: pullfacts.PullFacts) -> Sequence[str]:
     """What the body of a PR says it waits for.
 
     Args:
@@ -99,8 +65,8 @@ def declared(pull: pulls.PullFacts) -> Sequence[str]:
     Returns:
         The references, each once, never the PR itself.
     """
-    names = ticketblock.named(pull.pull.body, pull.repo)
-    return [each for each in dict.fromkeys(names) if each != pulls.reference(pull)]
+    names = blockedform.named(pull.pull.body, pull.repo.slug)
+    return [each for each in dict.fromkeys(names) if each != pullref.reference(pull)]
 
 
 def loop(
@@ -127,90 +93,39 @@ def loop(
         if path[-1] not in visited:
             visited.add(path[-1])
             found = seen.setdefault(path[-1], read(github, path[-1]))
-            more = ticketblock.named(found.body, configrepos.repo_of(path[-1]))
-            todo += [[*path, each] for each in more if found.state is State.OPEN]
+            more = blockedform.named(found.body, path[-1].rpartition("#")[0])
+            todo += [[*path, each] for each in more if blockedstep.is_open(found)]
     return []
 
 
-def _red_since(pull: pulls.PullFacts, merged: str) -> bool:
-    # the head is red, and every failed check ended before the blockers merged
-    failing = pulls.failed_checks(pull)
-    last = max(map(_ended, failing), default="")
-    return bool(last) and last < merged and steps.Task.FIX_CI is pull.step.task
-
-
-def _ended(check: shapes.CheckRun) -> str:
-    return check.completed_at
-
-
-def verdict(
-    pull: pulls.PullFacts, found: Sequence[Blocker], path: Sequence[str]
-) -> tuple[steps.Next | None, str]:
-    """The step a PR has because of what it waits for, and the sweep's line.
-
-    Args:
-        pull: the PR.
-        found: its blockers as read.
-        path: the loop through it, or none.
-
-    Returns:
-        The step (None when the PR keeps its own) and the line (empty then).
-    """
-    me = pulls.reference(pull)
-    shut = [each.reference for each in found if each.state in CLOSED]
-    live = [each.reference for each in found if each.state is State.OPEN]
-    when = max((each.merged_at for each in found), default="")
-    fix = steps.worker(steps.Task.FIX_BLOCKED_BY)
-    if path:
-        return fix, f"BLOCKER LOOP {' -> '.join(path)}: each waits for the next"
-    if shut:
-        return fix, f"BLOCKER GONE {me}: {shut[0]} is closed unmerged"
-    if live:
-        wait = steps.Next(step=steps.Step.WAIT_FOR_BLOCKER, comment=", ".join(live))
-        return wait, f"BLOCKER WAIT {me}: waits for {wait.comment}"
-    if _red_since(pull, when):
-        after = steps.worker(steps.Task.AFTER_BLOCKER)
-        return after, f"BLOCKER MERGED {me}: merged at {when}, after its red check"
-    return None, ""
-
-
-def _settled(
-    github: ghapi.GitHub, seen: MutableMapping[str, Blocker], pull: pulls.PullFacts
-) -> tuple[pulls.PullFacts, str]:
-    names = declared(pull)
-    if not names or pull.step.step in KEPT:
-        return pull, ""
-    for each in names:
-        seen.setdefault(each, read(github, each))
-    me = pulls.reference(pull)
-    chains = [loop(seen, github, me, each) for each in names]
-    step, line = verdict(
-        pull, [seen[each] for each in names], next(filter(None, chains), [])
-    )
-    return (dataclasses.replace(pull, step=step) if step else pull), line
-
-
-def settle(
-    github: ghapi.GitHub, reads: Sequence[pulls.Read]
-) -> tuple[Sequence[pulls.Read], Mapping[str, str]]:
-    """Give each PR that declares a blocker the step the blocker calls for.
+def read_closure(github: ghapi.GitHub, pull: pullfacts.PullFacts) -> Closure:
+    """Read what a PR's ``Blocked-by:`` lines name: its closure (plan 3.1, point 4).
 
     Args:
         github: the API.
-        reads: every open PR.
+        pull: the PR.
 
     Returns:
-        The PRs, and the sweep's line for each that was changed, by reference.
+        Each blocker as read, and whether a chain of them leads back to the PR.
     """
+    names = declared(pull)
     seen: MutableMapping[str, Blocker] = {}
-    settled: list[pulls.Read] = []
-    said: dict[str, str] = {}
-    for each in reads:
-        if isinstance(each, shapes.Unreadable):
-            settled.append(each)
-            continue
-        changed, line = _settled(github, seen, each)
-        settled.append(changed)
-        if line:
-            said[pulls.reference(each)] = line
-    return settled, said
+    for each in names:
+        seen.setdefault(each, read(github, each))
+    me = pullref.reference(pull)
+    looped = any(loop(seen, github, me, each) for each in names)
+    return Closure(found=[seen[each] for each in names], looped=looped)
+
+
+def at_blockers(github: ghapi.GitHub, pull: pullfacts.PullFacts) -> pullfacts.PullFacts:
+    """A PR at the step its blockers give it: a shared red's other holder.
+
+    Args:
+        github: the API.
+        pull: the PR.
+
+    Returns:
+        The PR, its step settled by its blockers as read.
+    """
+    moved = blockedstep.step_of(pull, read_closure(github, pull))
+    return dataclasses.replace(pull, step=moved or pull.step)

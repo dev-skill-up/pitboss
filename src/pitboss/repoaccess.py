@@ -6,6 +6,7 @@ import pathlib
 from typing import AbstractSet, Callable, Mapping, Sequence
 
 from . import (
+    concurrently,
     config,
     configfile,
     configloads,
@@ -13,6 +14,7 @@ from . import (
     gates,
     ghapi,
     ledger,
+    mode,
     ownerrepos,
 )
 from .markers import Marker
@@ -39,41 +41,34 @@ class Access:
 GateScope = Callable[[config.Config], AbstractSet[str] | None]
 
 
-def every_gate(settings: config.Config) -> AbstractSet[str] | None:
-    """Read the gate of every repository (the default scope).
-
-    Args:
-        settings: the configuration.
-
-    Returns:
-        None, which stands for every repository.
-    """
-    del settings
-    return None
-
-
 def item_gates(
     args: argparse.Namespace, settings: config.Config
 ) -> AbstractSet[str] | None:
-    """The repositories whose review gates a command reads.
+    """The repositories whose review gates a command reads when it loads.
 
     ``slots next ITEM`` builds the brief of one item from its own repository, so
     it reads that repository's gate and no other (keyword: item-brief,
-    pitboss#453).
+    pitboss#453). Every other command that has a mode (``mode.PARSES``: what is
+    next, the sweep, the act verbs) reads none when it loads: the one path reads a
+    pull request's gate with it, once a repository (``onepath``), so the reads
+    follow the printed lines, not the repositories (keyword: org-search).
 
     Args:
         args: the parsed arguments.
         settings: the configuration.
 
     Returns:
-        The one repository's ``owner/name``; None (every repository) for any
-        other command.
+        The repositories' ``owner/name``; None (every repository) for a command
+        with no mode, which reads a review outside the one path.
     """
     words = getattr(args, "words", None)
-    if getattr(args, "action", None) != "next" or not words or len(words) != 1:
-        return None
-    named = ledger.reference(words[0], settings.project.repo)
-    return frozenset({named.rpartition("#")[0]})
+    command = str(getattr(args, "__gather_name__", "") or "")
+    action = str(getattr(args, "action", "") or getattr(args, "verb", "") or "")
+    if action == "next" and words and len(words) == 1:
+        named = ledger.reference(words[0], settings.project.repo)
+        return frozenset({named.rpartition("#")[0]})
+    asked = (command, "" if command in mode.UNACTIONED else action) in mode.PARSES
+    return frozenset() if asked else None
 
 
 def without(settings: config.Config, failures: Mapping[str, str]) -> config.Config:
@@ -116,7 +111,7 @@ def read(
     github: ghapi.GitHub,
     name: str,
     start: pathlib.Path,
-    gated: GateScope = every_gate,
+    gated: GateScope,
 ) -> Access:
     """Read a configuration, and what the session can read of it.
 
@@ -146,11 +141,23 @@ def _unlisted(settings: config.Config, seen: AbstractSet[str]) -> Sequence[str]:
     ]
 
 
+def _not_listed(github: ghapi.GitHub, wanted: Sequence[str]) -> Sequence[str]:
+    # keyword: repo-access: one list of each other owner, not one read a repository
+    # (the owner: "You just don't do O(n) queries"); only what a list does not hold
+    # is read alone, to say why it cannot be read
+    owners = sorted({slug.partition("/")[0] for slug in wanted})
+    lists = concurrently.each(
+        lambda owner: ownerrepos.listed_slugs(github, owner), owners
+    )
+    seen = frozenset().union(*lists)
+    return [slug for slug in wanted if slug not in seen]
+
+
 def readable(
     github: ghapi.GitHub,
     settings: config.Config,
     left_out: AbstractSet[str],
-    gated: GateScope = every_gate,
+    gated: GateScope,
 ) -> Access:
     """Take in the owner's repositories, and leave out, and report, the unreadable.
 
@@ -171,7 +178,7 @@ def readable(
     """
     wide, unlisted, seen = ownerrepos.widened(github, settings, left_out)
     wanted = _unlisted(wide, seen)
-    failures = ghapi.unreadable(github, wanted)
+    failures = ghapi.unreadable(github, _not_listed(github, wanted))
     _say(failures, wide.project.repo.owner, unlisted)
     if wide.project.repo.slug in failures:
         raise SystemExit(f"cannot read {wide.project.repo.slug}")

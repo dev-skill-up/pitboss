@@ -1,0 +1,235 @@
+Head: c6f64aa62ff686a9a28b3eeb6afba94bd0ff4c16 (origin/main 3817eef merged in; it had no newer commit)
+
+Fixes #381
+Fixes #445
+
+## What changed
+
+* Every reader of `bats.toml` in `src/` is listed below, found by search (raw output in Evidence), and each is whole or reads nothing. Two were not and are fixed here: `bats add` (`do_add`) read 4096 bytes and **wrote them back over the file** (data loss for a longer manifest): it now appends its one line (`append_file_from_builder`, `AppendExisting`) and neither reads nor rewrites the file. `bats remove` (`do_remove`) no longer spawns `sed -i` (bats#445): it reads the manifest whole, copies every line except those naming the package (the quoted name at the start of the line) into a builder and writes it back through `write_settle`; a package that is not there leaves the file untouched and says so. It adds no `run_cmd_capture` call and removes none, so bats#444's list of fifteen call sites (`src/commands.bats:597,616,737,754` among them) is unchanged by this PR.
+* `read_toml` / `read_manifest` (`src/helpers.bats`) read whole (`read_whole_m`). The toml package's `parse` copies 65536 bytes and stops after 256 entries without saying so (bats-lang/toml#46): a manifest over 65536 bytes is now `FileTooLarge` (an error), never parsed cut; the 256-entry cut cannot be seen from bats and is stated.
+* The ceilings, as they are: a file of 268435455 bytes or more is refused by `whole_of_open` (`z >= 268435455`); a manifest over 65536 bytes by `read_toml`.
+* Earlier commits of this PR: `read_unsafe_flag` is the one reader of `unsafe`; `write_with_version` zips the whole manifest; `read_whole` keeps a failed read's own error.
+* `.claude/rules/build-freshness.md`: the field table (judged-by cells corrected) and the table of every reader.
+* `tests/toml-fields/check.sh`: `bats add` on a manifest of 8767 bytes, `bats remove` of one of two packages, of an absent one, and among look-alikes (a commented `"added"`, a string value holding `"added"`, an indented `"added"` and the real line: only the real line goes, and a second remove says not found; `.claude/rules/build-freshness.md` names `dep_cons` and `pdep_cons`, its greps use `-E` with a plain `|`) (the manifest otherwise byte for byte), manifests of exactly 65536 (read to its last byte) and 65537 bytes (refused), a mangled log name fixed, the why-shell comment corrected.
+* `bootstrap/c` regenerated; fixpoint shown below.
+
+## Every reader of bats.toml
+
+| reader | where (the search that finds it) | serves | bytes read | does | fields judged |
+|---|---|---|---|---|---|
+| `read_toml`, `read_manifest` | `read_toml` and `read_manifest` in `src/helpers.bats`: `grep -n 'implement read_toml\|implement read_manifest' src/helpers.bats` | every parsing reader below | whole (`read_whole_m`); over 65536 is `FileTooLarge` | reads only | all |
+| `package_value` | `package_value` in `src/commands.bats`: `grep -n 'fn package_value' src/commands.bats` | `upload` (via `read_trunk`, and the version) | whole | reads only | `version`, `trunk` |
+| `do_upload` | `do_upload` in `src/commands.bats`: `grep -n 'implement do_upload' src/commands.bats` | `upload` | whole | reads only | `name`, `kind` |
+| `write_with_version` | `write_with_version` in `src/commands.bats`: `grep -n 'fn write_with_version' src/commands.bats` | `upload` | whole (`read_whole`) | reads; writes the manifest with the version injected to `build/upload/bats.toml`, whole (the archive's copy) | `version` (rewritten) |
+| the `zip` of `upload` | `do_upload` in `src/commands.bats`: `grep -n 'build/upload/bats.toml' src/commands.bats` | `upload` | whole (the zip command) | reads; archives | none |
+| `generate_lib_docs` | `generate_lib_docs` in `src/docs.bats`: `grep -n 'implement generate_lib_docs' src/docs.bats` | `check` | whole | reads only | `name`, `kind` |
+| `project_kind` | `project_kind` in `src/lock.bats`: `grep -n 'fn project_kind' src/lock.bats` | `build`, `run`, `check`, `lock` | whole | reads only | `kind` |
+| `project_cons` | `project_cons` in `src/lock.bats`: `grep -n 'fn project_cons' src/lock.bats` | `lock`, `check`, `build` | whole | reads only | `[package] name`, `[dependencies]` |
+| `project_pdeps` | `project_pdeps` in `src/lock.bats`: `grep -n 'fn project_pdeps' src/lock.bats` | `build`, `check` | whole | reads only | `[dependencies]` paths |
+| a dependency's constraints | the constraints reader in `src/lock.bats`: `grep -n 'read_toml' src/lock.bats` (the first) | `lock` | whole | reads only | `[dependencies]` |
+| a path dependency's constraints | the path dependency's reader in `src/lock.bats`: `grep -n 'read_toml' src/lock.bats` (the third) | `lock` | whole | reads only | `[dependencies]` |
+| `toml_version_is` | `toml_version_is` in `src/lock.bats`: `grep -n 'fn toml_version_is' src/lock.bats` | `lock`, `fetch` | whole | reads only | `[package] version` |
+| `toml_unsafe` via `read_unsafe_flag` and `dep_unsafe` | `toml_unsafe`, `read_unsafe_flag` and `dep_unsafe` in `src/lock.bats`: `grep -n 'toml_unsafe\|read_unsafe_flag\|dep_unsafe' src/lock.bats` | emission, validation (`grep -n 'read_unsafe_flag\|dep_unsafe' src/build.bats src/lock.bats`), the test runner (`grep -n 'read_unsafe_flag' src/commands.bats`) | whole | reads only | `unsafe` |
+| `do_add` (`bats add`) | `do_add` in `src/commands.bats`: `grep -n 'implement do_add' src/commands.bats` | `add` | none: opens bats.toml for appending (`append_file_from_builder`, `src/helpers.bats`) | appends one line; the rest of the file is neither read nor written | none |
+| `do_remove` (`bats remove`) | `do_remove` in `src/commands.bats`: `grep -n 'implement do_remove' src/commands.bats` | `remove` | whole (`read_whole`) | rewrites whole through `write_settle`, only when a line names the package; no external tool | none |
+| `put_file_sha256_m` | `put_file_sha256_m` in `src/helpers.bats` (the project's input digest, `inputs_digest` of `src/inputs.bats`) and `path_sha` in `src/fixtures.bats`: `grep -n 'put_file_sha256_m\|path_sha(str_builder("bats.toml")' src/helpers.bats src/fixtures.bats` | the inputs digest, the fixtures' memo | whole, in 64 KiB chunks | reads only | none: the file's content |
+| `project_lock_take` | `project_lock_take` in `src/helpers.bats`: `grep -n 'implement project_lock_take' src/helpers.bats` | `check`, `build`, `test`, `run`, `lock`, ... | none: `flock` on the file opened read-only | reads nothing | none |
+| `init` in `src/commands.bats` and the existence checks of `src/build.bats`: `grep -n '"bats.toml"' src/commands.bats` and `grep -n '/bats.toml' src/build.bats` | `init`, `fetch`, the closure walk | none: whether the file exists | reads nothing | none |
+
+The output buffers of the toml calls are not readers of the file: a value that does not fit makes `T.get` answer none, read as unset (name, version, kind of 256 bytes or more; 32 for the kind, 16 for `unsafe`; a constraint or path over 4096 bytes, `src/lock.bats` 683 and 2095); the key lists (`T.keys`, 716 and 2126) have 65536 bytes, as many as the document holds. The check.sh comment that said 4096 where the check is 8192 now says 8192.
+
+## Done-when (bats#381's three Do items)
+
+1. Every field bats reads, what it changes in `build/`, what judges it: the field table in build-freshness.md (from every `T.get`/`T.keys`/`T.value_at` site).
+2. A field that changes `build/` and is judged by none: only `unsafe` (emission read 4096 bytes, validation the whole file), fixed by the one reader; `tests/toml-fields` fails on main's compiler for it and for the large library manifest.
+3. The list as a fact in build-freshness.md: done.
+
+## Why the test is shell (stated as true)
+
+`tests/toml-fields/check.sh` runs the compiler binary it is given several times over project directories and compares their `build/` trees and logs, as every `tests/*/check.sh` does (`check.yml` loops over them). A test in bats is possible and is not made here: bats has no `tests/static` (that was quire's runner, folded into `bats fixtures`: one snippet in one copy of one project against an error text, no second manifest and no `build/` to compare); `bats test` is a step of no workflow here and no module of the compiler has a `$UNITTEST` block; the runner it builds is given no path to the compiler (the process package could spawn one named by an environment variable, but `spawn` has no working directory, so the test would chdir the runner), and the `build/` trees would be walked and compared in bats. This is not "exhausted": it is a rewrite of the suite's convention, and the ticket for it is filed: bats#446 (p1, port the script to bats).
+
+## Evidence
+
+### The reader search (the searches the table names, run at head cc20d3b)
+
+```
+$ grep -n 'implement read_toml\|implement read_manifest' src/helpers.bats
+3327:implement read_toml (pa, m) = let
+3355:implement read_manifest () = let
+$ grep -n 'read_manifest' src/*.bats src/bin/*.bats
+src/commands.bats:641:  (case+ read_manifest() of
+src/commands.bats:834:  case+ read_manifest() of
+src/docs.bats:547:  case+ read_manifest() of
+src/helpers.bats:3353:#pub fn read_manifest (): $R.result($T.toml_doc, $F.io_error)
+src/helpers.bats:3355:implement read_manifest () = let
+src/lock.bats:1144:  case+ read_manifest() of
+src/lock.bats:2138:  case+ read_manifest() of
+src/lock.bats:2319:  val kind = (case+ read_manifest() of
+$ grep -n 'read_toml' src/*.bats src/bin/*.bats
+src/helpers.bats:3324:#pub fn read_toml {lp:agz}{n:pos}{m:nat | m <= n; m <= 524288} (pa: $A.arr(byte, lp, n), m: int m)
+src/helpers.bats:3327:implement read_toml (pa, m) = let
+src/helpers.bats:3357:in read_toml(manifest_path, manifest_path_len) end
+src/lock.bats:1177:  case+ read_toml(pa, pal) of
+src/lock.bats:1416:  case+ read_toml(pa, pal) of
+src/lock.bats:2166:  case+ read_toml(ba, bal) of
+src/lock.bats:3068:  case+ read_toml(pa, m) of
+$ grep -n 'fn package_value' src/commands.bats
+639:fn package_value {lk:agz}{nk:pos}
+$ grep -n 'implement do_upload' src/commands.bats
+833:implement do_upload {lr} (repo, rplen) =
+$ grep -n 'fn write_with_version' src/commands.bats
+550:fn write_with_version {lv:agz}{nv:pos}
+$ grep -n 'build/upload/bats.toml' src/commands.bats
+549:   to build/upload/bats.toml; 0 on success *)
+570:      val upath = str_to_path_arr("build/upload/bats.toml")
+979:                      val () = bput_v(zj4, "build/upload/bats.toml")
+$ grep -n 'implement generate_lib_docs' src/docs.bats
+546:implement generate_lib_docs() =
+$ grep -n 'fn project_kind' src/lock.bats
+2314:#pub fn project_kind (): $R.option(package_kind)
+$ grep -n 'fn project_cons' src/lock.bats
+1143:fn project_cons (err: !$B.builder_v >> $B.builder_v): [n:nat] @(int, cons(n)) =
+$ grep -n 'fn project_pdeps' src/lock.bats
+2137:fn project_pdeps (): [n:nat] pdeps(n) =
+$ grep -n 'fn toml_version_is' src/lock.bats
+1408:fn toml_version_is {la:agz} (a: !$A.arr(byte, la, 256), k: nlen, v: !cand): bool = let
+$ grep -n 'toml_unsafe\|read_unsafe_flag\|dep_unsafe' src/*.bats
+src/build.bats:1148:  val is_unsafe = read_unsafe_flag()
+src/commands.bats:286:  val () = (if read_unsafe_flag() then bput_v(toml, "unsafe = true\n") else ())
+src/lock.bats:3067:fn toml_unsafe {lp:agz}{n:pos}{m:nat | m <= n; m <= 524288} (pa: $A.arr(byte, lp, n), m: int m): bool =
+src/lock.bats:3091:#pub fn read_unsafe_flag(): bool
+src/lock.bats:3093:implement read_unsafe_flag() = let
+src/lock.bats:3095:in toml_unsafe(toml_path, toml_path_len) end
+src/lock.bats:3109:fn dep_unsafe {pn:pos}{pm:nat | pm <= pn; pm <= 524288} {lp:agz} (p: !$A.borrow(byte, lp, pn), pm: int pm, pl: pos_t): bool = let
+src/lock.bats:3116:in toml_unsafe(ba, bl) end
+src/lock.bats:3151:    val uns = (case+ mode of Dependencies() => dep_unsafe(bv_p, pal, pl) | _ => own_unsafe): bool
+src/lock.bats:3342:  val own_unsafe = read_unsafe_flag()
+$ grep -n 'implement do_add' src/commands.bats
+1329:implement do_add(bv, pkg_start, pkg_len, max) = let
+$ grep -n 'implement do_remove' src/commands.bats
+1405:implement do_remove(bv, pkg_start, pkg_len, max) = let
+$ grep -n 'put_file_sha256_m\|path_sha(str_builder("bats.toml")' src/helpers.bats src/fixtures.bats
+src/helpers.bats:1013:  val had = put_file_sha256_m(bv_p, pal, nb)
+src/helpers.bats:1164:  val has = put_file_sha256_m(bv_s, sl, b)
+src/helpers.bats:1221:  val ok = put_file_sha256_m(in_bv, m, b)
+src/helpers.bats:3647:    else put_file_sha256_m(p, m, out)): bool
+src/helpers.bats:4125:#pub fn put_file_sha256_m {lp:agz}{n:pos}{m:nat | m <= n; m <= 524288}
+src/helpers.bats:4128:implement put_file_sha256 {lp} (p, out) = put_file_sha256_m(p, 524288, out)
+src/helpers.bats:4130:implement put_file_sha256_m {lp}{n}{m} (p, m, out) =
+src/fixtures.bats:1132:  val a4 = path_sha(str_builder("bats.toml"), t)
+$ grep -n 'implement project_lock_take' src/helpers.bats
+3037:implement project_lock_take (heavy) = let
+$ grep -n '"bats.toml"' src/commands.bats
+287:  val w1 = runner_write(wasm, "bats.toml", toml)
+552:  val manifest_path = str_to_path_arr("bats.toml")
+986:                    val () = bput_v(za4, "bats.toml")
+1211:    val tp = str_to_path_arr("bats.toml")
+1331:  val tp = str_to_path_arr("bats.toml")
+1406:  val tp = str_to_path_arr("bats.toml")
+$ grep -n '/bats.toml' src/build.bats
+1316:                    val () = bput_v(chk_b, "/bats.toml")
+1360:                                    val () = bput_v(ns_chk, "/bats.toml")
+1970:                                  val () = bput_v(pk_b, "/bats.toml")
+2376:                                  val () = bput_v(pk_b3, "/bats.toml")
+$ grep -n 'T\.get' src/*.bats src/bin/*.bats
+src/commands.bats:646:      val vr = $T.get(doc, bv_s, 7, key, klen, vbuf, 256)
+src/commands.bats:844:          val nr = $T.get(doc, bv_s, 7, bv_kn, 4, nbuf, 256)
+src/commands.bats:855:          val kr = $T.get(doc, bv_s, 7, bv_kk, 4, kbuf, 32)
+src/docs.bats:556:      val nr = $T.get(doc, bv_s, 7, bv_kn, 4, nbuf, 256)
+src/docs.bats:563:      val kr = $T.get(doc, bv_s, 7, bv_kk, 4, kbuf, 32)
+src/lock.bats:683:      val vr = $T.get(doc, sec, 12, bv_k, kl, vb, 4096)
+src/lock.bats:749:  val vl = (case+ $T.get(doc, bv_s, 7, bv_k, 4, vb, 256) of
+src/lock.bats:1155:      val nk = (case+ $T.get(doc, bv_s, 7, bv_k, 4, nb, 256) of
+src/lock.bats:1424:      val version_len = (case+ $T.get(doc, bv_s, 7, bv_k, 7, version, 256) of
+src/lock.bats:2095:      val vr = $T.get(doc, sec, 12, bv_k, kl, vb, 4096)
+src/lock.bats:3076:      val vl = (case+ $T.get(doc, bv_s, 7, bv_k, 6, vb, 16) of
+$ grep -n 'T\.keys' src/*.bats src/bin/*.bats
+src/lock.bats:716:  val kr = $T.keys(doc, bv_s, 12, kb, 65536)
+src/lock.bats:2126:  val kl = (case+ $T.keys(doc, bv_s, 12, kb, 65536) of
+$ grep -n 'T\.value_at' src/*.bats src/bin/*.bats
+src/lock.bats:958:  val @(s, e, quoted) = $T.value_at(doc, bv_s, 7, bv_k, kk)
+src/lock.bats:1006:  val @(s, _, _) = $T.value_at(doc, bv_s, 7, bv_k, kk)
+$ grep -n '"sed"' src/commands.bats
+(no output: do_remove spawns no sed)
+```
+
+
+Raw output is in the PR comment posted at this head.
+
+### The new head, ea812e7
+
+```
+$ bats check --repository ~/repository-prototype      -> check passed (binary)
+$ bats build ...; scripts/bootstrap-c.sh dist/debug/bats ~/repository-prototype   -> bootstrap/c regenerated, committed
+$ stage2 = the built dist/debug/bats; rm -rf build dist; stage2 build; bootstrap-c.sh into a fresh dir; diff -r bootstrap/c <fresh>   -> no difference (fixpoint)
+$ tests/toml-fields/check.sh dist/debug/bats ~/repository-prototype   -> toml-fields: ok
+$ qsweep pressure   -> runner pressure: none (exit 0)
+```
+Checked with the local ATS2 (-int solver; CI uses gmp), as bats check warns.
+
+---
+_Generated by [Claude Code](https://claude.ai/code/session_019S9ERgGHxM2KKvV9YNQ7ek)_
+
+https://claude.ai/code/session_019S9ERgGHxM2KKvV9YNQ7ek
+
+
+### The new head, 6438055 (origin/main 83e0a69 merged in)
+
+```
+merge conflicts: only bootstrap/c (3 files), none in src/; bootstrap/c taken from this branch, then regenerated, not merged by hand
+$ bats check --repository ~/repository-prototype   -> check passed (binary)
+$ bats build; scripts/bootstrap-c.sh dist/debug/bats ~/repository-prototype   -> bootstrap/c regenerated
+$ stage2 build of that compiler; bootstrap-c.sh into a fresh dir; diff -r bootstrap/c <fresh>   -> no difference (fixpoint)
+$ tests/toml-fields/check.sh   -> toml-fields: ok
+$ tests/ats2-install/check.sh  -> all passed
+$ qsweep pressure   -> runner pressure: none (exit 0)
+```
+
+
+### The new head, 7fe8893 (round 4 review)
+
+```
+build-freshness.md: do_remove row (whole read, write_settle, no tool) and the head's line numbers (read_toml, read_manifest 3324 to 3357; do_remove 1406); this body's table has the same
+copy_without_package comment: one line
+tests/toml-fields/check.sh: bats remove with no final newline, in a second table, on an empty file, over 65536 bytes, each by cmp; header one line naming bats#446
+$ bats check -> passed; bootstrap/c regenerated; stage2 rebuild + diff -r bootstrap/c <fresh> -> no difference (fixpoint)
+$ tests/toml-fields/check.sh -> toml-fields: ok
+$ qsweep pressure -> exit 1 (1 queue-run job waiting) at the time of the push
+```
+
+
+### The new head, 536eae2 (origin/main 3817eef merged in)
+
+```
+merge conflicts: only bootstrap/c (3 files), none in src/; bootstrap/c taken from this branch, then regenerated, not merged by hand
+$ bats check -> check passed (binary)
+$ bats build; scripts/bootstrap-c.sh dist/debug/bats ~/repository-prototype -> regenerated
+$ stage2 rebuild; bootstrap-c.sh into a fresh dir; diff -r bootstrap/c <fresh> -> no difference (fixpoint)
+$ tests/toml-fields/check.sh -> toml-fields: ok
+$ tests/check-pins/check.sh -> check-pins: all passed
+$ qsweep pressure (alone, before the push) -> runner pressure: none (exit 0)
+```
+
+
+### The new head, cc20d3b
+
+Only `.claude/rules/build-freshness.md` changed: each reader is named by function and file with the grep that finds it, no line numbers (they go stale at every merge of main). The table above is that file's. `tests/toml-fields/check.sh` -> toml-fields: ok; `qsweep pressure` alone before the push -> runner pressure: none (exit 0). No src or bootstrap/c change.
+
+
+## Evidence: the look-alike case on main's compiler (bats#445)
+
+Built from a copy of `bootstrap/c` on origin/main (`make debug/bats`); the case alone (the look-alike block of `tests/toml-fields/check.sh` with `remove_case`) fails there, because main's `bats remove` of a name no longer in the manifest says it removed it. The head's compiler prints `toml-fields: ok`.
+
+```
+$ sh lookalike-only.sh main-compiler/debug/bats /home/user/repository-prototype
+FAIL: bats remove of a name left only in look-alikes said
+removed 'added' from [dependencies]
+$ sh lookalike-only.sh dist/debug/bats /home/user/repository-prototype
+toml-fields: ok
+```
+
+On main, `bats remove absent` likewise printed `removed 'absent' from [dependencies]`; the head prints `error: package 'absent' not found in [dependencies]`.
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

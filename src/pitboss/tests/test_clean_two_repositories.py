@@ -66,9 +66,15 @@ def built_scene() -> worldcopy.Made:
     fakes.push(opened)
     for name in ("foreign-merged", "foreign-open"):
         test_clean_clones.foreign_clone(here, name, name)
-    foreign = fakes.page(f"repos/{test_clean_clones.FOREIGN}/pulls?state=all")
-    ours = world.project_page("pulls?state=all")
-    here.bodies.update({ours: pulls(*NAMES[:2]), foreign: pulls(*NAMES[2:])})
+    foreign = f"repos/{test_clean_clones.FOREIGN}/pulls?state="
+    ours = world.project_page("pulls?state=closed")
+    here.bodies.update(
+        {
+            ours: pulls(*NAMES[:2]),
+            fakes.page(f"{foreign}open"): [],
+            fakes.page(f"{foreign}closed"): pulls(*NAMES[2:]),
+        }
+    )
     cleanworld.rewrite(here, SETTINGS)
     for name in NAMES:
         test_autoclean_world.touch_all(here.workspace / name, 99)

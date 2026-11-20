@@ -1,6 +1,6 @@
 """The check runs of a PR's head (keyword: check-runs)."""
 
-from typing import Sequence
+from typing import Protocol, Sequence
 
 from . import shapes
 
@@ -20,11 +20,37 @@ def current_checks(
     Returns:
         The latest run of each name, in the order first seen.
     """
-    latest: dict[str, shapes.CheckRun] = {}
+    return latest([run for run in checks if run.head_sha in ("", head)])
+
+
+class Started(Protocol):
+    """What ``latest`` reads of a check run."""
+
+    @property
+    def id(self) -> int:
+        """Return its id."""
+
+    @property
+    def name(self) -> str:
+        """Return its name."""
+
+    @property
+    def started_at(self) -> str:
+        """Return when it started."""
+
+
+def latest[Run: Started](checks: Sequence[Run]) -> Sequence[Run]:
+    """The latest run of each check name: the head's current runs.
+
+    Args:
+        checks: the check runs of one head.
+
+    Returns:
+        The latest run of each name, in the order first seen.
+    """
+    found: dict[str, Run] = {}
     for run in checks:
-        if run.head_sha not in ("", head):
-            continue
-        seen = latest.get(run.name)
+        seen = found.get(run.name)
         if seen is None or (run.started_at, run.id) > (seen.started_at, seen.id):
-            latest[run.name] = run
-    return list(latest.values())
+            found[run.name] = run
+    return list(found.values())

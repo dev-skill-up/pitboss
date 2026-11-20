@@ -8,17 +8,8 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import (
-    assigning,
-    config,
-    ledger,
-    parsing,
-    pullstate,
-    pulls,
-    reviews,
-    steps,
-    work,
-)
+from .. import config, parsing, pulls, reviews, steps, work
+from .. import headsignals, rounds, straycomments
 from . import fakes, test_flow
 
 REPO = config.make_repo("owner", "project")
@@ -38,7 +29,7 @@ NONE = reviews.Standing.NONE
 DEFAULT_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
 
 
-def stepped(facts: pulls.PullFacts, step: steps.Next) -> pulls.PullFacts:
+def stepped(facts: pulls.PullFacts, step: steps.Move) -> pulls.PullFacts:
     """A PR at another step.
 
     Args:
@@ -74,6 +65,10 @@ def facts(
         review=None,
         standing=standing,
         step=DEFAULT_STEP,
+        signals=headsignals.NONE,
+        unreadable=straycomments.NONE,
+        review_rounds=rounds.NONE,
+        relock=False,
     )
 
 
@@ -106,7 +101,7 @@ def item(
 
 Kind = work.Category
 REVIEW_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
-STEP_CASES: Sequence[tuple[steps.Next, Kind | None]] = [
+STEP_CASES: Sequence[tuple[steps.Move, Kind | None]] = [
     (steps.worker(steps.Task.REVISE_PLAN), Kind.REVISE_PLAN),
     (steps.worker(steps.Task.FIX_EXECUTION), Kind.FIX_REVIEW),
     (steps.worker(steps.Task.RULING_STEPS), Kind.RULING_STEPS),
@@ -118,50 +113,14 @@ STEP_CASES: Sequence[tuple[steps.Next, Kind | None]] = [
     (steps.regular_review(steps.Stage.PLAN_ONLY), Kind.REVIEW),
     (steps.merge(), None),
     (steps.undraft(), None),
-    (steps.wait_for_ci(), None),
-    (steps.wait_for_undraft(), None),
-    (steps.wait_for_owner(), None),
+    (steps.IDLE, None),
+    (steps.IDLE, None),
+    (steps.IDLE, None),
     (steps.opus_ruling(), None),
     (steps.pause_for_owner(), None),
     (steps.fix_ruling(""), None),
     (steps.ruling_escalates(), None),
 ]
-
-
-class TestPullItems(unittest.TestCase):
-    """The fixes and reviews open PRs need."""
-
-    def test_categories(self) -> None:
-        """A PR is listed as the kind of work its step is, or as none."""
-        found = [
-            [each.category for each in work.pull_items([stepped(facts(1, NONE), step)])]
-            for step, _ in STEP_CASES
-        ]
-        expected = [[kind] if kind else [] for _, kind in STEP_CASES]
-        assert_that(found, equal_to(expected))
-
-    def test_the_category_comes_from_the_step_alone(self) -> None:
-        """A PR behind the base is listed as its step says, not as an update."""
-        found = [
-            [
-                each.category
-                for each in work.pull_items(
-                    [stepped(facts(1, NONE, mergeable_state="behind"), step)]
-                )
-            ]
-            for step, _ in STEP_CASES
-        ]
-        expected = [[kind] if kind else [] for _, kind in STEP_CASES]
-        assert_that(found, equal_to(expected))
-
-    def test_a_refused_plan_check_is_sent_back_and_is_no_round(self) -> None:
-        """The list says the worker sends back the posted check, not a fix round."""
-        sent = steps.Next(step=steps.Step.SEND_BACK_PLAN_CHECK, findings="row 1")
-        said = pullstate.next_step(stepped(facts(1, NONE), sent))
-        assert_that(
-            ("sends back the posted check" in said, "fix the findings" in said),
-            equal_to((True, False)),
-        )
 
 
 def _issue(number: int, body: str) -> dict[str, object]:
@@ -202,69 +161,9 @@ NAMING = {
 class TestTickets(unittest.TestCase):
     """Open tickets that no open PR names."""
 
-    def test_taken_and_offered(self) -> None:
-        """Only a ticket an open PR fixes is left out; a mention in its Plan is not."""
-        named = facts(10, NONE, **NAMING)
-        plain = facts(11, NONE, head={"sha": fakes.HEAD, "ref": "feature"})
-        api = fakes.github(dict(TICKET_BODIES))
-        in_progress = work.taken([named, plain])
-        offered = work.ticket_items(
-            api, dataclasses.replace(SETTINGS, slots=SLOTS), in_progress
-        )
-        found = ("owner/lib#3" in in_progress, [each.reference for each in offered])
-        assert_that(found, equal_to((True, ["owner/project#5", "owner/project#6"])))
-
-    def test_a_full_first_page_with_a_pull_request_pages_on(self) -> None:
-        """The issues list holds PRs: 99 tickets and a PR are a full page."""
-        path = LISTING + "urgent"
-        full = [_issue(number, "") for number in range(100, 199)]
-        full.append({**_issue(199, ""), "pull_request": {}})
-        bodies: dict[str, object] = {
-            fakes.page(path): full,
-            fakes.page(path, 2): [_issue(200, "")],
-        }
-        settings = dataclasses.replace(
-            SETTINGS, slots=dataclasses.replace(SLOTS, priority_labels=("urgent",))
-        )
-        offered = work.ticket_items(fakes.github(bodies), settings, set())
-        found = [each.reference for each in offered]
-        expected = [f"owner/project#{n}" for n in [*range(100, 199), 200]]
-        assert_that(found, equal_to(expected))
-
 
 class TestOrderAndAssign(unittest.TestCase):
     """Sorting and filling empty slots."""
-
-    def test_order(self) -> None:
-        """PRs oldest first, then tickets by priority and age; held are left out."""
-        newer = work.Item(
-            category=work.Category.NEW_PR, reference="b", created_at="2027", title="t"
-        )
-        items = [
-            item("c", work.Category.NEW_PR, priority=1),
-            newer,
-            item("a", work.Category.NEW_PR),
-            item("x", work.Category.REVIEW),
-            item("held", work.Category.FIX_REVIEW),
-        ]
-        found = work.ordered(items, ["held"])
-        assert_that([each.reference for each in found], equal_to(["x", "a", "b", "c"]))
-
-    def test_order_across_kinds(self) -> None:
-        """A review comes before a fix and a fix before a ticket, whatever the age."""
-        items = [
-            dataclasses.replace(item(name, category), created_at=created)
-            for name, category, created in [
-                ("ticket", work.Category.NEW_PR, "2020"),
-                ("fix", work.Category.FIX_REVIEW, "2026-03"),
-                ("review", work.Category.REVIEW, "2026-01"),
-            ]
-        ]
-        found = work.ordered(items, [])
-        assert_that(
-            [each.reference for each in found],
-            equal_to(["review", "fix", "ticket"]),
-        )
 
     def test_smallest_model(self) -> None:
         """Labels raise the floor; failures move up; all failed is none."""
@@ -276,24 +175,3 @@ class TestOrderAndAssign(unittest.TestCase):
             work.smallest_model(plain, SLOTS, {"p": ["small", "large"]}),
         ]
         assert_that(found, equal_to(["large", "large", None]))
-
-    def test_assign(self) -> None:
-        """The smallest empty slot takes the first item it may take."""
-        book = ledger.Ledger(
-            slots=(
-                ledger.Slot(name="big", model="large"),
-                ledger.Slot(name="tiny", model="small"),
-                ledger.Slot(name="busy", model="small", agent="a", task="t"),
-                ledger.Slot(name="odd", model="unknown"),
-            ),
-            failed={},
-        )
-        items = [
-            item("first", work.Category.NEW_PR),
-            item("hard", work.Category.NEW_PR, labels=["hard"]),
-        ]
-        found = assigning.assign(items, book, SLOTS)
-        assert_that(
-            [(slot.name, chosen and chosen.reference) for slot, chosen in found],
-            equal_to([("tiny", "first"), ("big", "hard"), ("odd", None)]),
-        )

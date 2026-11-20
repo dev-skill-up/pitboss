@@ -9,17 +9,15 @@ expectation mismatch, a mix, and a red that is neither.
 import dataclasses
 import datetime
 import unittest
-from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, pulllines, pulls, shapes
-from . import world
+from .. import config, pulls, shapes
+from . import blank, world
 from .test_push_draft import OTHER_URL, gits
 from .test_work import NONE, facts
-from .says import exits, lacks, says
+from .says import exits, says
 from .pushworld import push_now, configured, elsewhere
-from ..textparts import starting
 from .fakes import directory, settings
 from ..mechanical import matching
 
@@ -48,7 +46,8 @@ def check(
         The check run.
     """
     done = NOW - MINUTE * minutes_ago
-    return shapes.CheckRun(
+    return dataclasses.replace(
+        blank.CHECK_RUN,
         id=number,
         name=name,
         finished=True,
@@ -84,21 +83,6 @@ def red(*checks: shapes.CheckRun) -> pulls.PullFacts:
     return dataclasses.replace(facts(3, NONE), checks=checks)
 
 
-def said(
-    pull: pulls.PullFacts, failures: Mapping[int, shapes.Failure] | None = None
-) -> Sequence[str]:
-    """The lines of the sweep about the base and the fix.
-
-    Args:
-        pull: the PR.
-        failures: what is known of each failed check.
-
-    Returns:
-        The lines.
-    """
-    return list(pulllines.lines(pull, NOW, SETTINGS, ({}, failures or {})))
-
-
 class TestClassify(unittest.TestCase):
     """What makes a red mechanical."""
 
@@ -130,48 +114,6 @@ class TestClassify(unittest.TestCase):
         """Two checks, one reason."""
         pull = red(check(1, "plan"), check(2, "plan"))
         assert_that(matching(pull, {}, RULE), equal_to("the plan job failed"))
-
-
-class TestSweepLines(unittest.TestCase):
-    """The sweep's lines."""
-
-    def test_t32_a_mechanical_red_prints_mechanical_fix_not_the_plain_fix(self) -> None:
-        """The matching text is on the line, the plain NEEDS line is gone."""
-        lines = said(red(check(1, "static")), {1: failure(MISMATCH)})
-        fix = starting(lines, "MECHANICAL-FIX")
-        assert_that(len(fix), equal_to(1))
-        assert_that(fix[0], contains_string("no line"))
-        assert_that(fix[0], contains_string("push --mechanical"))
-        lacks("\n".join(lines), "the CI is red: fix it")
-
-    def test_t32_another_red_stays_the_plain_fix(self) -> None:
-        """No MECHANICAL-FIX, and the NEEDS line says to fix it."""
-        lines = said(red(check(1, "unit")), {1: failure("AssertionError")})
-        assert_that(starting(lines, "MECHANICAL"), equal_to([]))
-        says("\n".join(lines), "the CI is red: fix it")
-
-    def test_t32_a_fix_not_pushed_in_twenty_minutes_is_slow(self) -> None:
-        """Five minutes is not slow; twenty-five is."""
-        quick = said(red(check(1, "plan", 5)))
-        slow = said(red(check(1, "plan", 25)))
-        assert_that(starting(quick, "SLOW-MECHANICAL-FIX"), equal_to([]))
-        late = starting(slow, "SLOW-MECHANICAL-FIX")
-        assert_that(len(late), equal_to(1))
-        assert_that(late[0], contains_string("red for 25 minutes (limit 20)"))
-
-    def test_t32_a_red_with_no_completion_time_is_not_slow(self) -> None:
-        """A check that says no time is not counted late."""
-        bare = dataclasses.replace(check(1, "plan"), completed_at="")
-        assert_that(starting(said(red(bare)), "SLOW"), equal_to([]))
-
-    def test_t32_the_limit_is_configurable(self) -> None:
-        """A table of the configuration changes the minutes and the patterns."""
-        text = '[mechanical]\nchecks = ["unit"]\nslow_minutes = 3\npatterns = []\n'
-        tuned = settings(directory(), text)
-        lines = pulllines.lines(red(check(1, "unit", 5)), NOW, tuned, ({}, {}))
-        assert_that(len(starting(lines, "SLOW-MECHANICAL-FIX")), equal_to(1))
-        assert_that(tuned.runners.mechanical.checks, equal_to(("unit",)))
-        assert_that(SETTINGS.runners.mechanical, equal_to(config.Mechanical()))
 
 
 def pushed_world(listed: object, extra: str) -> world.World:
