@@ -17,6 +17,7 @@ from . import gatefacts, gateinputs, ghapi, pullobject, pullrecords
 from . import pulls, pullstate, reviews, shapes, world
 from .totaljson import name_at
 
+
 def _events(sources: reviews.Sources) -> Sequence[pullrecords.Event]:
     # the PR's comments and reviews as the gate's events, oldest first: the
     # PR's own read of them, not its timeline read again
@@ -74,9 +75,7 @@ def reader(github: ghapi.GitHub) -> world.GateRead:
     def gated(
         pull: pulls.PullRead, holds: Sequence[pullrecords.Hold]
     ) -> gatefacts.Gate:
-        given = gateinputs.Settings(
-            identity=identity(), authors=[identity()]
-        )
+        given = gateinputs.Settings(identity=identity(), authors=[identity()])
         inputs = _inputs(read, given, pull)
         return pullstate.gate_read(pull.posted.object, inputs, _head(pull), holds)
 
