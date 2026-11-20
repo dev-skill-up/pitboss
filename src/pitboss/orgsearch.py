@@ -1,8 +1,9 @@
 """One oldest-first search of each organisation, filtered here (keyword: org-search).
 
 The owner (2026-11-13): "Just do per-org for every relevant org, and filter."
-So the number of requests depends on neither the repositories nor the items: a query of an organisation's open pull requests, and of a label's open
-tickets, each read a page at a time.
+So the number of requests depends on neither the repositories nor the items: a
+query of an organisation's open pull requests, and of a label's open tickets,
+each read a page at a time.
 """
 
 import json
