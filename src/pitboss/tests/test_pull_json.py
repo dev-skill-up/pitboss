@@ -167,11 +167,11 @@ class TestInputs(unittest.TestCase):
         assert_that(got, equal_to([("h", "merges"), ("9", "all")]))
 
     def test_6_1_the_repository_facts(self) -> None:
-        """Plan 6.1: the rules, the identity, the authors and the limits."""
-        state = _state(repo="o/r", required_checks=["c"], merge_queue=True, max_lines=4)
+        """Plan 6.1: the rules, the identity and the authors."""
+        state = _state(repo="o/r", required_checks=["c"], merge_queue=True)
         repository = state.repository
         got = (repository.repo, repository.required_checks, repository.merge_queue)
-        assert_that((*got, repository.max_lines), equal_to(("o/r", {"c"}, True, 4)))
+        assert_that(got, equal_to(("o/r", {"c"}, True)))
 
     def test_6_1_an_input_not_given_is_named(self) -> None:
         """Plan 6.1: an input absent is explicit, never a default."""

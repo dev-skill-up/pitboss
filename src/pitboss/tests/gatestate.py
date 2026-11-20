@@ -42,7 +42,6 @@ REPOSITORY = records.Repository(
     merge_queue=False,
     identity="agent",
     authors=frozenset({"agent"}),
-    max_lines=100,
 )
 
 

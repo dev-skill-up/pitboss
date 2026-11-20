@@ -113,7 +113,6 @@ class Why(enum.Enum):
     Attributes:
         OWNER_MESSAGE: an owner message has no disposition.
         HOLD: a hold covers the verb.
-        OVER_P90: the ticket's Max-lines is over the repository's p90, with no ruling.
         STARTED: a PR closes the ticket, so a worker started it.
         NOT_OURS: the comment is not one ``pitboss act`` posted.
         TICKET_FORM: the ticket body is not in the form the ticket reader takes.
@@ -127,7 +126,6 @@ class Why(enum.Enum):
 
     OWNER_MESSAGE = enum.auto()
     HOLD = enum.auto()
-    OVER_P90 = enum.auto()
     STARTED = enum.auto()
     NOT_OURS = enum.auto()
     TICKET_FORM = enum.auto()

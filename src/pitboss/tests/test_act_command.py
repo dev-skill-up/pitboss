@@ -11,7 +11,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_item
 
-from .. import actcore, acthub, actinputs, actledger, actwiring, gateread, ghapi
+from .. import actcore, acthub, actinputs, actledger, actwiring, ghapi
 from ..totaljson import members
 from . import fakehub, fakes, knownshipped, world
 from .knownkit import NUMBER, REPO, base_map, made
@@ -106,10 +106,6 @@ def _recorded(hub: fakehub.Made, done: actledger.Done) -> str:
 
 
 OPEN = "/pulls?state=open"
-# the closed pull requests, newest created first, as the p90 reads them
-CLOSED = (
-    "repos/{repo}/pulls?state=closed&sort=created&direction=desc&per_page=100&page=1"
-)
 
 
 def _listed(number: int) -> Mapping[str, object]:
@@ -280,14 +276,12 @@ class TestInputs(unittest.TestCase):
         A failed read is kept.
         """
         _, github = _github(INPUT_ANSWERS)
-        settings = actinputs.Settings(
-            identity="bot", authors=["dependabot[bot]"], max_lines=lambda _: 400
-        )
+        settings = actinputs.Settings(identity="bot", authors=["dependabot[bot]"])
         made_ = actinputs.live_inputs(actinputs.reader(github), settings)
         ctx = made_("o/r", 3, dict(BLOCKED_PULL), [])
         assert_that(
-            (ctx["required_checks"], ctx["merge_queue"], ctx["max_lines"]),
-            equal_to((["check"], True, 400)),
+            (ctx["required_checks"], ctx["merge_queue"]),
+            equal_to((["check"], True)),
         )
         assert_that(
             (ctx["check_runs"], ctx["files"], ctx["timeline"]),
@@ -331,38 +325,3 @@ class TestWiring(unittest.TestCase):
         code = "import sys; print('said'); sys.exit(3)"
         done = actwiring.quiet([sys.executable, "-c", code])
         assert_that((done.returncode, done.stdout), equal_to((3, "said\n")))
-
-    def test_c17_the_p90_is_read_once_and_an_unread_one_raises(self) -> None:
-        """Nine of ten sizes are at or under the percentile; none merged is 0.
-
-        A read GitHub refuses is not taken as 0 (one-path: no read is swallowed).
-        """
-        path = CLOSED.format(repo="o/r")
-        answers = {
-            path: json.dumps([{"number": n, "merged_at": "x"} for n in range(1, 11)])
-        }
-        answers[CLOSED.format(repo="o/empty")] = "[]"
-        for size in range(1, 11):
-            answers[f"repos/o/r/pulls/{size}"] = json.dumps(
-                {"additions": size, "deletions": 0}
-            )
-        calls, github = _github(answers)
-        found = gateread.limits(github)
-        assert_that((found("o/r"), found("o/r"), found("o/empty")), equal_to((9, 9, 0)))
-        assert_that(len(calls), equal_to(12))
-        with self.assertRaises(subprocess.CalledProcessError):
-            found("o/none")
-
-    def test_c17_the_p90_reads_a_second_page_when_the_first_is_full(self) -> None:
-        """A full page with fewer merged PRs than wanted is followed by the next."""
-        first = [{"number": n, "merged_at": "x" if n < 4 else None} for n in range(100)]
-        second = [{"number": 200, "merged_at": "x"}]
-        answers = {
-            CLOSED.format(repo="o/r"): json.dumps(first),
-            CLOSED.format(repo="o/r").replace("&page=1", "&page=2"): json.dumps(second),
-        }
-        for number in (0, 1, 2, 3, 200):
-            answers[f"repos/o/r/pulls/{number}"] = json.dumps({"additions": number})
-        calls, github = _github(answers)
-        assert_that(gateread.limits(github)("o/r"), equal_to(200))
-        assert_that(len(calls), equal_to(7))

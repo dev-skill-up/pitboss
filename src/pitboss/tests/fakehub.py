@@ -314,7 +314,6 @@ def _act(
         inputs=inputs,
         owner=project[0],
         repos=project[1],
-        p90=lambda _: 2151,
         run=git_run,
         prepush=lambda: given.said,
         questions=Questions(decided=given.decided(name=_name_of(world), acts=made)),

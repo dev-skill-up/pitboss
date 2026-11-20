@@ -130,16 +130,14 @@ class TestRows(unittest.TestCase):
         assert_that(gaterows.merge_stops("undraft", made), equal_to([]))
 
     def test_6_1_the_diff(self) -> None:
-        """Added markup lines, a change over its Max-lines, a workflow not linted."""
+        """Added markup lines and a workflow not linted."""
         files = [
             File(name="README.md", additions=2, deletions=0),
             File(name=".github/workflows/ci.yml", additions=200, deletions=0),
         ]
         made = gatestate.state(reads=gatestate.lists_of(files=files, statuses=[]))
-        found = _routed(gaterows.diff_stops("merge", made, "change"))
-        assert_that(
-            found, equal_to([Route.ADDED_LINES, Route.MAX_LINES, Route.WORKFLOW])
-        )
+        found = _routed(gaterows.diff_stops("merge", made))
+        assert_that(found, equal_to([Route.ADDED_LINES, Route.WORKFLOW]))
 
     def test_6_1_a_review_stop_by_action(self) -> None:
         """No attempt stops a merge and an undraft; other actions have no row."""

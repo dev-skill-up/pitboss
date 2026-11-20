@@ -119,7 +119,6 @@ def _ctx(repo: str, number: object, head: str) -> Pull:
         "statuses": [dict(each) for each in STATUSES],
         "tickets": {f"{repo}#1": dict(OPEN_TICKET)},
         "files": [dict(FILE)],
-        "max_lines": 462,
         "holds": [],
         "timeline": [{"event": "committed", "sha": head}],
     }

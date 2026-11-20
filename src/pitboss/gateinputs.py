@@ -28,12 +28,10 @@ class Settings:
     Attributes:
         identity: the login the act verbs post with.
         authors: the logins whose PRs are the project's.
-        max_lines: each repository's limit of changed lines.
     """
 
     identity: str
     authors: Sequence[str]
-    max_lines: Callable[[str], int]
 
 
 ALL = "all:"
@@ -130,7 +128,6 @@ def said(settings: Settings, repo: str) -> Pull:
     return {
         "authors": set(settings.authors) | {settings.identity},
         "act_identity": settings.identity,
-        "max_lines": settings.max_lines(repo),
     }
 
 

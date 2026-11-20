@@ -161,14 +161,12 @@ class TestReview(unittest.TestCase):
 class TestTickets(unittest.TestCase):
     """Tickets in the reader's form."""
 
-    def test_c17_a_ticket_over_the_p90_needs_a_ruling(self) -> None:
-        """Over the p90 with no ruling is refused; within it, or with one, is filed."""
+    def test_c17_a_ticket_is_filed_at_any_size(self) -> None:
+        """A ticket is filed for any Max-lines; one with no paths is refused."""
         hub = made(GIVEN)
-        over = refusal(hub, "ticket", max_lines="3000", **TICKET)
-        assert_that(over, contains_string("p90"))
-        within = act(GIVEN, hub, "ticket", max_lines="400", **TICKET)
-        ruled = act(GIVEN, hub, "ticket", max_lines="3000", ruling="#5", **TICKET)
-        assert_that((within.isdigit(), ruled.isdigit()), equal_to((True, True)))
+        small = act(GIVEN, hub, "ticket", max_lines="400", **TICKET)
+        large = act(GIVEN, hub, "ticket", max_lines="3000", **TICKET)
+        assert_that((small.isdigit(), large.isdigit()), equal_to((True, True)))
         pathless = refusal(hub, "ticket", max_lines="10", **{**TICKET, "paths": ""})
         assert_that(pathless, contains_string("paths"))
 

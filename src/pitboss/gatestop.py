@@ -89,7 +89,6 @@ class Route(enum.Enum):
         REVIEW: the newest review is not of the head as it is.
         BODY: the body breaks one of its rows.
         ADDED_LINES: a .md or .rst file gets added lines.
-        MAX_LINES: the diff is over the ticket's Max-lines.
         WORKFLOW: a workflow file changed with no green text-lint.
         NO_TICKET: the body closes no ticket.
         TICKET: a ticket the body closes is not an open issue.
@@ -154,11 +153,6 @@ class Route(enum.Enum):
     )
     ADDED_LINES = _lifted(
         WORKER, "a .md or .rst file gets added lines", "cut the added lines, `act push`"
-    )
-    MAX_LINES = _lifted(
-        ORCHESTRATOR,
-        "the diff is over the ticket's Max-lines",
-        "`act override` naming the ruling, or split the ticket",
     )
     WORKFLOW = _lifted(
         WORKER,

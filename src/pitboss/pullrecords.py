@@ -225,7 +225,6 @@ class Repository:
         merge_queue: whether its rules have a merge queue.
         identity: the login the act verbs post with.
         authors: the logins whose PRs are the project's.
-        max_lines: the repository's limit of changed lines.
     """
 
     repo: str
@@ -235,7 +234,6 @@ class Repository:
     merge_queue: bool
     identity: str
     authors: AbstractSet[str]
-    max_lines: int
 
 
 class CheckRead(Protocol):

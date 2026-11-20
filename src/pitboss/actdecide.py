@@ -60,8 +60,6 @@ def hold_row(read: actfacts.ActRead, held: holdparse.Held) -> Sequence[answer.No
 def _check(check: actfacts.Check) -> Sequence[answer.NotDone]:
     # the one fact a verb's decision turns on
     match check:
-        case actfacts.Size():
-            return _size(check)
         case actfacts.Starters():
             return _started(check)
         case actfacts.Authored():
@@ -78,13 +76,6 @@ def _check(check: actfacts.Check) -> Sequence[answer.NotDone]:
 
 def _not_done(why: answer.Why, line: str) -> Sequence[answer.NotDone]:
     return [answer.NotDone(why=why, line=line)]
-
-
-def _size(check: actfacts.Size) -> Sequence[answer.NotDone]:
-    if check.lines <= check.p90 or check.ruled:
-        return []
-    line = f"Max-lines {check.lines} is over {check.repo}'s p90 {check.p90}"
-    return _not_done(answer.Why.OVER_P90, line + ": a ruling names it")
 
 
 def _started(check: actfacts.Starters) -> Sequence[answer.NotDone]:

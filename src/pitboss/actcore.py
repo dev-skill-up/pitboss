@@ -83,7 +83,6 @@ class Act:
         inputs: the verdict's other inputs, read live for a PR.
         owner: the owner's messages.
         repos: the repositories the project sweeps (for a hold of all).
-        p90: each repository's 90th percentile of changed lines.
         run: the runner git goes through.
         prepush: the pre-push check (its exit status and output).
         questions: what the verbs ask of the decisions (keyword: one-path).
@@ -96,7 +95,6 @@ class Act:
     inputs: Inputs
     owner: Owner
     repos: Sequence[str]
-    p90: Callable[[str], int]
     run: Run
     prepush: Callable[[], tuple[int, str]]
     questions: "Questions"

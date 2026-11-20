@@ -42,7 +42,7 @@ def _found(action: str, state: GateState, policy: gatepolicy.Policy) -> Sequence
         *(gaterows.review_stops(action, state, policy) if change else ()),
         *gaterows.body_stops(state, policy),
         *gaterows.merge_stops(action, state),
-        *gaterows.diff_stops(action, state, kind),
+        *gaterows.diff_stops(action, state),
         *(gaterows.unticketed_stops(state) if change else ()),
         *gaterows.ticket_stops(state),
         *gateevents.event_stops(state, policy.benign),

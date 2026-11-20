@@ -14,13 +14,6 @@ from .totaljson import members, name_at, records, text
 Facts = Callable[[actcore.Act, actfacts.Asked], Sequence[actfacts.Check]]
 
 
-def _size(act: actcore.Act, asked: actfacts.Asked) -> Sequence[actfacts.Check]:
-    repo, options = asked.target.repo, asked.options
-    lines = int(actcore.option(options, "max-lines"))
-    ruled = bool(options.get("ruling"))
-    return [actfacts.Size(repo=repo, lines=lines, p90=act.p90(repo), ruled=ruled)]
-
-
 def _works_on(act: actcore.Act, repo: str) -> Sequence[tuple[int, AbstractSet[str]]]:
     # each open PR's number and the tickets it works on (the one parse)
     owned = config.make_repo(*repo.split("/", 1))

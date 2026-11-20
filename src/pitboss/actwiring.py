@@ -120,15 +120,13 @@ def act_of(github: GitHub, settings: config.Config, run: Run, asking: Asking) ->
     Returns:
         The world.
     """
-    p90 = gateread.limits(github)
     identity = gateread.identity_of(github)
-    given = actinputs.Settings(identity=identity, authors=[identity], max_lines=p90)
+    given = actinputs.Settings(identity=identity, authors=[identity])
     return Act(
         hub=acthub.hub_of(github),
         inputs=actinputs.live_inputs(actinputs.reader(github), given),
         owner=asking.owner,
         repos=configrepos.slugs(settings),
-        p90=p90,
         run=run,
         prepush=prepush(quiet),
         questions=asking.questions,

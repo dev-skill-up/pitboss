@@ -26,7 +26,6 @@ INPUTS = (
     "statuses",
     "tickets",
     "files",
-    "max_lines",
     "holds",
     "timeline",
 )
@@ -122,7 +121,6 @@ def _repository(inputs: Raw) -> records.Repository:
         merge_queue=inputs.get("merge_queue") is True,
         identity=text_at(inputs, "act_identity"),
         authors=_names(inputs.get("authors")),
-        max_lines=count_at(inputs, "max_lines"),
     )
 
 

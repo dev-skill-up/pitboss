@@ -175,16 +175,15 @@ def body_stops(state: GateState, policy: Readings) -> Sequence[Stop]:
     ]
 
 
-def diff_stops(action: str, state: GateState, kind: str) -> Sequence[Stop]:
+def diff_stops(action: str, state: GateState) -> Sequence[Stop]:
     """The stops of the diff.
 
     Args:
         action: the action.
         state: the typed state.
-        kind: the PR's kind.
 
     Returns:
-        A stop for added lines of a .md or .rst file, a diff over its Max-lines
+        A stop for added lines of a .md or .rst file
         and a workflow file with no green text-lint.
     """
     files = listed(state.reads.files)
@@ -193,9 +192,6 @@ def diff_stops(action: str, state: GateState, kind: str) -> Sequence[Stop]:
         lines = totalchecks.markup_lines(files)
         found += [Stop(route=Route.ADDED_LINES, line=each) for each in lines]
     if action in MERGE_ACTIONS:
-        most = state.repository.max_lines
-        size = totalchecks.size_lines(kind, files, most)
-        found += [Stop(route=Route.MAX_LINES, line=each) for each in size]
         statuses = listed(state.reads.statuses)
         flows = totalchecks.workflow_lines(files, statuses)
         found += [Stop(route=Route.WORKFLOW, line=each) for each in flows]

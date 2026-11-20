@@ -139,14 +139,13 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
 def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """File a ticket in the one form the ticket reader takes.
 
-    It is refused with no item or path; a size over the repository's p90 with no
-    ruling is decided in the one read (``actdecide``).
+    It is refused with no item or path.
 
     Args:
         act: the verb's world.
         target: the repository.
         options: ``title``, ``done-when`` (items, one per line), ``paths``,
-            ``max-lines``, ``priority`` and ``ruling`` (for a size over the p90).
+            ``max-lines`` and ``priority``.
 
     Returns:
         The ticket's number.

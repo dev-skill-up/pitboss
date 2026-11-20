@@ -3,7 +3,7 @@
 ``actread`` reads these once, in the command's one read, and ``actdecide`` decides
 from them; nothing here reads or decides. Each fact is what the platform said: the
 owner's messages with no disposition, and for the verbs that need one, the fact
-their decision turns on (a size and the repository's p90, the PRs that close a
+their decision turns on (the PRs that close a
 ticket, a comment's author, a ticket body's form, the worktree's branch and state,
 the pre-push check's answer).
 """
@@ -14,23 +14,6 @@ from typing import Sequence
 from . import actport, ticketreader
 
 Asked = actport.Asked  # the verb a command line asks for (``actport``)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Size:
-    """``act ticket``: the size asked and the repository's 90th percentile.
-
-    Attributes:
-        repo: the repository.
-        lines: the ticket's Max-lines.
-        p90: the repository's 90th percentile of changed lines.
-        ruled: whether a ruling names the size.
-    """
-
-    repo: str
-    lines: int
-    p90: int
-    ruled: bool
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

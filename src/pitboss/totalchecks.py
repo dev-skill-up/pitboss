@@ -20,10 +20,6 @@ SELF = "pitboss-gate"
 PENDING_STATES = frozenset({"pending"})
 OK_STATES = frozenset({"success"})
 MERGING = frozenset({"merge"})
-GENERATED = re.compile(
-    r"^(bootstrap/c/|dist/)|(^|/)(bats\.lock|package-lock\.json|pnpm-lock\.yaml"
-    r"|gradle-wrapper\.jar)$"
-)
 MARKUP = re.compile(r"\.(md|rst)$")
 WORKFLOWS = ".github/workflows/"
 DECLARED: Mapping[str, Mapping[str, str]] = {
@@ -126,14 +122,6 @@ def check_stops(
     return [(line, waits) for line, waits in found if merging or not waits]
 
 
-def _changed(files: Sequence[File]) -> int:
-    return sum(
-        each.additions + each.deletions
-        for each in files
-        if not GENERATED.search(each.name)
-    )
-
-
 def markup_lines(files: Sequence[File]) -> Sequence[str]:
     """The added lines of a .md or .rst file.
 
@@ -149,35 +137,6 @@ def markup_lines(files: Sequence[File]) -> Sequence[str]:
         for each in files
         if MARKUP.search(each.name) and each.additions > 0
     ]
-
-
-def size_lines(kind: str, files: Sequence[File], most: int) -> Sequence[str]:
-    """The diff over its ticket's Max-lines.
-
-    Args:
-        kind: the PR's kind (a relock or a publish has no Max-lines).
-        files: the PR's files.
-        most: the Max-lines.
-
-    Returns:
-        One line when a change is over it.
-    """
-    return LIMITED.get(kind, _unlimited)(_changed(files), most)
-
-
-def _limited(total: int, most: int) -> Sequence[str]:
-    # a change keeps to its ticket's Max-lines
-    if total <= most:
-        return []
-    return [f"diff: {total} lines outside generated paths, Max-lines {most}"]
-
-
-def _unlimited(total: int, most: int) -> Sequence[str]:
-    # a relock or a publish has no Max-lines
-    return []
-
-
-LIMITED: Mapping[str, Callable[[int, int], Sequence[str]]] = {"change": _limited}
 
 
 def workflow_lines(files: Sequence[File], statuses: Sequence[Status]) -> Sequence[str]:
