@@ -74,11 +74,11 @@ PLANTS = {
         dataclasses.replace(REFERENCE, labels={"bats-lang/quire": ["do-not-merge"]}),
         "has the label 'do-not-merge'",
     ),
-    "a verb a route names is removed (override)": (
+    "a verb a route names is removed (push)": (
         dataclasses.replace(
-            REFERENCE, verbs=[each for each in actverbs.VERBS if each != "override"]
+            REFERENCE, verbs=[each for each in actverbs.VERBS if each != "push"]
         ),
-        "`act override` is named by a route and is not a verb",
+        "`act push` is named by a route and is not a verb",
     ),
     "`act review` writes a form the verdict does not read": (
         dataclasses.replace(REFERENCE, forms=totalcomplete.Forms(review=_loose_review)),
