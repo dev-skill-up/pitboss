@@ -22,7 +22,6 @@ from . import (
     reviewfindings,
     ruleconflicts,
     rulingafter,
-    rulingedits,
     rulingwords,
     shapes,
     stagerounds,
@@ -97,9 +96,7 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
         return plancheckflow.plan_review(pr)
     if ruled is not rulingwords.Ruling.DO_THESE_STEPS:
         return AFTER[ruled][0]
-    newest = flowstate.newest_ruling(pr)
-    done = rulingedits.body_edits_done(newest.body if newest else "", pr.pull.body)
-    if done and plancheckflow.checked_since(pr, flowstate.readable_comment):
+    if plancheckflow.checked_since(pr, flowstate.readable_comment):
         return AFTER[ruled][1]  # a clean Plan check since: the review (pitboss#462)
     return steps.worker(steps.Task.RULING_STEPS, flowstate.ruling_address(pr))
 

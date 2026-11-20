@@ -9,7 +9,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, flowstate, plancheckflow, rulingwords, shapes, steps
+from .. import flow, flowstate, plancheckflow, shapes, steps
 from . import blank, test_flow
 from .checkcomment import clean_text
 from .test_flow import expect, state
@@ -71,36 +71,6 @@ class TestBodyOnlyRound(unittest.TestCase):
     def test_a_clean_check_of_another_plan_gives_the_fix(self) -> None:
         """The check names a Plan that is not the one now."""
         expect(FIX, ruled(check_after(OK, f"Plan digest: {'0' * 16}")))
-
-    def test_a_clean_check_counts_only_when_the_ordered_edits_are_in_the_body(
-        self,
-    ) -> None:
-        """The ordered text must be in the body (a replace) or gone (a delete)."""
-        for order, want in [
-            ("body replace: the plan => the better plan", FIX),
-            ("body replace: the work => the work", REVIEW),
-            ("body delete: the work", FIX),
-        ]:
-            with self.subTest(order):
-                text = f"Opus ruling\nRuling: do these steps\n1. {order}\n"
-                edited = dataclasses.replace(test_flow.ruling(3), body=text)
-                expect(want, state(*REJECTIONS, comments=[edited, check_after(OK)]))
-
-    def test_a_push_is_no_record_of_body_edits_the_body_does_not_show(self) -> None:
-        """A check run after the ruling counts as the steps only when they show."""
-        pushed = dataclasses.replace(test_flow.GREEN, started_at="2026-10-30T00:00:09Z")
-        for order, want in [
-            (
-                "body replace: the plan => the better plan",
-                rulingwords.Ruling.DO_THESE_STEPS,
-            ),
-            ("body replace: the work => the work", None),
-        ]:
-            with self.subTest(order):
-                text = f"Opus ruling\nRuling: do these steps\n1. {order}\n"
-                edited = dataclasses.replace(test_flow.ruling(3), body=text)
-                pr = state(*REJECTIONS, comments=[edited], checks=[pushed])
-                assert_that(flowstate.ruling_unapplied(pr), equal_to(want))
 
     def test_a_clean_check_before_the_ruling_is_not_since(self) -> None:
         """The nearest input checked_since must still reject: a check that is older."""

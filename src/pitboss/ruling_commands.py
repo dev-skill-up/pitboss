@@ -13,7 +13,6 @@ from . import (
     ghstore,
     pullfile,
     rulingform,
-    rulingedits,
     rulinglint,
     rulingguard,
 )
@@ -41,7 +40,7 @@ def step_findings(github: ghclient.GitHub, slug: str, number: int, text: str) ->
     Returns:
         The findings, joined by "; "; "" when it orders no edit or none fails.
     """
-    if not rulingedits.orders_edits(text):
+    if not rulinglint.orders_edits(text):
         return ""
     body = ghstore.body(github, f"repos/{slug}/pulls/{number}")
     ticket = ""
