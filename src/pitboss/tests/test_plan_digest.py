@@ -207,6 +207,23 @@ class TestThePlanEditedLine(unittest.TestCase):
         assert_that(EDIT_LINE in out, equal_to(False))
         assert_that(out, contains_string(RULING_DUE))
 
+    def test_497_the_line_act_review_writes_is_the_plan_digest(self) -> None:
+        """`Plan-digest: D`, the form `act review` writes, answers the edit."""
+        edited = f"Plan-digest: {digest(EDITED_PLAN)}"
+        rounds = [approving(1), approving(2, edited)]
+        out = sweep(world_with(rounds, body=EDITED_PLAN)).out
+        assert_that(EDIT_LINE in out, equal_to(False))
+        assert_that(out, contains_string(RULING_DUE))
+
+    def test_497_each_spelling_records_its_digest(self) -> None:
+        """Both `Plan digest: D` and `Plan-digest: D` record D, none records none."""
+        now = digest(PLAN)
+        found = [
+            bodydigest.recorded_plan(f"Verdict: approved\n{each}\n")
+            for each in (f"Plan digest: {now}", f"Plan-digest: {now}", "Plan: x")
+        ]
+        assert_that(found, equal_to([now, now, ""]))
+
     def test_a_ruling_after_the_approval_allows_the_edit(self) -> None:
         """A ruling `revise the plan` written after the review lifts the line."""
         rounds = [approving(1), ruling(2)]

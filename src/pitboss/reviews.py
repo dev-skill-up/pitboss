@@ -223,7 +223,7 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         url=item.url,
         body=bodydigest.recorded(item.body),
         missed=missed.count(item.body),
-        plan_digest=bodydigest.recorded_after(item.body, bodydigest.PLAN_PREFIX),
+        plan_digest=bodydigest.recorded_plan(item.body),
         note=reviewnote.gap(item.body),
     )
 

@@ -12,6 +12,8 @@ import re
 
 PREFIX = "Body: "
 PLAN_PREFIX = "Plan digest: "  # the line of the Plan section (``plandigest``)
+# the line ``act review`` writes (keyword: act-plan-digest, pitboss#497)
+ACT_PLAN_PREFIX = "Plan-digest: "
 LENGTH = 16
 
 
@@ -60,3 +62,19 @@ def recorded(review: str) -> str:
         review that records no body is checked against the head alone).
     """
     return recorded_after(review, PREFIX)
+
+
+def recorded_plan(review: str) -> str:
+    """The Plan digest a review comment records, in either spelling.
+
+    Args:
+        review: the review comment.
+
+    Returns:
+        The digest of its first ``Plan digest:`` line, else of its first
+        ``Plan-digest:`` line (what ``act review`` writes); empty when it has
+        neither.
+    """
+    return recorded_after(review, PLAN_PREFIX) or recorded_after(
+        review, ACT_PLAN_PREFIX
+    )
