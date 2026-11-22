@@ -13,16 +13,17 @@ TITLE = re.compile(r" \([^()]*\)$")
 AT_LEAST = 3
 
 
-def walk() -> Sequence[tuple[str, str]]:
+def walk() -> tuple[int, Sequence[tuple[str, str]]]:
     """Each decision ``slots next`` printed, with its item.
 
     Returns:
-        The item and the decision part of each ``NEXT n of m.`` line, in order,
-        without the title the line ends with.
+        How many ``NEXT n of m.`` lines it printed, and the item and the
+        decision part of each one that parsed, in order, without its title.
     """
     out = sceneruns.command_line("slots", "next").out
-    found = [NEXT_LINE.match(each) for each in out.splitlines()]
-    return [(each[2], TITLE.sub("", each[1])) for each in found if each]
+    lines = re.findall(r"(?m)^NEXT .*$", out)
+    parsed = [match for match in map(NEXT_LINE.match, lines) if match]
+    return len(lines), [(m[2], TITLE.sub("", m[1])) for m in parsed]
 
 
 def first_line(*words: str) -> str:
@@ -44,10 +45,11 @@ def agreeing(same: Callable[[str, str], bool]) -> tuple[bool, Sequence[bool]]:
         same: the relation, on an item and its ``NEXT`` line's decision.
 
     Returns:
-        Whether at least 3 items were compared, and the answer for each.
+        Whether the items compared are every ``NEXT`` line and at least 3, and
+        the answer for each.
     """
-    decided = walk()
-    return len(decided) >= AT_LEAST, [same(*each) for each in decided]
+    printed, decided = walk()
+    return printed == len(decided) >= AT_LEAST, [same(*each) for each in decided]
 
 
 class TestOneDecision(unittest.TestCase):
@@ -68,8 +70,14 @@ class TestOneDecision(unittest.TestCase):
 
     def test_6_5_dispatch_next_acts_on_the_head_of_the_walk(self) -> None:
         """``act dispatch-next`` prints the first item, whose decision is ``next``'s."""
-        item, said = walk()[0]
-        printed = sceneruns.command_line("act", "dispatch-next", "owner/project")
+        printed, decided = walk()
+        item, said = decided[0]
+        head = sceneruns.command_line("act", "dispatch-next", "owner/project")
         assert_that(
-            (printed.out.strip(), first_line("next", item)), equal_to((item, said))
+            (
+                printed == len(decided) >= AT_LEAST,
+                head.out.strip(),
+                first_line("next", item),
+            ),
+            equal_to((True, item, said)),
         )
