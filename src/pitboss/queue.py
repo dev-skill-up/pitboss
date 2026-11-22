@@ -208,7 +208,7 @@ def age_minutes(queue_run: QueueRun, now: datetime.datetime) -> int:
         now: the time now.
 
     Returns:
-        Whole minutes.
+        Minutes, rounded down.
     """
     created = datetime.datetime.fromisoformat(queue_run.run.created_at)
     return int((now - created).total_seconds() // 60)

@@ -95,6 +95,6 @@ class TestKinds(unittest.TestCase):
 
     def test_a_kind_no_review_has_is_refused(self) -> None:
         """Only the `--review-kind` words are kinds."""
-        with self.assertRaises(actport.Refused):
+        with self.assertRaises(actport.BadInput):
             actreview.kind_of({"kind": "other"})
         assert_that(actreview.kind_of({}), equal_to("full"))

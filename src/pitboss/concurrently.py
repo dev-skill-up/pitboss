@@ -9,7 +9,7 @@ import concurrent.futures
 import threading
 from typing import Callable, Iterable, Iterator, Sequence, TypeVar
 
-WORKERS = 16
+WORKERS = 40
 _Item = TypeVar("_Item")
 _Result = TypeVar("_Result")
 _Other = TypeVar("_Other")

@@ -148,7 +148,7 @@ class TestEnvCheck(unittest.TestCase):
         assert_that(verdicts(answering(status=1), "o/r"), equal_to([]))
 
     def test_c35_giving_up_for_a_missing_tool_needs_the_env_check_output(self) -> None:
-        """Refused without the lines, accepted with a missing line, refused with ok."""
+        """BadInput without the lines, accepted with a missing line, refused with ok."""
         gave_up = "NOT STARTED: no `bats` on PATH\nDeviations: none\n"
         assert_that(envrules.give_up_refusal(gave_up), contains_string("env-check"))
         missing = gave_up + "env: missing bats: no `bats` on PATH; get it with: x\n"

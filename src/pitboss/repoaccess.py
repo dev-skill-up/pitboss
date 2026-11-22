@@ -141,16 +141,48 @@ def _unlisted(settings: config.Config, seen: AbstractSet[str]) -> Sequence[str]:
     ]
 
 
-def _not_listed(github: ghapi.GitHub, wanted: Sequence[str]) -> Sequence[str]:
-    # keyword: repo-access: one list of each other owner, not one read a repository
-    # (the owner: "You just don't do O(n) queries"); only what a list does not hold
-    # is read alone, to say why it cannot be read
-    owners = sorted({slug.partition("/")[0] for slug in wanted})
-    lists = concurrently.each(
+def _others(settings: config.Config) -> Sequence[str]:
+    # the owners besides the project's, of every repository the configuration names
+    owner = settings.project.repo.owner
+    named = (*configrepos.repositories(settings), *settings.runners.repositories)
+    return sorted({each.owner for each in named} - {owner})
+
+
+def _lists(
+    github: ghapi.GitHub, owners: Sequence[str]
+) -> Mapping[str, AbstractSet[str]]:
+    # one list of each owner, all at once (keyword: repo-access)
+    found = concurrently.each(
         lambda owner: ownerrepos.listed_slugs(github, owner), owners
     )
-    seen = frozenset().union(*lists)
+    return dict(zip(owners, found))
+
+
+def _not_listed(
+    github: ghapi.GitHub,
+    wanted: Sequence[str],
+    lists: Mapping[str, AbstractSet[str]],
+) -> Sequence[str]:
+    # keyword: repo-access: one list of each other owner, not one read a repository
+    # (the owner: "You just don't do O(n) queries"); only what a list does not hold
+    # is read alone, to say why it cannot be read; an owner already listed, while the
+    # project's owner was, is not listed again
+    owners = sorted({slug.partition("/")[0] for slug in wanted} - set(lists))
+    more = _lists(github, owners)
+    seen = frozenset().union(*lists.values(), *more.values())
     return [slug for slug in wanted if slug not in seen]
+
+
+def _widened(
+    github: ghapi.GitHub, settings: config.Config, left_out: AbstractSet[str]
+) -> tuple[config.Config, str, Sequence[str]]:
+    # the project owner's list and every other owner's are read together; what
+    # no list holds is read alone
+    (wide, unlisted, seen), lists = concurrently.pair(
+        lambda: ownerrepos.widened(github, settings, left_out),
+        lambda: _lists(github, _others(settings)),
+    )
+    return wide, unlisted, _not_listed(github, _unlisted(wide, seen), lists)
 
 
 def readable(
@@ -176,9 +208,8 @@ def readable(
     Raises:
         SystemExit: when the project's own repository cannot be read.
     """
-    wide, unlisted, seen = ownerrepos.widened(github, settings, left_out)
-    wanted = _unlisted(wide, seen)
-    failures = ghapi.unreadable(github, _not_listed(github, wanted))
+    wide, unlisted, missing = _widened(github, settings, left_out)
+    failures = ghapi.unreadable(github, missing)
     _say(failures, wide.project.repo.owner, unlisted)
     if wide.project.repo.slug in failures:
         raise SystemExit(f"cannot read {wide.project.repo.slug}")

@@ -116,3 +116,26 @@ class TestParsing(unittest.TestCase):
         body = fakes.pull_body(1, mergeable_state="brand_new")
         found = parsing.pull(json.dumps(body))
         assert_that(found.mergeable_state, equal_to(shapes.MergeState.UNKNOWN))
+
+
+class TestPagesCounted(unittest.TestCase):
+    """A list whose first page says how long it is (keyword: pull-read)."""
+
+    def test_the_pages_after_the_first_are_read_by_the_count(self) -> None:
+        """205 items are three pages."""
+        path = "repos/o/r/things"
+        bodies: dict[str, object] = {
+            fakes.page(path, 1): {"total": 205, "items": list(range(100))},
+            fakes.page(path, 2): {"total": 205, "items": list(range(100, 200))},
+            fakes.page(path, 3): {"total": 205, "items": list(range(200, 205))},
+        }
+        api = fakes.github(bodies)
+
+        def items(text: str) -> Sequence[int]:
+            return [int(each) for each in json.loads(text)["items"]]
+
+        def total(text: str) -> int:
+            return int(json.loads(text)["total"])
+
+        found = ghapi.pages_counted(api, path, items, total)
+        assert_that(list(found), equal_to(list(range(205))))

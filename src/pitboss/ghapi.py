@@ -136,6 +136,9 @@ def delete_branch(github: GitHub, slug: str, branch: str) -> str:
     return github.mutate(["gh", "api", "-X", "DELETE", path]).stdout
 
 
+MOST_PAGES = 50
+
+
 def pages(
     github: GitHub,
     path: str,
@@ -221,6 +224,37 @@ def pages_at_once(
         return first
     rest = concurrently.each(page, range(2, limit + 1))
     return [*first, *(item for found in rest for item in found)]
+
+
+def pages_counted(
+    github: GitHub,
+    path: str,
+    parse: Callable[[str], Sequence[_Item]],
+    total: Callable[[str], int],
+) -> Sequence[_Item]:
+    """Read a list whose first page says how long it is, the later pages together.
+
+    The pages after the first are asked at once, so a list of seven pages takes
+    the time of two (keyword: pull-read, pitboss#481), where ``pages`` takes seven.
+
+    Args:
+        github: the API.
+        path: the list's path, with or without a query.
+        parse: reads the items out of one page.
+        total: reads how many items the whole list has out of its first page.
+
+    Returns:
+        Every item read.
+    """
+    separator = "&" if "?" in path else "?"
+
+    def page(number: int) -> str:
+        return get(github, f"{path}{separator}per_page={PAGE_SIZE}&page={number}")
+
+    first = page(1)
+    count = min(MOST_PAGES, -(-total(first) // PAGE_SIZE))
+    rest = concurrently.each(lambda number: parse(page(number)), range(2, count + 1))
+    return [*parse(first), *(item for found in rest for item in found)]
 
 
 def call_of(error: subprocess.CalledProcessError) -> str:

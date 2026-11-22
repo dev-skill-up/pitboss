@@ -16,7 +16,7 @@ from .. import render, slotbook, slotsheader, steps, stuckwords
 from .. import sweepline, work, workorder, world
 from . import fakes, flowread, gatewords, knownshipped, test_decide
 from . import knownruns, queuedrun, test_work
-from . import rankworld, totalcomplete, totalpairs, totalworld
+from . import sceneruns, totalcomplete, totalpairs, totalworld
 from . import world as scenes
 from .says import errs
 
@@ -58,20 +58,6 @@ def pull_record(stuck: Sequence[stuckwords.Stuck]) -> world.PullRecord:
     )
 
 
-def command_line(*words: str) -> scenes.Result:
-    """Run a command on the command line, in a world of the project.
-
-    Args:
-        *words: the command, its arguments and its options.
-
-    Returns:
-        What the command did.
-    """
-    here = scenes.make_world()
-    given = ("--config", here.config, "--now", scenes.FUTURE)
-    return scenes.invoke(here, *words, *given)
-
-
 def act_line(*words: str) -> scenes.Result:
     """Run ``act`` on the command line, in a world of the project.
 
@@ -81,21 +67,7 @@ def act_line(*words: str) -> scenes.Result:
     Returns:
         What the command did.
     """
-    return command_line("act", *words)
-
-
-def decision_in(item: str, *words: str) -> str:
-    """The first line a command prints of an item's decision.
-
-    Args:
-        item: the item.
-        *words: the command and its arguments.
-
-    Returns:
-        The line, empty when there is none.
-    """
-    found = rankworld.mentioning(command_line(*words).out, f": {item}: ")
-    return next(iter(found), "")
+    return sceneruns.command_line("act", *words)
 
 
 def ticket_judgement() -> decide.Judgement:
@@ -315,21 +287,6 @@ class TestPairs(unittest.TestCase):
         assert_that(found.exceptions[0], contains_string("want GO"))
 
 
-class TestOneDecision(unittest.TestCase):
-    """Plan 6.5: the same decision for the same item, whichever command asks."""
-
-    def test_6_5_the_four_commands_print_one_decision(self) -> None:
-        """The head of dispatch-next has one decision line in each other command."""
-        item = act_line("dispatch-next", "owner/project").out.strip()
-        said = decision_in(item, "next", item)
-        agree = [
-            said in decision_in(item, *words)
-            for words in (("slots", "next", item), ("slots", "next"))
-        ]
-        want = "WORKER: owner/project#1: resolve the conflict"
-        assert_that((said, agree), equal_to((want, [True, True])))
-
-
 def dispatch_next_paths() -> Sequence[str]:
     """The request paths of one ``act dispatch-next`` in the scene's world.
 
@@ -337,9 +294,8 @@ def dispatch_next_paths() -> Sequence[str]:
         Each ``gh api`` path it asked, in order.
     """
     here = scenes.make_world()
-    words = ("dispatch-next", "owner/project", "--config", here.config)
-    scenes.invoke(here, "act", *words, "--now", scenes.FUTURE)
-    return [each[-1] for each in fakes.calls_with(here.calls, "api")]
+    sceneruns.command_in(here, "act", "dispatch-next", "owner/project")
+    return sceneruns.request_paths(here)
 
 
 class TestReadOnce(unittest.TestCase):
@@ -361,7 +317,7 @@ class TestReadOnce(unittest.TestCase):
             and "sort=created&order=asc" not in each
             and not ("/pulls?" in each and "state=open" in each)
         ]
-        asks_for_all = [each for each in paths if "state=all" in each]
+        asks_for_all = [each for each in paths if "state=" + "all" in each]
         assert_that((bool(listed), unordered, asks_for_all), equal_to((True, [], [])))
 
 

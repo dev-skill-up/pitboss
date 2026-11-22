@@ -17,14 +17,14 @@ from typing import Mapping, Sequence
 from . import bodydigest
 from .reviewattempt import LOOSE_GRADE, is_attempt
 from .plansection import plan_section
-from .pullrecords import Event, Ticket, Unread
+from .pullrecords import Errored, Event, Ticket
 
 GRADES = ("approved", "changes needed")
 GRADE_LINE = re.compile(r"(Plan|Execution): (approved|changes needed)( \([^()\n]*\))?")
 VERDICT_LINE = re.compile(r"\W*verdict\b", re.I)
 HEAD_LINE = re.compile(r"(Reviewed: |\bof head )([0-9a-f]{40})\b")
 DIGEST = re.compile(r"Body: [0-9a-f]{16}")
-TicketReads = Mapping[str, Ticket | Unread]
+TicketReads = Mapping[str, Ticket | Errored]
 # the timeline kinds a review is posted as
 REVIEW_KINDS = frozenset({"commented", "reviewed"})
 
@@ -65,7 +65,7 @@ def ticket_lines(tickets: TicketReads) -> Sequence[str]:
         ``Ticket: <ref> <digest>`` for each, in the order of the references.
     """
     return [
-        f"Ticket: {ref} {digest_of('' if isinstance(value, Unread) else value.body)}"
+        f"Ticket: {ref} {digest_of('' if isinstance(value, Errored) else value.body)}"
         for ref, value in sorted(tickets.items())
     ]
 

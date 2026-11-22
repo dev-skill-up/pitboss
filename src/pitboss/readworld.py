@@ -2,22 +2,20 @@
 
 The owner: "You need to get *fewer issues*. Sort by age, stop when you get to 5
 issues that aren't blocked." ``read_world`` reads the first page of each
-organisation's searches of open pull requests (``pullsearch``), then walks the
+repository's listing of open pull requests (``pullsearch``), then walks the
 order and examines an item (its details and closure, read by ``examine``, which
 ``onepath`` hands it as the ``Examiner``) only when the walk reaches it: the pull
 requests that are not relock reviews, oldest first; then the tickets by priority
-label and age; then the relock pull requests. A later page
-of a listing is read only when the walk reaches the end of the one before. The walk
-takes its next items from ``placing.order`` alone, in waves: each wave is as many
-items as decisions are still wanted, examined at once (plan 3.1, 6.3 P10), and it
-stops when it holds ``max(5, the slots configured)`` decisions; an item no actor
-takes counts for nothing, so the walk reads on past it. A blocker an examined item
-names takes that item's place (keyword: dependency).
+label and age; then the relock pull requests. A later page of a listing is read only
+when the walk reaches the end of the one before. The walk takes its next items from
+``placing.order`` alone, in waves of as many items as decisions are still wanted,
+examined at once (plan 3.1, 6.3 P10); it stops at ``max(5, the slots configured)``
+decisions; an item no actor takes counts for nothing. A blocker an examined item names
+takes that item's place (keyword: dependency).
 
 An item ``decide`` already says no actor takes from the grounds alone (a slot holds
 it, a pull request works on it, a hold covers its repository) is not read: it is an
-``Occupied`` record, and ``decide`` decides it. A read that fails after its tries
-(``retrying``) fails the command: nothing is decided on a part.
+``Occupied`` record. A read that fails after its tries (``retrying``) fails the command.
 """
 
 import dataclasses
@@ -349,7 +347,11 @@ def _named(
 
 def _walking_of(reading: Reading, extent: modequestion.Extent) -> _Walking:
     # the walk's start: the open pull requests read, the ledger's slots released
-    read = pullsearch.opened(reading.github, reading.settings)
+    github, settings = reading.github, reading.settings
+    read, held = concurrently.pair(  # the listings and the holds are read together
+        lambda: pullsearch.opened(github, settings),
+        lambda: holdissues.read(github, settings),
+    )
     released = reading.released(list(read.read), reading.book)
     reading = dataclasses.replace(reading, book=released)
     return _Walking(
@@ -358,7 +360,7 @@ def _walking_of(reading: Reading, extent: modequestion.Extent) -> _Walking:
         stop=workorder.stop_count(reading.book),
         every_pull=extent.every_pull,
         branches={},
-        held=holdissues.read(reading.github, reading.settings),
+        held=held,
     )
 
 

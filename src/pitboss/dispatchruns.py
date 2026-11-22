@@ -1,11 +1,14 @@
 """The dispatched runs of a head (keyword: run-e2e, pitboss#199)."""
 
 import json
-from typing import Sequence
+import subprocess
+from typing import Callable, Sequence, TypeVar
 
 from . import ghapi
 
 CHECK_WORKFLOW = "check.yml"
+_Item = TypeVar("_Item")
+NOT_FOUND = "HTTP 404"
 
 
 def run_ids(text: str) -> Sequence[int]:
@@ -33,6 +36,24 @@ def run_times(text: str) -> Sequence[str]:
     return [item.get("updated_at") or "" for item in json.loads(text)["workflow_runs"]]
 
 
+def _dispatched(
+    github: ghapi.GitHub,
+    slug: str,
+    head: str,
+    parse: Callable[[str], Sequence[_Item]],
+) -> Sequence[_Item]:
+    # a repository with no check.yml answers 404: it has no dispatched run, and
+    # that is an answer (keyword: no-check-workflow, pitboss#481)
+    query = f"head_sha={head}&event=workflow_dispatch&status=completed"
+    path = f"repos/{slug}/actions/workflows/{CHECK_WORKFLOW}/runs?{query}"
+    try:
+        return ghapi.pages(github, path, parse)
+    except subprocess.CalledProcessError as refused:
+        if ghapi.status_of(refused) != NOT_FOUND:
+            raise
+        return []
+
+
 def completed_before(github: ghapi.GitHub, slug: str, head: str, when: str) -> bool:
     """Whether a dispatched run of the check workflow completed by a time.
 
@@ -46,9 +67,7 @@ def completed_before(github: ghapi.GitHub, slug: str, head: str, when: str) -> b
         True when a ``workflow_dispatch`` run of ``check.yml`` at the head had
         completed by then (a run that gives no time counts).
     """
-    query = f"head_sha={head}&event=workflow_dispatch&status=completed"
-    path = f"repos/{slug}/actions/workflows/{CHECK_WORKFLOW}/runs?{query}"
-    return any(each <= when for each in ghapi.pages(github, path, run_times))
+    return any(each <= when for each in _dispatched(github, slug, head, run_times))
 
 
 def completed(github: ghapi.GitHub, slug: str, head: str) -> bool:
@@ -66,6 +85,4 @@ def completed(github: ghapi.GitHub, slug: str, head: str) -> bool:
         True when a ``workflow_dispatch`` run of ``check.yml`` at the head has
         completed (a dispatch of another workflow does not count).
     """
-    query = f"head_sha={head}&event=workflow_dispatch&status=completed"
-    path = f"repos/{slug}/actions/workflows/{CHECK_WORKFLOW}/runs?{query}"
-    return bool(ghapi.pages(github, path, run_ids))
+    return bool(_dispatched(github, slug, head, run_ids))

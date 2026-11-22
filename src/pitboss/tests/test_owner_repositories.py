@@ -8,7 +8,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import configfile, orgsearch, ownerconfig, repoaccess
+from .. import configfile, ownerconfig, repoaccess
 from . import decisionline, fakes, liveagents, ownerbodies, world
 from .ownerbodies import lines_of
 
@@ -149,16 +149,17 @@ def reviewed(here: world.World) -> str:
     return out
 
 
-def listings(here: world.World) -> int:
-    """How many times the owner's open PRs were searched (keyword: org-search).
+def listings(here: world.World, repo: str) -> int:
+    """How many times a repository's open PRs were listed (keyword: pull-listing).
 
     Args:
         here: the world, after a command ran.
+        repo: the repository's name under ``owner``.
 
     Returns:
-        The count; every repository of the owner is in the one search.
+        The count; each repository has one listing.
     """
-    path = orgsearch.path("owner", "is:pr", "-head:relock/")
+    path = f"repos/owner/{repo}/pulls?state=open"
     return sum(1 for call in here.calls if call[-1].startswith(path))
 
 
@@ -197,7 +198,9 @@ class TestOwnerRepositories(unittest.TestCase):
         """``extra`` is not in ``[libraries] repositories``; its PR is shown."""
         here = with_extra()
         out = reviewed(here)
-        assert_that((listings(here), "owner/extra#" in out), equal_to((1, True)))
+        assert_that(
+            (listings(here, "extra"), "owner/extra#" in out), equal_to((1, True))
+        )
 
     def test_archived_and_excluded_repositories_are_left_out(self) -> None:
         """Neither is read, so neither is unreadable."""
@@ -225,7 +228,7 @@ class TestOwnerRepositories(unittest.TestCase):
         """``lib`` is named by the configuration and listed: its PRs searched once."""
         here = with_extra()
         liveagents.next_output(here)
-        assert_that(listings(here), equal_to(1))
+        assert_that(listings(here, "lib"), equal_to(1))
 
     def test_the_owner_may_be_a_user(self) -> None:
         """An owner with no organization of that name is listed as a user."""

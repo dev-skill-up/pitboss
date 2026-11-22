@@ -1,8 +1,8 @@
 """Test doubles: a fake GitHub behind ``gh api``, and real git in temp dirs."""
 
 import dataclasses
-import os
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -29,7 +29,6 @@ REFUSED = object()  # a body that fails like a path with none, in a world that h
 Answers = Mapping[str, int]
 NO_STATUS: Mapping[str, object] = {"statuses": []}
 TRACEFS_FOUND: Answers = {"grep": 0, "mount": 1}
-# the git helpers are in ``repositories``, which imports nothing of pitboss
 IDENTITY = repositories.IDENTITY
 run_git = repositories.run_git
 commit_file = repositories.commit_file
@@ -131,12 +130,13 @@ def canned(bodies: Mapping[str, object], command: Sequence[str]) -> tuple[str, o
     Returns:
         The path asked for, and its body (None when the world cans none).
     """
-    path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
-    path = ASKED_BY_THE_WINDOW.sub("", path)  # a world cans a list whole
+    asked = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
+    path = ASKED_BY_THE_WINDOW.sub("", asked)  # a world cans a list whole
     first = f"{path}&page=1" if "per_page=100" in path else page(path)
     found = None if path in bodies else worldreads.org_searched(bodies, path)
     found = found or bodies.get(path, bodies.get(first, worldreads.none_listed(path)))
-    return path, fullpull.complete(path, worldreads.listed_whole(bodies, path, found))
+    whole = worldreads.listed_whole(bodies, path, found)
+    return path, fullpull.complete(path, worldreads.sorted_as_asked(whole, asked))
 
 
 def run_for_real(

@@ -11,9 +11,9 @@ import enum
 from typing import Callable, Mapping, Sequence
 
 from . import answer
-from .pullrecords import Ticket, Unread
+from .pullrecords import Errored, Ticket
 
-Review = Callable[[str, str, str, Mapping[str, Ticket | Unread]], str]
+Review = Callable[[str, str, str, Mapping[str, Ticket | Errored]], str]
 Plan = Callable[[str, str], str]
 Body = Callable[[str, str], Sequence[str]]
 

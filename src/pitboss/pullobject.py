@@ -7,7 +7,7 @@ inputs read with it are ``pullstate`` (keyword: one-path).
 from typing import Mapping, Sequence, TypeVar
 
 from . import schematypes
-from .pullrecords import Closure, Merging, Mistyped, PullObject, Ticket, Unread, Where
+from .pullrecords import Closure, Errored, Merging, Mistyped, PullObject, Ticket, Where
 
 Kind = TypeVar("Kind")
 URL_FIELDS = ("comments_url", "commits_url", "html_url", "issue_url", "statuses_url")
@@ -175,10 +175,10 @@ def said_at(each: Raw, name: str) -> str:
     return str(each.get(name))
 
 
-def _issue(value: object) -> Ticket | Unread:
+def _issue(value: object) -> Ticket | Errored:
     issue = object_at(value)
     if not isinstance(value, dict) or "_error" in issue:
-        return Unread(why=text_at(issue, "_error"))
+        return Errored(why=text_at(issue, "_error"))
     return Ticket(
         state=said_at(issue, "state"),
         reason=said_at(issue, "state_reason"),
@@ -188,7 +188,7 @@ def _issue(value: object) -> Ticket | Unread:
     )
 
 
-def tickets_of(read: object) -> Mapping[str, Ticket | Unread]:
+def tickets_of(read: object) -> Mapping[str, Ticket | Errored]:
     """Each ticket the body closes, typed.
 
     Args:
