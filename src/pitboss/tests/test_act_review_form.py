@@ -118,6 +118,4 @@ class TestThePlanDigestItRecords(unittest.TestCase):
         pull = {"body": body, "head": {"sha": HEAD}}
         written = actwrite.review_text(pull, ["approved"] * 3, "fine", {})
         expected = expansion.section_digest(plandigest.section(body))
-        assert_that(
-            f"Plan-digest: {expected}" in written.splitlines(), equal_to(True)
-        )
+        assert_that(f"Plan-digest: {expected}" in written.splitlines(), equal_to(True))
