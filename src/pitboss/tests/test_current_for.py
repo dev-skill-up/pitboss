@@ -107,6 +107,33 @@ class TestPairs(unittest.TestCase):
         step = flow.next_step(pr)
         assert_that(step, equal_to(PLAN_REVIEW))
 
+    def test_495_a_review_with_no_digest_does_not_approve_a_revised_plan(self) -> None:
+        """A later `Plan: approved` with no digest repeats an approval, not grades."""
+        digestless = test_flow.graded(APPROVED, CHANGES, 2)
+        pr = test_flow.state(approving(1, test_flow.BODY), digestless, body=REVISED)
+        assert_that(flow.plan_approved(pr), is_(False))
+        assert_that(flow.plan_revised(pr), is_(True))
+
+    def test_495_a_ruled_revised_plan_after_a_digestless_review_is_reviewed(
+        self,
+    ) -> None:
+        """Execution rejected, ruled `revise the plan`, Plan revised: its review."""
+        ruled = test_flow.ruling(3, line="Ruling: revise the plan")
+        pr = test_flow.state(
+            approving(1, test_flow.BODY),
+            test_flow.graded(APPROVED, CHANGES, 2),
+            comments=[ruled],
+            body=REVISED,
+        )
+        assert_that(flow.next_step(pr), equal_to(PLAN_REVIEW))
+
+    def test_495_a_digestless_approval_counts_when_none_recorded_a_digest(
+        self,
+    ) -> None:
+        """Older reviews record no digest and keep approving the Plan."""
+        pr = test_flow.state(test_flow.graded(APPROVED, CHANGES, 1), body=REVISED)
+        assert_that(flow.plan_approved(pr), is_(True))
+
     def test_c31_the_execution_approval_does_not_outlive_the_head(self) -> None:
         """A review of an older head is not the review of this head."""
         old = test_flow.graded(APPROVED, APPROVED, 1, sha=fakes.OLDER)
