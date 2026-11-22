@@ -23,7 +23,7 @@ import functools
 import re
 from typing import AbstractSet, Sequence
 
-from . import bodytext, hopedfigure, planrowtext, ticketwhen
+from . import bodytext, expansion, hopedfigure, planrowtext, ticketwhen
 
 CHECK = "plan-done-when"
 MEASUREMENT = "plan-measurement"
@@ -100,10 +100,14 @@ def measurements(item: str) -> Sequence[str]:
 
 def _runs(command: str, remainder: str) -> bool:
     # the row's own backticked spans: the command itself, or followed by a space
-    # and more (arguments, a pipe), or by a pipe (keyword: measurement-arguments)
+    # and more (arguments, a pipe), or by a pipe (keyword: measurement-arguments);
+    # an Evidence line `$ COMMAND` is the command (keyword: measurement-prompt, #493)
     return any(
         span == command or span.startswith((f"{command} ", f"{command}|"))
-        for span in (_squeezed(each) for each in planrowtext.spans(remainder))
+        for span in (
+            _squeezed(each).removeprefix(expansion.PROMPT)
+            for each in planrowtext.spans(remainder)
+        )
     )
 
 
