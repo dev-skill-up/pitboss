@@ -201,19 +201,13 @@ class TestThePlanEditedLine(unittest.TestCase):
 
     def test_the_newest_approving_review_with_a_digest_is_compared(self) -> None:
         """A newer approving review of the edited Plan answers the edit."""
-        edited = f"Plan digest: {digest(EDITED_PLAN)}"
-        rounds = [approving(1), approving(2, edited)]
-        out = sweep(world_with(rounds, body=EDITED_PLAN)).out
-        assert_that(EDIT_LINE in out, equal_to(False))
-        assert_that(out, contains_string(RULING_DUE))
-
-    def test_497_the_line_act_review_writes_is_the_plan_digest(self) -> None:
-        """`Plan-digest: D`, the form `act review` writes, answers the edit."""
-        edited = f"Plan-digest: {digest(EDITED_PLAN)}"
-        rounds = [approving(1), approving(2, edited)]
-        out = sweep(world_with(rounds, body=EDITED_PLAN)).out
-        assert_that(EDIT_LINE in out, equal_to(False))
-        assert_that(out, contains_string(RULING_DUE))
+        for prefix in ("Plan digest", "Plan-digest"):  # act review writes the hyphen
+            with self.subTest(prefix):
+                edited = f"{prefix}: {digest(EDITED_PLAN)}"
+                rounds = [approving(1), approving(2, edited)]
+                out = sweep(world_with(rounds, body=EDITED_PLAN)).out
+                assert_that(EDIT_LINE in out, equal_to(False))
+                assert_that(out, contains_string(RULING_DUE))
 
     def test_497_each_spelling_records_its_digest(self) -> None:
         """Both `Plan digest: D` and `Plan-digest: D` record D, none records none."""
