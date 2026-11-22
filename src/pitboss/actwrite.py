@@ -15,7 +15,6 @@ from typing import Callable, Mapping, Sequence
 from . import (
     actcore,
     actreview,
-    bodydigest,
     pullnames,
     pullobject,
     reviewattempt,
@@ -67,7 +66,7 @@ def review_text(
         f"Execution: {grades[1]}",
         f"Verdict: {grades[2]}",
         f"Body: {totalreview.digest_of(body)}",
-        *([] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]),
+        *([] if section is None else [f"Plan-digest: {totalreview.plan_digest(body)}"]),
         *totalreview.ticket_lines(pullobject.tickets_of(tickets)),
     ]
     return "\n".join(lines) + f"\n\n{findings}"

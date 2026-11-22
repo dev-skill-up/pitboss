@@ -7,6 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import (
+    actwrite,
     bodydigest,
     brieftext,
     flow,
@@ -217,6 +218,14 @@ class TestThePlanEditedLine(unittest.TestCase):
             for each in (f"Plan digest: {now}", f"Plan-digest: {now}", "Plan: x")
         ]
         assert_that(found, equal_to([now, now, ""]))
+
+    def test_499_an_act_review_of_an_expanded_plan_answers_the_edit(self) -> None:
+        """The digest `act review` writes is current when only an output moved."""
+        pull = {"body": expanded_plan(), "head": {"sha": "a" * 40}}
+        written = actwrite.review_text(pull, ["approved"] * 3, "fine", {})
+        line = next(x for x in written.splitlines() if x.startswith("Plan-digest"))
+        out = sweep(world_with([approving(1, line)], body=expanded_plan("new\n"))).out
+        assert_that(EDIT_LINE in out, equal_to(False))
 
     def test_a_ruling_after_the_approval_allows_the_edit(self) -> None:
         """A ruling `revise the plan` written after the review lifts the line."""

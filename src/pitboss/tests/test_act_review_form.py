@@ -4,7 +4,8 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import actport, actreview, gradesrequired, reviewform
+from .. import actport, actreview, actwrite, gradesrequired, reviewform
+from .test_plan_digest_collapse import digest, plan
 
 HEAD = "a" * 40
 BASE = (
@@ -98,3 +99,16 @@ class TestKinds(unittest.TestCase):
         with self.assertRaises(actport.BadInput):
             actreview.kind_of({"kind": "other"})
         assert_that(actreview.kind_of({}), equal_to("full"))
+
+
+class TestThePlanDigestItRecords(unittest.TestCase):
+    """The Plan digest of a review is the one the flow compares (act-plan-digest)."""
+
+    def test_it_is_the_digest_of_the_expanded_plan_section(self) -> None:
+        """Expanded blocks are collapsed and the Head line is no part of it."""
+        body = f"Head: {HEAD}\n\n{plan()}"
+        pull = {"body": body, "head": {"sha": HEAD}}
+        written = actwrite.review_text(pull, ["approved"] * 3, "fine", {})
+        assert_that(
+            f"Plan-digest: {digest(body)}" in written.splitlines(), equal_to(True)
+        )

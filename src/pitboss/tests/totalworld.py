@@ -11,7 +11,7 @@ import json
 import pathlib
 from typing import Iterable, Mapping
 
-from .. import bodydigest, pullobject, totalreview
+from .. import pullobject, totalreview
 from ..totaljson import JsonMap, members, name_at, text
 from ..plansection import plan_section
 
@@ -65,7 +65,7 @@ def review(
         The timeline event.
     """
     section = plan_section(body)
-    plan = [] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]
+    plan = [] if section is None else [f"Plan-digest: {totalreview.plan_digest(text(body))}"]
     lines = [
         f"{INDEPENDENT} {head}: {grade}",
         "Plan: approved",
