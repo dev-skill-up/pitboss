@@ -201,11 +201,22 @@ class TestThePlanEditedLine(unittest.TestCase):
 
     def test_the_newest_approving_review_with_a_digest_is_compared(self) -> None:
         """A newer approving review of the edited Plan answers the edit."""
-        edited = f"Plan digest: {digest(EDITED_PLAN)}"
-        rounds = [approving(1), approving(2, edited)]
-        out = sweep(world_with(rounds, body=EDITED_PLAN)).out
-        assert_that(EDIT_LINE in out, equal_to(False))
-        assert_that(out, contains_string(RULING_DUE))
+        for prefix in ("Plan digest", "Plan-digest"):  # act review writes the hyphen
+            with self.subTest(prefix):
+                edited = f"{prefix}: {digest(EDITED_PLAN)}"
+                rounds = [approving(1), approving(2, edited)]
+                out = sweep(world_with(rounds, body=EDITED_PLAN)).out
+                assert_that(EDIT_LINE in out, equal_to(False))
+                assert_that(out, contains_string(RULING_DUE))
+
+    def test_497_each_spelling_records_its_digest(self) -> None:
+        """Both `Plan digest: D` and `Plan-digest: D` record D, none records none."""
+        now = digest(PLAN)
+        found = [
+            bodydigest.recorded_plan(f"Verdict: approved\n{each}\n")
+            for each in (f"Plan digest: {now}", f"Plan-digest: {now}", "Plan: x")
+        ]
+        assert_that(found, equal_to([now, now, ""]))
 
     def test_a_ruling_after_the_approval_allows_the_edit(self) -> None:
         """A ruling `revise the plan` written after the review lifts the line."""
