@@ -78,14 +78,21 @@ def plan_approved(pr: PullState) -> bool:
 
     Returns:
         True when one did and is current for the Plan section's digest
-        (keyword: current-for); a Plan revised since is graded again.
+        (keyword: current-for); a Plan revised since is graded again. A review
+        that records no digest approves the Plan as it is only while no review
+        of the PR recorded one (keyword: digestless-approval, pitboss#495): a
+        later review of the Execution that says ``Plan: approved`` repeats an
+        approval, it does not grade a revised Plan.
     """
     section = plandigest.section(pr.pull.body)
-    return any(
-        each.plan is Verdict.APPROVED
-        and current_for(Subject.PLAN, each.plan_digest, section)
+    approving = [
+        each
         for each in regular_reviews(pr)
-    )
+        if each.plan is Verdict.APPROVED
+        and current_for(Subject.PLAN, each.plan_digest, section)
+    ]
+    recorded = any(each.plan_digest for each in regular_reviews(pr))
+    return any(each.plan_digest or not recorded for each in approving)
 
 
 def plan_revised(pr: PullState) -> bool:
