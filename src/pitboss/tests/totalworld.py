@@ -52,9 +52,8 @@ FILE = {"filename": "src/x.bats", "status": "modified", "additions": 10, "deleti
 
 def _plan_lines(body: object) -> list[str]:
     # the review's Plan-digest line, none for a body with no one Plan section
-    if plan_section(body) is None:
-        return []
-    return [f"Plan-digest: {totalreview.plan_digest(text(body))}"]
+    found = [f"Plan-digest: {totalreview.plan_digest(text(body))}"]
+    return [] if plan_section(body) is None else found
 
 
 def review(
