@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to, is_not
 
-from .. import bodydigest, expansion, plandigest, planrow
+from .. import bodydigest, expansion, plandigest, planrow, totalreview
 from .linting import block as run
 
 PROSE = "1. Run `git rev-parse HEAD`.\n2. Run `make test`.\n"
@@ -29,16 +29,8 @@ def plan(first: str = "abc\n", second: str = "ok\n", prose: str = PROSE) -> str:
     )
 
 
-def digest(body: str) -> str:
-    """The digest of the Plan section of a body.
-
-    Args:
-        body: the PR body.
-
-    Returns:
-        The digest.
-    """
-    return expansion.section_digest(plandigest.section(body))
+# the digest of the Plan section of a body, which a review records (act-plan-digest)
+digest = totalreview.plan_digest
 
 
 class TestTheDigestCollapsesExpandedBlocks(unittest.TestCase):

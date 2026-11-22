@@ -50,6 +50,13 @@ OPEN_TICKET = {
 FILE = {"filename": "src/x.bats", "status": "modified", "additions": 10, "deletions": 2}
 
 
+def _plan_lines(body: object) -> list[str]:
+    # the review's Plan-digest line, none for a body with no one Plan section
+    if plan_section(body) is None:
+        return []
+    return [f"Plan-digest: {totalreview.plan_digest(text(body))}"]
+
+
 def review(
     head: str, body: object, tickets: Mapping[str, object], grade: str = "approved"
 ) -> Pull:
@@ -64,19 +71,13 @@ def review(
     Returns:
         The timeline event.
     """
-    section = plan_section(body)
-    plan = (
-        []
-        if section is None
-        else [f"Plan-digest: {totalreview.plan_digest(text(body))}"]
-    )
     lines = [
         f"{INDEPENDENT} {head}: {grade}",
         "Plan: approved",
         f"Execution: {grade}",
         f"Verdict: {grade}",
         f"Body: {totalreview.digest_of(text(body))}",
-        *plan,
+        *_plan_lines(body),
         *totalreview.ticket_lines(pullobject.tickets_of(tickets)),
     ]
     return {
