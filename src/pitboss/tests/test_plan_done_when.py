@@ -221,10 +221,24 @@ class TestMeasurement(unittest.TestCase):
         """Done-when: the command piped into more is it run."""
         run_forms(self, (f"`{MEASURE} | wc -l`", f"`{MEASURE}|wc -l`"))
 
+    def test_measurement_as_an_evidence_line_counts_as_run(self) -> None:
+        """Done-when: a row's Evidence line `$ COMMAND` is the command run."""
+        run_forms(self, (f"`$ {MEASURE}`", f"`$ {MEASURE} | wc -l`"))
+
     def test_measurement_prefix_letters_do_not_count_as_run(self) -> None:
-        """Done-when: a span that only starts with the command's letters is another."""
+        """Done-when: a span that only starts with the command's letters is another.
+
+        An Evidence line `$ OTHER` is another command too (keyword: measurement-prompt).
+        """
         ticket = measured("demonstrated", "by", MEASURE)
-        for own in (f"`{MEASURE}s`", f"`{MEASURE}2 -n`", f"`{MEASURE}-more`"):
+        for own in (
+            f"`{MEASURE}s`",
+            f"`{MEASURE}2 -n`",
+            f"`{MEASURE}-more`",
+            "`$ rg -c y src`",
+            f"`$ x {MEASURE}`",
+            f"`$ {MEASURE}s`",
+        ):
             with self.subTest(own=own):
                 found = findings_of(ticket, own)
                 assert_that(len(found), equal_to(1))
