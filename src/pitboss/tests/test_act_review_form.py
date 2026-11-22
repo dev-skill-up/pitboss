@@ -4,16 +4,8 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import (
-    actport,
-    actreview,
-    actwrite,
-    expansion,
-    gradesrequired,
-    plandigest,
-    reviewform,
-)
-from .test_plan_digest_collapse import plan
+from .. import actport, actreview, actwrite, gradesrequired, reviewform
+from .test_plan_digest_collapse import digest, plan
 
 HEAD = "a" * 40
 BASE = (
@@ -117,6 +109,5 @@ class TestThePlanDigestItRecords(unittest.TestCase):
         body = f"Head: {HEAD}\n\n{plan()}"
         pull = {"body": body, "head": {"sha": HEAD}}
         written = actwrite.review_text(pull, ["approved"] * 3, "fine", {})
-        section = expansion.collapsed(plandigest.section(body))
-        expected = expansion.text_digest(expansion.run_urls_dropped(section))
-        assert_that(f"Plan-digest: {expected}" in written.splitlines(), equal_to(True))
+        line = f"Plan-digest: {digest(body)}"
+        assert_that(line in written.splitlines(), equal_to(True))
