@@ -65,7 +65,11 @@ def review(
         The timeline event.
     """
     section = plan_section(body)
-    plan = [] if section is None else [f"Plan-digest: {totalreview.plan_digest(text(body))}"]
+    plan = (
+        []
+        if section is None
+        else [f"Plan-digest: {totalreview.plan_digest(text(body))}"]
+    )
     lines = [
         f"{INDEPENDENT} {head}: {grade}",
         "Plan: approved",
