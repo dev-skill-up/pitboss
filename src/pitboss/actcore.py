@@ -89,6 +89,8 @@ class Act:
         controls: the readers and the disarm.
         form: the lines a review of a repository takes (``{sha}`` and ``{verdict}``
             to fill), none when it is not read (keyword: act-review-form).
+        pressure: the runner-pressure line when the runners are held, else empty
+            (keyword: act-pressure).
     """
 
     hub: Hub
@@ -100,6 +102,7 @@ class Act:
     questions: "Questions"
     controls: Controls
     form: Callable[[str], Sequence[str]] = lambda repository: ()
+    pressure: Callable[[], str] = lambda: ""
 
 
 def put(

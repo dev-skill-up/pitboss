@@ -48,7 +48,8 @@ def hold_row(read: actfacts.ActRead, held: holdparse.Held) -> Sequence[answer.No
     """
     if read.verb in actport.ENDS_A_HOLD:
         return []
-    return [
+    pressed = [answer.NotDone(why=answer.Why.PRESSURE, line=read.pressured)]
+    return (pressed if read.pressured else []) + [
         answer.NotDone(
             why=answer.Why.HOLD, line=f"hold: {hold.title} holds {read.verb} in {repo}"
         )

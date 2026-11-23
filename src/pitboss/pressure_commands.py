@@ -31,9 +31,9 @@ from . import (
     pushcheck,
     pushclaim,
     pushdraft,
+    pressureread,
     pushrequire,
     queue,
-    queuereads,
     record,
     report,
     rulingsummary,
@@ -46,8 +46,7 @@ TIMED_CONFIG = (commandarguments.CONFIG_ARGUMENT, commandarguments.NOW_ARGUMENT)
 
 
 def _look(found: commands.Context) -> queue.Seen:
-    runs = queuereads.runner_runs(found, queuereads.read_queue_runs(found))
-    return queue.look(found.github, runs, found.settings.runners, found.now)
+    return pressureread.look(found)
 
 
 def _say(found: commands.Context, looked: queue.Seen) -> bool:

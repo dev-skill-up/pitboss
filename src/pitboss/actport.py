@@ -9,6 +9,8 @@ from typing import Callable, Mapping, MutableMapping, Sequence
 
 Pull = dict[str, object]
 Options = Mapping[str, str]
+# keyword: act-pressure: the verbs a runner hold stops (``report.HOLD_ACTIONS``)
+PRESSURED = frozenset({"merge", "arm", "undraft", "dispatch-workflow", "rerun"})
 ENDS_A_HOLD = frozenset(
     {
         "hold",

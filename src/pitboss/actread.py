@@ -8,7 +8,7 @@ decides nothing; ``actdecide`` does.
 
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import actcore, actfacts, actgit, actwrite, config, donewhencorrection
+from . import actcore, actfacts, actgit, actport, actwrite, config, donewhencorrection
 from .totaljson import members, name_at, records, text
 
 Facts = Callable[[actcore.Act, actfacts.Asked], Sequence[actfacts.Check]]
@@ -139,4 +139,5 @@ def read(act: actcore.Act, asked: actfacts.Asked) -> actfacts.ActRead:
         repos=repos,
         pending=pending,
         checks=facts(act, asked) if facts is not None else (),
+        pressured=act.pressure() if asked.verb in actport.PRESSURED else "",
     )

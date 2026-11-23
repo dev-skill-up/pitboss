@@ -113,6 +113,7 @@ class Why(enum.Enum):
     Attributes:
         OWNER_MESSAGE: an owner message has no disposition.
         HOLD: a hold covers the verb.
+        PRESSURE: the runners are held and the verb costs runs (keyword: act-pressure).
         STARTED: a PR closes the ticket, so a worker started it.
         NOT_OURS: the comment is not one ``pitboss act`` posted.
         TICKET_FORM: the ticket body is not in the form the ticket reader takes.
@@ -126,6 +127,7 @@ class Why(enum.Enum):
 
     OWNER_MESSAGE = enum.auto()
     HOLD = enum.auto()
+    PRESSURE = enum.auto()
     STARTED = enum.auto()
     NOT_OURS = enum.auto()
     TICKET_FORM = enum.auto()
