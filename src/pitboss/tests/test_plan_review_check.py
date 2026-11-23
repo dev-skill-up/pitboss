@@ -19,6 +19,7 @@ from .pinsworld import offered as state_line
 from .test_commands import sweep
 from .test_flow import state
 from .test_flow_sweep import CHANGES, HEAD, OLDER, graded, world_with
+from . import reviewsteps
 
 CHECK_RUNS = f"{world.PROJECT}/commits/{HEAD}/check-runs"
 REVIEW = "REVIEWER: owner/project#3: grade the Plan ONLY"
@@ -128,7 +129,7 @@ class TestTheFlow(unittest.TestCase):
 
     def test_each_case_has_its_step(self) -> None:
         """A draft with no review, by its check runs."""
-        review = steps.regular_review(steps.Stage.PLAN_ONLY)
+        review = reviewsteps.review(steps.Stage.PLAN_ONLY)
         cases: Sequence[tuple[Sequence[shapes.CheckRun], str, steps.Move]] = (
             ([], "build", steps.IDLE),
             ([test_flow.RUNNING], "lint", steps.IDLE),
@@ -144,7 +145,7 @@ class TestTheFlow(unittest.TestCase):
     def test_no_setting_is_no_wait(self) -> None:
         """Without a check named, the review is due whatever runs."""
         found = state(checks=[test_flow.RUNNING], draft=True)
-        test_flow.expect(steps.regular_review(steps.Stage.PLAN_ONLY), found)
+        test_flow.expect(reviewsteps.review(steps.Stage.PLAN_ONLY), found)
 
 
 class TestTheConfiguration(unittest.TestCase):

@@ -25,7 +25,7 @@ def handed(recorded: str) -> world.World:
     here = calm()
     path = fakes.add_worktree(here.clone, CLEAN_HEAD["ref"])
     directory = git(path, "rev-parse", "--absolute-git-dir")
-    handbackrecord.record(pathlib.Path(directory), recorded)
+    handbackrecord.record(pathlib.Path(directory), recorded, "*", "*")
     tiny = slotbook.empty_slot("tiny", "small")
     tiny = dataclasses.replace(tiny, agent="agent-1", task=PULL)
     ledger.write(

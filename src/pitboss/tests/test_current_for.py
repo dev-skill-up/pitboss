@@ -16,10 +16,11 @@ from .. import expansion, flow, flowstate, plancheckflow, plandigest, shapes, st
 from . import fakes, test_flow
 from .test_flow import APPROVED, CHANGES
 from .checkcomment import clean_check
+from . import reviewsteps
 
 REVISED = test_flow.BODY.replace("the plan", "a better plan")
 Subject = expansion.Subject
-PLAN_REVIEW = steps.regular_review(steps.Stage.PLAN_ONLY)
+PLAN_REVIEW = reviewsteps.review(steps.Stage.PLAN_ONLY)
 
 
 def plan_digest(body: str) -> str:
@@ -93,7 +94,7 @@ class TestPairs(unittest.TestCase):
         pr = test_flow.state(
             approving(1, test_flow.BODY), comments=[ruled], body=REVISED
         )
-        want = plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
+        want = plancheckflow.review(pr, PLAN_REVIEW)
         assert_that(want.step, equal_to(steps.Step.REGULAR_REVIEW))
         test_flow.expect(want, pr)
 

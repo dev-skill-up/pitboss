@@ -12,6 +12,7 @@ from hamcrest import assert_that, contains_string
 from .. import flow, steps
 from . import fakes, suggestions, world
 from .test_flow import RED, expect, state
+from . import reviewsteps
 
 RUNNING = {"id": 9, "name": "test", "status": "in_progress", "conclusion": None}
 
@@ -67,7 +68,7 @@ class TestDraftRedCi(unittest.TestCase):
 
     def test_a_failed_plan_review_check_alone_keeps_the_review(self) -> None:
         """The check the Plan review waits for failing is the review's own case."""
-        expect(steps.regular_review(steps.Stage.PLAN_ONLY), set_check("test"))
+        expect(reviewsteps.review(steps.Stage.PLAN_ONLY), set_check("test"))
 
     def test_another_failed_check_is_fixed_beside_the_plan_review_check(self) -> None:
         """A failure of a check with another name is a fix, whatever is set."""

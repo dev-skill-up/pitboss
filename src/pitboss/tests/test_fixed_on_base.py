@@ -15,6 +15,7 @@ from .. import basefix, flow, shapes, steps, stepwords
 from . import blank, fakes, quietworld, syncworld, test_commands, test_flow, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
+from . import reviewsteps
 
 QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 PROJECT = world.PROJECT
@@ -275,7 +276,7 @@ class TestFlow(unittest.TestCase):
         resolve = steps.worker(steps.Task.RESOLVE_CONFLICT)
         cases = [
             ((), [], "clean", steps.worker(steps.Task.FIX_CI)),
-            ((), [ANSWER], "clean", steps.regular_review(both)),
+            ((), [ANSWER], "clean", reviewsteps.review(both)),
             (approved, [ANSWER], "clean", steps.merge()),
             ((), [ANSWER], "dirty", resolve),
         ]
@@ -285,7 +286,7 @@ class TestFlow(unittest.TestCase):
     def test_the_words_of_the_steps(self) -> None:
         """An enqueue and a request for the review are said as the ticket says."""
         both = steps.Stage.PLAN_AND_EXECUTION
-        merge, review = steps.merge(), steps.regular_review(both)
+        merge, review = steps.merge(), reviewsteps.review(both)
         said = [
             stepwords.describe(dataclasses.replace(merge, on_base=True)),
             stepwords.describe(dataclasses.replace(review, on_base=True)),

@@ -81,6 +81,7 @@ class Task(enum.Enum):
         FIX_BLOCKED_BY: a Blocked-by line names a loop or a closed blocker.
         AFTER_BLOCKER: the blockers merged since the red check (keyword: blocked-by).
         FINISH_PARTIAL: a worker handed back a PR unfinished (keyword: finish-partial).
+        HAND_BACK: the head and body were not handed back (keyword: standing).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -104,6 +105,11 @@ class Task(enum.Enum):
     FIX_BLOCKED_BY = "correct the Blocked-by lines (a loop, or a blocker closed)"
     AFTER_BLOCKER = "the blockers merged: merge the base into the branch, check, push"
     FINISH_PARTIAL = "finish this PR, handed back unfinished"
+    HAND_BACK = (
+        "hand this head and body back: run `pitboss hand-back-check` on the current"
+        " head and body (every check it makes must pass); no review is offered"
+        " before"
+    )
 
 
 class Stage(enum.Enum):
@@ -192,16 +198,36 @@ def undraft() -> Next:
     return Next(step=Step.UNDRAFT)
 
 
-def regular_review(stage: Stage) -> Next:
-    """A review by a new reviewer.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Standing:
+    """A head and body that may be reviewed (keyword: standing, pitboss#507).
+
+    Only ``standing.of`` makes one, and ``regular_review`` takes one, so a review
+    step is built only for a head and body a worker handed back that no review of
+    the stage already names.
+
+    Attributes:
+        head: the head.
+        body: the digest of the body.
+        stage: what the review grades.
+    """
+
+    head: str
+    body: str
+    stage: Stage
+
+
+def regular_review(standing: Standing) -> Next:
+    """A review by a new reviewer (keyword: standing).
 
     Args:
-        stage: what it grades.
+        standing: the head and body a worker handed back and no review names, and
+            the stage the review grades.
 
     Returns:
         The step.
     """
-    return Next(step=Step.REGULAR_REVIEW, stage=stage)
+    return Next(step=Step.REGULAR_REVIEW, stage=standing.stage)
 
 
 def opus_ruling() -> Next:

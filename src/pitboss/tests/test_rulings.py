@@ -6,6 +6,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import rulings, steps, stepwords
 from . import test_flow
+from . import reviewsteps
 
 GREEN = test_flow.GREEN
 RED = test_flow.RED
@@ -58,23 +59,15 @@ class TestReading(unittest.TestCase):
 class TestAfter(unittest.TestCase):
     """The steps that follow each ruling."""
 
-    def test_do_these_steps_then_a_review_of_the_steps(self) -> None:
-        """A worker does exactly the steps; a regular review checks only them."""
+    def test_do_these_steps_is_the_workers_round(self) -> None:
+        """A worker does exactly the steps; the review is the gate's (standing)."""
         found = rulings.after_opus_ruling(state(), rulings.Ruling.DO_THESE_STEPS)
-        expected = (
-            steps.worker(Task.RULING_STEPS),
-            steps.regular_review(Stage.RULING_STEPS),
-        )
-        assert_that(found, equal_to(expected))
+        assert_that(found, equal_to((steps.worker(Task.RULING_STEPS),)))
 
-    def test_revise_the_plan_then_a_review_of_the_plan(self) -> None:
-        """The plan only, then a review of the plan."""
+    def test_revise_the_plan_is_the_workers_round(self) -> None:
+        """The plan only; the review is the gate's (standing)."""
         found = rulings.after_opus_ruling(state(), rulings.Ruling.REVISE_THE_PLAN)
-        expected = (
-            steps.worker(Task.REVISE_PLAN),
-            steps.regular_review(Stage.PLAN_ONLY),
-        )
-        assert_that(found, equal_to(expected))
+        assert_that(found, equal_to((steps.worker(Task.REVISE_PLAN),)))
 
     def test_an_approved_execution_merges_when_the_checks_are_green(self) -> None:
         """Otherwise the CI gate says what to do."""
@@ -125,7 +118,7 @@ class TestDescribe(unittest.TestCase):
         """One line of text for each step, with its task or stage."""
         every = [
             steps.worker(Task.REVISE_PLAN),
-            steps.regular_review(Stage.PLAN_ONLY),
+            reviewsteps.review(Stage.PLAN_ONLY),
             *(steps.Next(step=each) for each in stepwords.TEXTS),
         ]
         found = [stepwords.describe(each) for each in every]

@@ -25,6 +25,7 @@ from . import (
     rulingwords,
     shapes,
     stagerounds,
+    standing,
     steps,
 )
 
@@ -68,14 +69,15 @@ def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
     if answered is None:
         return first
     staged = stagerounds.execution_step(  # keyword: stage-rounds
-        flowstate.newest_ruling(pr), flowquestions.regular_reviews(pr), review
+        flowstate.newest_ruling(pr),
+        flowquestions.regular_reviews(pr),
+        review,
+        pr.handed,
     )
-    if staged is not None:
-        return staged
     posted, ruled = answered
-    if review.when > posted.created_at:  # the ruling was used, still rejected
-        return steps.pause_for_owner()
-    return ruled_step(pr, ruled)
+    again = flowquestions.used_again(pr, review, posted)
+    after = steps.pause_for_owner() if again else ruled_step(pr, ruled)
+    return after if staged is None else staged
 
 
 def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
@@ -93,11 +95,12 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
         return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
     if ruled is rulingwords.Ruling.REVISE_THE_PLAN and plan_revised(pr):
         # the ruling is applied: the revised Plan is graded again (current-for)
-        return plancheckflow.plan_review(pr)
+        return _plan_review(pr)
     if ruled is not rulingwords.Ruling.DO_THESE_STEPS:
         return AFTER[ruled][0]
-    if plancheckflow.checked_since(pr, flowstate.readable_comment):
-        return AFTER[ruled][1]  # a clean Plan check since: the review (pitboss#462)
+    # handed back since, or pushed for a PR no worker holds
+    if flowstate.ruling_applied(pr):
+        return standing.reviewed(pr, steps.Stage.RULING_STEPS)
     return steps.worker(steps.Task.RULING_STEPS, flowstate.ruling_address(pr))
 
 
@@ -211,7 +214,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
         if _red_besides(pr) and not rejection:  # keyword: draft-red-ci
             return ci_gate(pr, review)
         if rejection or not plan_approved(pr):
-            alone = plancheckflow.plan_review(pr)
+            alone = _plan_review(pr)
             return rejection or flowstate.draft_plan_review(pr, alone)
         unrun = plan_unrun(pr, review)  # keyword: plan-alone
         # keyword: run-e2e (pitboss#199); else the CI gate on the undrafted head
@@ -263,11 +266,22 @@ def unreviewed_step(pr: PullState) -> steps.Next:
         return ruled_step(pr, ruled)
     if plan_approved(pr):  # approved while it was a draft
         return unfixed_execution(pr) or plancheckflow.execution_review(
-            pr, steps.Stage.EXECUTION_ONLY
+            pr, standing.reviewed(pr, steps.Stage.EXECUTION_ONLY)
         )
     alone = flowquestions.plan_rejected_last(pr) or plan_revised(pr)
     both = steps.Stage.PLAN_AND_EXECUTION
-    return plancheckflow.review(pr, steps.Stage.PLAN_ONLY if alone else both)
+    stage = steps.Stage.PLAN_ONLY if alone else both
+    return plancheckflow.review(pr, standing.reviewed(pr, stage))
+
+
+def _plan_review(pr: PullState) -> steps.Next:
+    # ``plancheckflow.review`` of the Plan alone
+    return plancheckflow.review(pr, standing.reviewed(pr, steps.Stage.PLAN_ONLY))
+
+
+def _execution_due(pr: PullState) -> steps.Next:
+    # the review of the Execution against the approved Plan, at its standing
+    return standing.reviewed(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
 
 
 def plan_gate(pr: PullState, review: Graded) -> steps.Next:
@@ -282,7 +296,7 @@ def plan_gate(pr: PullState, review: Graded) -> steps.Next:
     """
     return (
         rejection_step(pr, review)
-        or (plancheckflow.plan_review(pr) if plan_revised(pr) else None)
+        or (_plan_review(pr) if plan_revised(pr) else None)
         or execution_gate(pr, review)
     )
 
@@ -305,7 +319,7 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
         return (
             plan_unrun(pr, review)
             or unfixed_execution(pr)
-            or plancheckflow.execution_review(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
+            or plancheckflow.execution_review(pr, _execution_due(pr))
         )
 
     # approved; a ruling to do its steps after the approval voided it above (#467)

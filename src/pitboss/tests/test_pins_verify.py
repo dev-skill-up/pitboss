@@ -20,9 +20,10 @@ from .. import (
     steps,
 )
 from . import fakes, pinsworld, repositories, world
+from . import reviewsteps
 
 NOT_OK = pinsreading.Status.NOT_OK
-REVIEW = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+REVIEW = reviewsteps.review(steps.Stage.PLAN_AND_EXECUTION)
 SAID_OK = pinsreading.Reading(status=pinsreading.Status.OK, detail="OK")
 
 

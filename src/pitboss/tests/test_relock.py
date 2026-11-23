@@ -19,6 +19,7 @@ from .test_flow_sweep import APPROVED, CHANGES, OLDER, HEAD as HEAD_OF_THIRD
 from .test_flow_sweep import graded, listed_for_third, world_with
 from .test_slot_commands import next_output
 from .suggestions import kind_of_third, third
+from . import reviewsteps
 
 RELOCK_BRANCH = "relock/2026-10-31"
 # what the relock workflow writes: no ticket, no Plan, no Evidence
@@ -162,7 +163,7 @@ class TestFlow(unittest.TestCase):
 
     def test_a_relock_pr_goes_straight_to_its_review(self) -> None:
         """Green CI and no review: the full review, no body asked for."""
-        want = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+        want = reviewsteps.review(steps.Stage.PLAN_AND_EXECUTION)
         test_flow.expect(want, relock_state())
 
     def test_a_relock_pr_is_still_held_by_ci_the_label_and_a_review(self) -> None:

@@ -11,14 +11,15 @@ from . import blank, checkcomment, fakes, worldcomments
 from .test_flow import CHANGES, expect, graded
 from .test_flow import BODY
 from .test_flow import state as checked_state
+from . import reviewsteps
 
 WITH_COMMANDS = "Fixes #7\n\n## Plan\nthe plan\n\n$ echo hi\n\n## Execution\nx\n"
 EDITED = WITH_COMMANDS.replace("echo hi", "echo bye")
 EMPTY_DIRECTIVE = "Fixes #7\n\n## Plan\nthe plan\n\n$ \n\n## Execution\nx\n"
 QUOTED = "row 1: NOT RUN | Plan check: refused, rows that did not run: 1"
 NO_COMMANDS = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nx\n"
-PLAN_ALONE = steps.regular_review(steps.Stage.PLAN_ONLY)
-BOTH = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+PLAN_ALONE = reviewsteps.review(steps.Stage.PLAN_ONLY)
+BOTH = reviewsteps.review(steps.Stage.PLAN_AND_EXECUTION)
 
 
 def state(

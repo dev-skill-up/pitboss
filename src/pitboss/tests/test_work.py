@@ -11,6 +11,7 @@ from hamcrest import assert_that, equal_to
 from .. import config, parsing, pulls, reviews, steps, work
 from .. import headsignals, rounds, straycomments
 from . import fakes, test_flow
+from . import reviewsteps
 
 REPO = config.make_repo("owner", "project")
 GREEN = test_flow.GREEN
@@ -26,7 +27,7 @@ SLOTS = config.Slots(
 NONE = reviews.Standing.NONE
 
 
-DEFAULT_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+DEFAULT_STEP = reviewsteps.review(steps.Stage.PLAN_AND_EXECUTION)
 
 
 def stepped(facts: pulls.PullFacts, step: steps.Move) -> pulls.PullFacts:
@@ -100,7 +101,7 @@ def item(
 
 
 Kind = work.Category
-REVIEW_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+REVIEW_STEP = reviewsteps.review(steps.Stage.PLAN_AND_EXECUTION)
 STEP_CASES: Sequence[tuple[steps.Move, Kind | None]] = [
     (steps.worker(steps.Task.REVISE_PLAN), Kind.REVISE_PLAN),
     (steps.worker(steps.Task.FIX_EXECUTION), Kind.FIX_REVIEW),
@@ -110,7 +111,7 @@ STEP_CASES: Sequence[tuple[steps.Move, Kind | None]] = [
     (steps.worker(steps.Task.FIRST_ROUND), Kind.FIRST_ROUND),
     (steps.worker(steps.Task.RESOLVE_CONFLICT), Kind.RESOLVE_CONFLICT),
     (REVIEW_STEP, Kind.REVIEW),
-    (steps.regular_review(steps.Stage.PLAN_ONLY), Kind.REVIEW),
+    (reviewsteps.review(steps.Stage.PLAN_ONLY), Kind.REVIEW),
     (steps.merge(), None),
     (steps.undraft(), None),
     (steps.IDLE, None),

@@ -23,7 +23,6 @@ from . import fakes, scenario
 from .scenario import Mark
 
 RULING_STEPS = "WORKER:RULING_STEPS"
-REVIEW_STEPS = "REGULAR_REVIEW:RULING_STEPS"
 NAMES = (
     "dev-skill-up-pitboss-465",
     "dev-skill-up-pitboss-470",
@@ -73,7 +72,7 @@ MARKS: Mapping[str, Sequence[Mark]] = {
     ),
     "dev-skill-up-pitboss-460": [
         Mark("2026-11-11T04:26:53Z", "A2", RULING_STEPS),
-        Mark("2026-11-11T04:41:11Z", "A3", REVIEW_STEPS),
+        Mark("2026-11-11T04:41:11Z", "A3", RULING_STEPS),
     ],
     "dev-skill-up-pitboss-463": [
         Mark("2026-11-11T08:15:31Z", "A5", "MERGE"),
@@ -81,7 +80,7 @@ MARKS: Mapping[str, Sequence[Mark]] = {
     ],
     "dev-skill-up-pitboss-468": [
         Mark("2026-11-11T09:26:27Z", "A2", RULING_STEPS),
-        Mark("2026-11-11T09:36:03Z", "A3", REVIEW_STEPS),
+        Mark("2026-11-11T09:36:03Z", "A3", RULING_STEPS),
     ],
     "bats-lang-quire-1104": [
         Mark("2026-11-11T17:47:59Z", "I5", "WORKER:FIX_CI"),
@@ -158,7 +157,7 @@ class TestScenarios(unittest.TestCase):
         digest_kept("dev-skill-up-pitboss-470")
 
     def test_a3_pitboss_460(self) -> None:
-        """460: a Plan check after the ruling's steps gets the review (A3)."""
+        """460: a Plan check after the ruling applies nothing: the steps stay (A3)."""
         required("dev-skill-up-pitboss-460")
 
     def test_a2_pitboss_463(self) -> None:
@@ -166,7 +165,7 @@ class TestScenarios(unittest.TestCase):
         required("dev-skill-up-pitboss-463")
 
     def test_a3_pitboss_468(self) -> None:
-        """468: the review follows the fix round (A3)."""
+        """468: a Plan check is no fix round: the steps stay (A3)."""
         required("dev-skill-up-pitboss-468")
 
     def test_i5_quire_1104(self) -> None:

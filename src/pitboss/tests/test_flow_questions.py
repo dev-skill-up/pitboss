@@ -21,6 +21,21 @@ state = test_flow.state
 Case = tuple[flow.PullState, object]
 
 
+def states_rejected(count: int) -> Sequence[shapes.Graded]:
+    """Plan rejections of distinct states.
+
+    Args:
+        count: how many.
+
+    Returns:
+        One rejection for each of ``count`` bodies.
+    """
+    return [
+        dataclasses.replace(graded(CHANGES, None, second), body=str(second))
+        for second in range(1, count + 1)
+    ]
+
+
 def check(question: Callable[[flow.PullState], object], cases: Sequence[Case]) -> None:
     """Check the answers of a question.
 
@@ -124,7 +139,7 @@ class TestQuestions(unittest.TestCase):
 
     def test_get_plan_rejections(self) -> None:
         """Each regular review that graded the plan changes needed counts."""
-        rejecting = [graded(CHANGES, None, second) for second in (1, 2)]
+        rejecting = states_rejected(2)  # one state graded twice is one round
         github = dataclasses.replace(
             blank.GRADED,
             sha=OLDER,
@@ -172,7 +187,7 @@ class TestQuestions(unittest.TestCase):
 
     def test_plan_rejected_again(self) -> None:
         """From the second rejection on; none and one are not again."""
-        rejecting = [graded(CHANGES, None, second) for second in (1, 2, 3)]
+        rejecting = states_rejected(3)
         cases = [(state(*rejecting[:count]), count >= 2) for count in range(4)]
         check(lambda pr: flow.get_plan_rejections(pr) >= 2, cases)
 

@@ -13,7 +13,7 @@ ruling. A ruling written after the approval is the Execution's, and
 
 from typing import Sequence
 
-from . import shapes, steps
+from . import handbacks, shapes, steps
 
 Verdict = shapes.Verdict
 
@@ -48,6 +48,7 @@ def execution_step(
     ruling: shapes.Comment | None,
     reviews: Sequence[shapes.Graded],
     newest: shapes.Graded,
+    handed: handbacks.HandedBack,
 ) -> steps.Next | None:
     """The step after an Execution rejection when only the Plan stage had a ruling.
 
@@ -55,6 +56,8 @@ def execution_step(
         ruling: the PR's newest ruling.
         reviews: its regular reviews.
         newest: the newest review that counts, which rejects the Execution.
+        handed: what the PR's worktree recorded of the hand-backs: a rejection of a
+            head and body no worker handed back is no round (keyword: standing).
 
     Returns:
         The fix of the review for the first Execution rejection after that
@@ -67,13 +70,22 @@ def execution_step(
         or newest.plan is Verdict.CHANGES_NEEDED
     ):
         return None
-    later = _rejections(reviews, (ruling.created_at, newest.when))
+    later = _rejections(reviews, (ruling.created_at, newest.when), handed)
     return steps.opus_ruling() if later > 1 else steps.worker(steps.Task.FIX_EXECUTION)
 
 
-def _rejections(reviews: Sequence[shapes.Graded], window: tuple[str, str]) -> int:
-    # the Execution rejections after the ruling, up to the newest review
-    rejected = [
-        each.when for each in reviews if each.execution is Verdict.CHANGES_NEEDED
-    ]
-    return sum(1 for when in rejected if window[0] < when <= window[1])
+def _rejections(
+    reviews: Sequence[shapes.Graded],
+    window: tuple[str, str],
+    handed: handbacks.HandedBack,
+) -> int:
+    # the distinct handed-back states the Execution was rejected at, after the
+    # ruling, up to the newest review
+    rejected = {
+        (each.sha, each.body)
+        for each in reviews
+        if each.execution is Verdict.CHANGES_NEEDED
+        and window[0] < each.when <= window[1]
+        and handbacks.covers_state(handed, each.sha, each.body)
+    }
+    return len(rejected)

@@ -51,13 +51,18 @@ def _path(args: argparse.Namespace, kind: str) -> pathlib.Path:
     return pathlib.Path(git_out(args, "rev-parse", kind))
 
 
-def _jobs_and_record(args: argparse.Namespace, head: str) -> Sequence[str]:
+def _jobs_and_record(
+    args: argparse.Namespace, settings: config.Config, head: str
+) -> Sequence[str]:
     root, proc = _path(args, "--show-toplevel"), pathlib.Path(args.processes)
     shown = [
         handbackcheck.jobs_line(handbackcheck.running_jobs(root, proc, os.getpid()))
     ]
-    if handbackrecord.recorded(_path(args, "--absolute-git-dir"), head):
-        shown.append(handbackcheck.second_line(head))
+    pushed = _pushed(args, settings, head)
+    if not isinstance(pushed, str):
+        state = (head, *handbackcheck.state_of(pushed))
+        if state in handbackrecord.states(_path(args, "--absolute-git-dir")):
+            shown.append(handbackcheck.second_line(head))
     return shown
 
 
@@ -70,9 +75,10 @@ def _slug(args: argparse.Namespace, settings: config.Config) -> str:
     return found.group(1) if found else settings.project.repo.slug
 
 
-def _pull_lines(
+def _pushed(
     args: argparse.Namespace, settings: config.Config, head: str
-) -> Sequence[str]:
+) -> handbackcheck.Pushed | str:
+    # the PR the hand-back is for, or the line that says there is none
     github = ghclient.read_only(args.safe_run)
     slug = _slug(args, settings)
     number = args.pr
@@ -81,8 +87,8 @@ def _pull_lines(
             github, slug, git_out(args, "rev-parse", "--abbrev-ref", "HEAD")
         )
     if isinstance(number, str):
-        return [number]
-    pushed = handbackcheck.Pushed(
+        return number
+    return handbackcheck.Pushed(
         github=github,
         slug=slug,
         number=number,
@@ -90,7 +96,13 @@ def _pull_lines(
         trusted=settings.review.trusted,
         branch=pushed_branch(args),
     )
-    return handbackcheck.pull_lines(pushed)
+
+
+def _pull_lines(
+    args: argparse.Namespace, settings: config.Config, head: str
+) -> Sequence[str]:
+    pushed = _pushed(args, settings, head)
+    return [pushed] if isinstance(pushed, str) else handbackcheck.pull_lines(pushed)
 
 
 def refusals(args: argparse.Namespace, settings: config.Config) -> Sequence[str]:
@@ -108,16 +120,24 @@ def refusals(args: argparse.Namespace, settings: config.Config) -> Sequence[str]
         return [f"refused: {args.repo} is not a git worktree with a head"]
     return [
         each
-        for each in (*_jobs_and_record(args, head), *_pull_lines(args, settings, head))
+        for each in (
+            *_jobs_and_record(args, settings, head),
+            *_pull_lines(args, settings, head),
+        )
         if each
     ]
 
 
-def accept(args: argparse.Namespace) -> None:
-    """Record that a hand-back was accepted for the worktree's head.
+def accept(args: argparse.Namespace, settings: config.Config) -> None:
+    """Record that a hand-back was accepted for the worktree's head and the PR's body.
 
     Args:
         args: the parsed arguments.
+        settings: the configuration.
     """
     head = git_out(args, "rev-parse", "HEAD")
-    handbackrecord.record(_path(args, "--absolute-git-dir"), head)
+    pushed = _pushed(args, settings, head)
+    if isinstance(pushed, str):  # pragma: no cover
+        return  # refused above, so nothing is recorded
+    digest, ruling = handbackcheck.state_of(pushed)
+    handbackrecord.record(_path(args, "--absolute-git-dir"), head, digest, ruling)

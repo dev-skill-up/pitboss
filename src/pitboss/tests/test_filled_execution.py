@@ -16,11 +16,12 @@ from . import test_flow
 from .test_flow import APPROVED, CHANGES, OLDER, expect, graded, state, with_no_drafts
 from .checkcomment import clean_check
 from .test_plan_check_step import WITH_COMMANDS, check_comment, refused_comment
+from . import reviewsteps
 
 UNWRITTEN = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nNot started: later\n"
 DONE = UNWRITTEN.replace("Not started: later", "done")
 RUN = steps.worker(steps.Task.RUN_PLAN)
-REVIEW = steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
+REVIEW = reviewsteps.review(steps.Stage.EXECUTION_AGAINST_PLAN)
 RULED = [test_flow.ruling(3)]
 
 

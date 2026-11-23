@@ -12,12 +12,29 @@ from . import (
     checkoutcome,
     draftfacts,
     expansion,
+    handbacks,
     plandigest,
     rulingwords,
     sessionurl,
     shapes,
     steps,
 )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Recorded:
+    """What the caller reads of the base and of the worktree of a PR.
+
+    Attributes:
+        unchanged: the reviewed heads since which no code moved to the head (the
+            caller reads the base for the one ``flowquestions.asked_rejection``
+            asks of; keyword: unfixed-execution).
+        handed: what the worktree of the PR's branch recorded of the worker's
+            hand-backs (keyword: standing).
+    """
+
+    unchanged: AbstractSet[str]
+    handed: handbacks.HandedBack
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -36,9 +53,8 @@ class PullState:
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
         draft: what the caller read for a draft (``draftfacts.Draft``).
-        unchanged: the reviewed heads since which no code moved to the head (the
-            caller reads the base for the one ``flowquestions.asked_rejection``
-            asks of; keyword: unfixed-execution).
+        recorded: what the caller read of the base and of the PR's worktree
+            (``Recorded``).
     """
 
     pull: shapes.Pull
@@ -50,7 +66,25 @@ class PullState:
     undraft_clear: bool
     relock: bool
     draft: draftfacts.Draft
-    unchanged: AbstractSet[str]
+    recorded: Recorded
+
+    @property
+    def unchanged(self) -> AbstractSet[str]:
+        """The reviewed heads since which no code moved (keyword: unfixed-execution).
+
+        Returns:
+            The heads.
+        """
+        return self.recorded.unchanged
+
+    @property
+    def handed(self) -> handbacks.HandedBack:
+        """What the PR's worktree recorded of the hand-backs (keyword: standing).
+
+        Returns:
+            The record.
+        """
+        return self.recorded.handed
 
 
 def is_trusted_ruling(comment: shapes.Comment, trusted: AbstractSet[str]) -> bool:
@@ -266,9 +300,10 @@ def ruling_address(pr: PullState) -> str:
 def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     """The readable ruling no review and no push has followed.
 
-    A ruling is applied once a regular review or a check run of the head (a
-    push) is newer than it; until then its own step is next, whatever the
-    newest review that counts says (pitboss#294).
+    A ruling is applied once a worker handed work back that saw it (keyword:
+    standing); for a PR no worker holds, once a regular review or a check run of
+    the head (a push) is newer than it. Until then its own step is next, whatever
+    the newest review that counts says (pitboss#294).
 
     Args:
         pr: the PR.
@@ -280,9 +315,23 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     if answered is None:
         return None
     posted, ruled = answered
+    if pr.handed.required:  # a worker's hand-back that saw the ruling applies it
+        return None if handbacks.applied(pr.handed, posted.url) else ruled
     reviewed = any(each.when > posted.created_at for each in pr.graded if each.comment)
-    pushed = any(each.started_at > posted.created_at for each in pr.checks)
-    return None if reviewed or pushed else ruled
+    return None if reviewed or pushed_since(pr, posted) else ruled
+
+
+def pushed_since(pr: PullState, posted: shapes.Comment) -> bool:
+    """Whether a check run of the head started after a comment (a push).
+
+    Args:
+        pr: the PR.
+        posted: the comment, a ruling.
+
+    Returns:
+        True when one did.
+    """
+    return any(each.started_at > posted.created_at for each in pr.checks)
 
 
 def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
@@ -329,3 +378,18 @@ def e2e_step(pr: PullState) -> steps.Move | None:
         return None
     running = [each for each in pr.checks if not each.finished]
     return steps.IDLE if running else steps.run_e2e(pr.pull.head.branch)
+
+
+def ruling_applied(pr: PullState) -> bool:
+    """Whether the readable ruling's steps were taken.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        True after a hand-back that saw the ruling; with no worker, after a push.
+    """
+    if pr.handed.required:
+        return ruling_unapplied(pr) is None
+    answered = readable_comment(pr)
+    return answered is not None and pushed_since(pr, answered[0])

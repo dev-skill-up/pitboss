@@ -14,6 +14,7 @@ import subprocess
 from typing import AbstractSet, Protocol, Sequence
 
 from . import (
+    bodydigest,
     evidence,
     forms,
     ghapi,
@@ -22,6 +23,7 @@ from . import (
     pullfiles,
     relockfix,
     shapes,
+    standing,
 )
 
 SHOWN = 100
@@ -284,6 +286,31 @@ def _moved_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
     ]
 
 
+def _read(pushed: Subject) -> tuple[shapes.Pull, Sequence[shapes.Comment]]:
+    # the PR and its comments, as the API gives them now
+    base = f"repos/{pushed.slug}"
+    pull = parsing.pull(ghapi.get(pushed.github, f"{base}/pulls/{pushed.number}"))
+    where = f"{base}/issues/{pushed.number}/comments"
+    return pull, ghapi.pages(pushed.github, where, parsing.comments)
+
+
+def state_of(pushed: Subject) -> tuple[str, str]:
+    """The body and the ruling a hand-back is for (keyword: standing).
+
+    Args:
+        pushed: the PR and the head.
+
+    Returns:
+        The digest of the PR's body and the address of its newest ruling,
+        ``handbacks.NO_RULING`` when it has none.
+    """
+    pull, listed = _read(pushed)
+    return (
+        bodydigest.digest(pull.body),
+        standing.ruling_address(listed, pushed.trusted),
+    )
+
+
 def pull_lines(pushed: Subject) -> Sequence[str]:
     """The refusals of a PR whose Plan check is not posted at the pushed head.
 
@@ -294,10 +321,7 @@ def pull_lines(pushed: Subject) -> Sequence[str]:
         A line for each thing missing; none when the PR holds the head, its body
         names the head and a clean ``Plan check`` of its Plan is posted.
     """
-    base = f"repos/{pushed.slug}"
-    pull = parsing.pull(ghapi.get(pushed.github, f"{base}/pulls/{pushed.number}"))
-    where = f"{base}/issues/{pushed.number}/comments"
-    listed = ghapi.pages(pushed.github, where, parsing.comments)
+    pull, listed = _read(pushed)
     found = list(head_lines(pushed, pull))
     if plancheckflow.needs_check(pull.body, listed, pushed.trusted):
         found.append(

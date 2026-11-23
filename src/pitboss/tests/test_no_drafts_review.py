@@ -18,6 +18,7 @@ from . import test_flow_sweep as sweeps
 from .pinsworld import offered
 from .suggestions import kind_of_third, next_output
 from .test_flow import GREEN, OLDER, RUNNING, expect, state, with_no_drafts
+from . import reviewsteps
 
 COMBINED = "review the Plan and the Execution"
 ALONE = "review the Plan alone"
@@ -53,9 +54,9 @@ class TestFlow(unittest.TestCase):
 
     def test_a_revised_plan_is_reviewed_with_the_execution(self) -> None:
         """Where drafts exist it is graded alone; here the one review covers both."""
-        expect(steps.regular_review(steps.Stage.PLAN_ONLY), state(REVISED))
+        expect(reviewsteps.review(steps.Stage.PLAN_ONLY), state(REVISED))
         pr = with_no_drafts(state(REVISED))
-        expect(steps.regular_review(steps.Stage.PLAN_AND_EXECUTION), pr)
+        expect(reviewsteps.review(steps.Stage.PLAN_AND_EXECUTION), pr)
 
     def test_ci_that_has_not_finished_is_waited_for(self) -> None:
         """Before green, nobody reviews."""
