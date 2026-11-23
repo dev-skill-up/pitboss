@@ -15,7 +15,6 @@ from hamcrest import assert_that, contains_string, empty, equal_to, has_item, is
 
 from .. import actions, ruleconflicts, steps, stepwords
 from . import events, model, test_properties
-from .says import says
 
 TEXT = resources.files("pitboss").joinpath("actionmatrix.tsv").read_text("utf-8")
 # Each event of the walk's alphabet: the action it is on GitHub, None for an event
@@ -128,32 +127,6 @@ class TestActionMatrix(unittest.TestCase):
         found = actions.findings(text, ["never delete a branch of a PR"])
         assert_that(found[0], contains_string("uses the action word 'delete'"))
         assert_that(actions.findings(TEXT, ["never delete a branch"]), empty())
-
-    def test_c16_action_matrix_a_refusal_names_the_states_that_allow_it(self) -> None:
-        """A merge at CI is refused naming Step.MERGE; at the merge step it is not."""
-        waiting = steps.Next(step=steps.Step.REGULAR_REVIEW)
-        merging = dataclasses.replace(waiting, step=steps.Step.MERGE)
-        plain = actions.Standing.PLAIN
-        said = actions.refusal(_grid(), actions.Action.MERGE, waiting, plain)
-        says(
-            said,
-            "merge is refused: the PR is at Step.REGULAR_REVIEW",
-            "allowed at Step.MERGE",
-        )
-        assert_that(
-            actions.refusal(_grid(), actions.Action.MERGE, merging, plain), equal_to("")
-        )
-
-    def test_c16_action_matrix_a_duplicate_may_be_closed_at_any_step(self) -> None:
-        """The standing of a second PR on a ticket allows a close whatever its step."""
-        for step in steps.Step:
-            said = actions.refusal(
-                _grid(),
-                actions.Action.CLOSE,
-                steps.Next(step=step),
-                actions.Standing.DUPLICATE,
-            )
-            assert_that(said, equal_to(""), step.name)
 
     def test_c16_action_matrix_the_walk_alphabet_is_all_in_the_event_table(
         self,

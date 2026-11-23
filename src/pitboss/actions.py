@@ -3,9 +3,11 @@
 The keyword is action-matrix. Seen on promise#73: a merge made around a
 runner-pressure hold, with a raw ``gh`` call no pitboss command saw. Every action
 that changes a PR on GitHub is one of ``Action``, goes through ``pitboss act``,
-which asks ``actionmatrix.tsv`` whether the PR's step allows it, refuses when not,
-and writes a ledger record; the sweep
-names each GitHub event of these kinds that has no record (``unledgered``). The
+and writes a ledger record; the sweep names each GitHub event of these kinds that has
+no record (``unledgered``). The matrix says which step allows each action and is
+checked for its shape (``findings``); no command reads a cell to refuse (it did until
+``refusal`` was removed: the decision lookup of ``gateverbs`` gates merge, arm,
+undraft and review, and nothing gates the rest by step). The
 columns of the matrix are the members of ``steps.Task`` and of ``Action``, its
 rows the members of ``steps.Step`` and of ``Standing``.
 """
@@ -173,48 +175,3 @@ def findings(text: str, wording: Sequence[str]) -> Sequence[str]:
         for verb in sorted(used - known)
     ]
     return found
-
-
-def cell(grid: Mapping[str, Mapping[str, str]], state: str, column: str) -> bool:
-    """Whether the matrix allows a column in a state.
-
-    Args:
-        grid: the parsed rows.
-        state: ``Step.X`` or ``Standing.X``.
-        column: ``Task.X`` or ``Action.X``.
-
-    Returns:
-        True for ``y``.
-    """
-    return CELLS.get(grid[state][column], False)
-
-
-def refusal(
-    grid: Mapping[str, Mapping[str, str]],
-    action: Action,
-    step: steps.Next,
-    standing: Standing,
-) -> str:
-    """Why an action is refused for a PR, empty when it is allowed.
-
-    Args:
-        grid: the parsed rows.
-        action: the action.
-        step: the PR's step.
-        standing: the PR's standing.
-
-    Returns:
-        The reason: the step and the standing, and the steps that allow it.
-    """
-    column = f"Action.{action.name}"
-    here = (f"Step.{step.step.name}", f"Standing.{standing.name}")
-    if any(cell(grid, state, column) for state in here):
-        return ""
-    allowing = [
-        state for state, cells in grid.items() if CELLS.get(cells[column], False)
-    ]
-    return (
-        f"{word(action)} is refused: the PR is at {here[0]}"
-        f" ({standing.name.lower()}); it is allowed at"
-        f" {', '.join(allowing) or 'no state'} (actionmatrix.tsv)"
-    )

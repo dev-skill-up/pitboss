@@ -1,6 +1,6 @@
 # The state x action matrix (keyword: action-matrix). Rows: the members of steps.Step and actions.Standing.
 # Columns: the members of steps.Task and actions.Action. y: the column may happen in the state; n: it may not.
-# `pitboss act` refuses an action whose cell is n for the PR's step and standing.
+# No command reads a cell to refuse an action: the table is checked for its shape (`actions.findings`) and against the gates (`actiongates`).
 # matrix-exempt: rerun: a re-run of a CI job is not an action on a PR; the rule C13 and the stuck-CI line say when
 # matrix-exempt: delete: a branch is deleted by the owner's own command (bats stale branches), not by a PR step
 state	Task.FIRST_ROUND	Task.FIX_CI	Task.REVISE_PLAN	Task.RESOLVE_CONFLICT	Task.FIX_EXECUTION	Task.RULING_STEPS	Task.RULING_AS_GIVEN	Task.RUN_PLAN	Task.ADD_CI_QUOTES	Task.REFRESH_BODY	Task.SHARED_RED	Task.FIX_BLOCKED_BY	Task.AFTER_BLOCKER	Task.FINISH_PARTIAL	Task.FIX_ROUND	Task.HAND_BACK	Action.PUSH	Action.MERGE	Action.UNDRAFT	Action.DISPATCH	Action.CLOSE	Action.LABEL	Action.ARM
