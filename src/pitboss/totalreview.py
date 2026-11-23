@@ -177,10 +177,8 @@ def plan_reading(review: str, body: str) -> str:
     section = plan_section(body)
     if section is None:
         return "the body has not exactly one `## Plan` section"
-    if (
-        f"Plan-digest: {expansion.section_digest(plandigest.section(body))}"
-        not in lines
-    ):
+    now = plandigest.section(body)
+    if f"Plan-digest: {expansion.section_digest(now)}" not in lines:
         return (
             "the Plan changed since the newest review"
             " (no `Plan-digest:` line of the Plan the body holds)"
