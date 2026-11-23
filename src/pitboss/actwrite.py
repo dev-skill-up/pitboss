@@ -15,6 +15,7 @@ from typing import Callable, Mapping, Sequence
 from . import (
     actcore,
     actreview,
+    donewhencorrection,
     expansion,
     plandigest,
     pullnames,
@@ -169,12 +170,19 @@ def ticket_edit(
     Args:
         act: the verb's world.
         target: the ticket.
-        options: ``body``: the new body, in the ticket form.
+        options: ``body``: the new body, in the ticket form; ``corrects``: the
+            Done-when rows (from 1, as 1,3) a started ticket's edit corrects,
+            which are then the only change (``donewhencorrection``).
 
     Returns:
         What was done.
     """
     body = actcore.option(options, "body")
+    corrects = options.get("corrects", "")
+    if corrects:
+        old = text(act.hub.one_issue(target.repo, target.number).get("body"))
+        words = donewhencorrection.record(old, body, corrects)
+        put(act, target, "comment", {"body": words})
     put(act, target, "issue-edit", {"body": body})
     return f"ticket-edit {target.name}"
 

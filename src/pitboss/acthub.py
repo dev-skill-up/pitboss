@@ -169,8 +169,9 @@ def _every(github: ghapi.GitHub, path: str) -> Sequence[Pull]:
     return [dict(each) for each in records(ghapi.every(github, path))]
 
 
-def _one_pull(github: ghapi.GitHub, repo: str, number: int) -> Pull:
-    found = _one(github, f"repos/{repo}/pulls/{number}")
+def _one_of(github: ghapi.GitHub, kind: str, repo: str, number: int) -> Pull:
+    # a PR (``pulls``) or an issue (``issues``) of a repository, as GitHub answers
+    found = _one(github, f"repos/{repo}/{kind}/{number}")
     return found if isinstance(found, dict) else {}
 
 
@@ -207,7 +208,8 @@ def hub_of(github: ghapi.GitHub) -> Hub:
         The port.
     """
     return Hub(
-        pull=functools.partial(_one_pull, github),
+        pull=functools.partial(_one_of, github, "pulls"),
+        one_issue=functools.partial(_one_of, github, "issues"),
         timeline=functools.partial(_timeline, github),
         issues=functools.partial(_labeled, github),
         open_pulls=functools.partial(_open_pulls, github),

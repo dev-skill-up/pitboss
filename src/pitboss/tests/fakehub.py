@@ -73,6 +73,10 @@ def _pull(memory: Memory, repo: str, number: int) -> Pull:
     return copy.deepcopy(memory.pulls_made[(repo, number)])
 
 
+def _one_issue(memory: Memory, repo: str, number: int) -> Pull:
+    return copy.deepcopy(memory.issues_made.get((repo, number), {}))
+
+
 def _timeline(memory: Memory, repo: str, number: int) -> Sequence[object]:
     return copy.deepcopy(memory.events.get((repo, number), []))
 
@@ -111,6 +115,7 @@ def port(memory: Memory) -> Hub:
     """
     return Hub(
         pull=functools.partial(_pull, memory),
+        one_issue=functools.partial(_one_issue, memory),
         timeline=functools.partial(_timeline, memory),
         issues=functools.partial(_issues, memory),
         open_pulls=functools.partial(_open_pulls, memory),
