@@ -188,9 +188,9 @@ def _needs_e2e(source: Source, repo: config.Repo, state: flow.PullState) -> bool
     return touched and not dispatchruns.completed(github, slug, pull.head.sha)
 
 
-def _handed(source: Source, branch: str) -> handbacks.HandedBack:
+def _handed(source: Source, repo: config.Repo, branch: str) -> handbacks.HandedBack:
     # keyword: durable-record: only a relock PR owes no hand-back
-    return handedread.held(source.asks.handed, branch, source.relock_prefix)
+    return handedread.held(source.asks.handed, repo, branch, source.relock_prefix)
 
 
 def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
@@ -204,7 +204,7 @@ def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullSta
         undraft_clear=got.pull.draft and source.undraft(),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
         recorded=flowstate.Recorded(
-            unchanged=frozenset(), handed=_handed(source, got.pull.head.branch)
+            unchanged=frozenset(), handed=_handed(source, repo, got.pull.head.branch)
         ),
         draft=draftfacts.Draft(
             needs_e2e=False,

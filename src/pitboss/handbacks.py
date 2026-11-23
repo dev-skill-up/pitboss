@@ -1,9 +1,10 @@
 """A PR's hand-backs as the review flow reads them (keyword: standing).
 
-``hand-back-check`` records, in the worktree's git directory, each head it accepted
-with the digest of the PR body and the ruling the PR had then. A review is offered
-only for a head and body that were handed back (``standing``), and a rejection counts
-as a round only when its head and body were (``stagerounds``).
+``hand-back-check`` records, in the project's main clone (and the worktree), each
+head it accepted with the digest of the PR body and the ruling the PR had then. A
+review is offered only for a head and body that were handed back (``standing``),
+and a rejection counts as a round only when its head and body were
+(``stagerounds``).
 """
 
 import dataclasses
@@ -18,8 +19,8 @@ class HandedBack:
     """What the worktrees of a PR's branch recorded.
 
     Attributes:
-        required: whether a worktree of the PR's branch exists, so a worker handed
-            work back (no worktree: a relock PR, or a PR no worker holds).
+        required: whether a worker's hand-back is owed (every PR but a relock PR,
+            whatever worktree exists: keyword durable-record, pitboss#513).
         states: each ``(head, body digest, ruling address)`` accepted, ``ANY`` where
             an older record did not hold it.
     """

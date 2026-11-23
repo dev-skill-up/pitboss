@@ -141,9 +141,8 @@ def accept(args: argparse.Namespace, settings: config.Config) -> None:
         return  # refused above, so nothing is recorded
     digest, ruling = handbackcheck.state_of(pushed)
     handbackrecord.record(_path(args, "--absolute-git-dir"), head, digest, ruling)
-    # keyword: durable-record (pitboss#513): kept beside the worktree's own
-    common = pathlib.Path(
-        git_out(args, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    )
+    # keyword: durable-record (pitboss#513): kept in the project's main clone
+    common = settings.project.main_clone / ".git"
     branch = pushed.branch or git_out(args, "rev-parse", "--abbrev-ref", "HEAD")
-    handbackrecord.record(handbackrecord.kept(common, branch), head, digest, ruling)
+    kept = handbackrecord.kept(common, pushed.slug, branch)
+    handbackrecord.record(kept, head, digest, ruling)

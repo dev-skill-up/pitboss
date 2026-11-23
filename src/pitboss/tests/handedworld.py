@@ -1,5 +1,6 @@
 """Every PR of a test world was handed back, unless the test says it was not (#513)."""
 
+import itertools
 import json
 import pathlib
 import re
@@ -10,6 +11,7 @@ from .. import handbackrecord, handbacks
 SHA = re.compile(r"[0-9a-f]{40}")
 BRANCH = re.compile(r'"ref": "([^"]+)"')
 COMMENT = re.compile(r'\{[^{}]*"html_url": "([^"]*)"[^{}]*\}')
+SLUG = re.compile(r"repos/([^/\"]+/[^/\"]+)/")
 CREATED = re.compile(r'"created_at": "([^"]+)"')
 
 
@@ -64,9 +66,9 @@ def plant(here: WorldT) -> WorldT:
     heads, branches = sorted(set(SHA.findall(text))), set(BRANCH.findall(text))
     rulings = [handbacks.NO_RULING, *_followed(text)]
     common = here.clone / ".git"
-    for branch in branches:
-        kept = handbackrecord.kept(common, branch)
+    lines = [f"{h} {handbacks.ANY} {r}\n" for h in heads for r in rulings]
+    for slug, branch in itertools.product(set(SLUG.findall(text)), branches):
+        kept = handbackrecord.kept(common, slug, branch)
         kept.mkdir(parents=True, exist_ok=True)
-        lines = [f"{h} {handbacks.ANY} {r}\n" for h in heads for r in rulings]
         (kept / handbackrecord.RECORD).write_text("".join(lines))
     return here

@@ -5,13 +5,14 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import handbackrecord, handbacks, handedread
+from .. import config, handbackrecord, handbacks, handedread
 from . import handbackworld, repositories, world
 from .handbackrun import hand_back, no_jobs
 from .handbackworld import ready
-from .test_handbacks import HEAD, RECORD, asked_of
+from .test_handbacks import HEAD, RECORD, REPO, asked_of
 
 BRANCH = "w1113/numbered"
+SLUG = "owner/project"
 OWED = handbacks.HandedBack(required=True, states=frozenset())
 
 
@@ -33,7 +34,7 @@ class TestDurable(unittest.TestCase):
         branch = handbackworld.git(here.worktree, "branch", "--show-current")
         common = _common(here.clone)
         handbackrecord.record(
-            handbackrecord.kept(common, branch), HEAD, "digest", "ruling"
+            handbackrecord.kept(common, SLUG, branch), HEAD, "digest", "ruling"
         )
         handbackworld.git(
             here.clone, "worktree", "remove", "--force", str(here.worktree)
@@ -41,12 +42,25 @@ class TestDurable(unittest.TestCase):
         left = asked_of(here.workspace, branch)
         assert_that((left.required, left.states), equal_to((True, RECORD.states)))
 
+    def test_a_librarys_record_is_kept_for_its_own_repository(self) -> None:
+        """The same branch name in a library is another PR with its own record."""
+        here = world.make_world()
+        common = _common(here.clone)
+        library = config.make_repo("owner", "lib")
+        handbackrecord.record(
+            handbackrecord.kept(common, library.slug, BRANCH), HEAD, "digest", "ruling"
+        )
+        found = [
+            asked_of(here.workspace, BRANCH, each).states for each in (library, REPO)
+        ]
+        assert_that(found, equal_to([RECORD.states, frozenset()]))
+
     def test_the_accepted_hand_back_is_kept_for_its_branch(self) -> None:
         """`hand-back-check` writes the record that outlives the worktree."""
         here = ready(world.make_world())
         done = hand_back(here, no_jobs(), "--pr", "7")
         branch = handbackworld.git(here.clone, "branch", "--show-current")
-        kept = handbackrecord.kept(_common(here.clone), branch)
+        kept = handbackrecord.kept(_common(here.clone), SLUG, branch)
         pushed = handbackworld.git(here.clone, "rev-parse", "HEAD")
         own = [each for each in handbackrecord.states(kept) if each[1] != handbacks.ANY]
         assert_that((done.code, {each[0] for each in own}), equal_to((0, {pushed})))
@@ -54,16 +68,18 @@ class TestDurable(unittest.TestCase):
     def test_only_a_relock_pr_is_freed_of_a_hand_back(self) -> None:
         """The branch's own answer is used for any other PR."""
 
-        def ask(branch: str) -> handbacks.HandedBack:
+        def ask(repo: config.Repo, branch: str) -> handbacks.HandedBack:
             return OWED
 
         found = [
-            handedread.held(ask, "relock/2026-11-23", "relock/"),
-            handedread.held(ask, BRANCH, "relock/"),
+            handedread.held(ask, REPO, "relock/2026-11-23", "relock/"),
+            handedread.held(ask, REPO, BRANCH, "relock/"),
         ]
         assert_that(found, equal_to([handbacks.NOT_REQUIRED, OWED]))
 
     def test_a_branch_name_is_one_directory(self) -> None:
-        """A slash in the branch makes no nested directory."""
-        kept = handbackrecord.kept(pathlib.Path("/c"), BRANCH)
-        assert_that(kept.parent, equal_to(pathlib.Path("/c") / handbackrecord.KEPT))
+        """A slash in the repository or the branch makes no nested directory."""
+        kept = handbackrecord.kept(pathlib.Path("/c"), SLUG, BRANCH)
+        assert_that(
+            kept.parent.parent, equal_to(pathlib.Path("/c") / handbackrecord.KEPT)
+        )
