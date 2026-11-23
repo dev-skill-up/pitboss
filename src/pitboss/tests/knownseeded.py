@@ -8,6 +8,7 @@ import re
 from typing import Callable, MutableMapping
 
 from .. import enumeration
+from ..actcore import HOLD_LABEL
 from ..actrules import instructions
 from . import knownkit
 from .knownkit import change
@@ -203,8 +204,8 @@ def _started(given: knownkit.Kit) -> bool:
 def _label_held(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given)
     held(given, hub, "ci")
-    free = not verb_refused(given, knownkit.made(given), "label", name="p1")
-    return verb_refused(given, hub, "label", name="p1") and free
+    free = not verb_refused(given, knownkit.made(given), "label", name=HOLD_LABEL)
+    return verb_refused(given, hub, "label", name=HOLD_LABEL) and free
 
 
 @case(

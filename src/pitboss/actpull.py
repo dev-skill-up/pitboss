@@ -11,7 +11,8 @@ from . import actcore, totalanswer
 from .actcore import disarm_first, head_now, options_of, pull_of, repo_write
 from .totaljson import text
 
-LABELS = totalanswer.KNOWN_LABELS | {"p0", "p1", "p2", "p3", actcore.HOLD_LABEL}
+PRIORITIES = frozenset({"p0", "p1", "p2", "p3"})  # only the owner changes one
+LABELS = totalanswer.KNOWN_LABELS | {actcore.HOLD_LABEL}
 WORKFLOWS = ("relock.yml", "check.yml")
 CLOSE_REASONS = ("completed", "not_planned", "duplicate")
 
@@ -100,7 +101,7 @@ def block(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
 
 
 def label(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
-    """Add or remove a label pitboss applies; ``paused-owner`` disarms.
+    """Add or remove a label pitboss applies (never a priority, never ``paused-owner``).
 
     Args:
         act: the verb's world.
@@ -111,14 +112,20 @@ def label(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
         What was done.
 
     Raises:
-        actcore.BadInput: a label pitboss does not apply.
+        actcore.BadInput: a label pitboss does not apply, a priority (only the
+            owner changes one), or ``paused-owner`` added (it is retired; removal
+            is allowed).
     """
     name = actcore.option(options, "name")
+    removing = bool(options.get("remove"))
+    refused = {
+        **dict.fromkeys(PRIORITIES, "only the owner changes a priority"),
+        totalanswer.PAUSED: "removing is allowed, adding is retired",
+    }
+    if name in refused and not (removing and name not in PRIORITIES):
+        raise actcore.BadInput(f"label {name}: {refused[name]}")
     if name not in LABELS:
         raise actcore.BadInput(f"label {name} is not one pitboss applies")
-    removing = bool(options.get("remove"))
-    if name == totalanswer.PAUSED and not removing:
-        disarm_first(act, target, totalanswer.PAUSED)
     kind = "unlabel" if removing else "label"
     actcore.put(act, target, kind, {"name": name})
     return f"{kind} {name} on {target.name}"

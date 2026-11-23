@@ -58,12 +58,11 @@ def table_ids() -> Sequence[str]:
 def _shipped_findings(rows: Sequence[rules.Row]) -> Sequence[str]:
     # what only the shipped register is held to: its tables and its views
     held = decidable.parse(phrases.shipped_text("decidable.tsv"))
-    matrix = phrases.shipped_text("actionmatrix.tsv")
     return [
         *rules.coverage_findings(rows, table_ids()),
         *decidable.findings(rows, held),
         *ruleconflicts.findings(rows, ruleconflicts.shipped()),
-        *actions.findings(matrix, [each.words for each in rows]),
+        *actions.findings([each.words for each in rows]),
     ]
 
 

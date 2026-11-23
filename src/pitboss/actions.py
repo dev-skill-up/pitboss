@@ -1,25 +1,23 @@
-"""The state-changing actions on GitHub and the matrix that allows each.
+"""The state-changing actions on GitHub (keyword: action-matrix).
 
-The keyword is action-matrix. Seen on promise#73: a merge made around a
-runner-pressure hold, with a raw ``gh`` call no pitboss command saw. Every action
-that changes a PR on GitHub is one of ``Action``, goes through ``pitboss act``,
-and writes a ledger record; the sweep names each GitHub event of these kinds that has
-no record (``unledgered``). The matrix says which step allows each action and is
-checked for its shape (``findings``); no command reads a cell to refuse (it did until
-``refusal`` was removed: the decision lookup of ``gateverbs`` gates merge, arm,
-undraft and review, and nothing gates the rest by step). The
-columns of the matrix are the members of ``steps.Task`` and of ``Action``, its
-rows the members of ``steps.Step`` and of ``Standing``.
+Seen on promise#73: a merge made around a runner-pressure hold, with a raw ``gh``
+call no pitboss command saw. Every action that changes a PR on GitHub is one of
+``Action``, goes through ``pitboss act``, and writes a ledger record; the sweep
+names each GitHub event of these kinds that has no record (``unledgered``). What
+allows an action is the decision lookup of ``gateverbs`` (``carriedby`` names the
+verb each step carries); there is no state x action table.
 """
 
 import enum
 from typing import Mapping, Sequence
 
-from . import steps
-
-CELLS: Mapping[str, bool] = {"y": True, "n": False}
-EXEMPT = "# matrix-exempt:"
 VERBS = ("merge", "undraft", "dispatch", "close", "label", "push", "rerun", "delete")
+EXEMPT: Mapping[str, str] = {  # an action word of the register that is no Action
+    "rerun": "a re-run of a CI job is not an action on a PR; the rule C13 and the"
+    " stuck-CI line say when",
+    "delete": "a branch is deleted by the owner's own command (bats stale"
+    " branches), not by a PR step",
+}
 
 
 class Action(enum.Enum):
@@ -44,18 +42,6 @@ class Action(enum.Enum):
     ARM = enum.auto()
 
 
-class Standing(enum.Enum):
-    """What else a PR can be besides its step (read by the sweep, not the flow).
-
-    Attributes:
-        PLAIN: nothing else.
-        DUPLICATE: a second PR on a ticket another PR works (keyword: duplicate-pr).
-    """
-
-    PLAIN = enum.auto()
-    DUPLICATE = enum.auto()
-
-
 def word(action: Action) -> str:
     """The word of an action on the command line and in the ledger.
 
@@ -68,110 +54,27 @@ def word(action: Action) -> str:
     return action.name.lower()
 
 
-def rows() -> Sequence[str]:
-    """The rows of the matrix.
-
-    Returns:
-        ``Step.X`` for each step and ``Standing.X`` for each standing.
-    """
-    return [f"Step.{each.name}" for each in steps.Step] + [
-        f"Standing.{each.name}" for each in Standing
-    ]
-
-
-def columns() -> Sequence[str]:
-    """The columns of the matrix.
-
-    Returns:
-        ``Task.X`` for each task and ``Action.X`` for each action.
-    """
-    return [f"Task.{each.name}" for each in steps.Task] + [
-        f"Action.{each.name}" for each in Action
-    ]
-
-
-def _exempt(line: str) -> tuple[str, str]:
-    named, _, why = line[len(EXEMPT) :].strip().partition(":")
-    return named.strip(), why.strip()
-
-
-def parse(
-    text: str,
-) -> tuple[Sequence[str], Mapping[str, Mapping[str, str]], Mapping[str, str]]:
-    """Read the matrix file.
-
-    Args:
-        text: the file: a header line ``state TAB column...``, a row for each
-            state, ``# matrix-exempt: WORD: REASON`` lines, other ``#`` lines and
-            blank lines skipped.
-
-    Returns:
-        The header's columns, the cells of each row by column, and the reason of
-        each exempt word.
-    """
-    lines = list(filter(str.strip, text.splitlines()))
-    exempt = dict(_exempt(each) for each in lines if each.startswith(EXEMPT))
-    heads = [each.split("\t")[1:] for each in lines if each.startswith("state\t")]
-    header = heads[0] if heads else []
-    rows_ = [
-        each.split("\t")
-        for each in lines
-        if not each.startswith("#") and not each.startswith("state\t")
-    ]
-    return header, {name: dict(zip(header, cells)) for name, *cells in rows_}, exempt
-
-
-def _cells(
-    header: Sequence[str], grid: Mapping[str, Mapping[str, str]]
+def findings(
+    wording: Sequence[str], exempt: Mapping[str, str] = EXEMPT
 ) -> Sequence[str]:
-    found = [
-        f"{each} is no column of the matrix" for each in columns() if each not in header
-    ]
-    found += [
-        f"{each} is no member of steps or actions"
-        for each in header
-        if each not in columns()
-    ]
-    found += [
-        f"{each} has no row in actionmatrix.tsv" for each in rows() if each not in grid
-    ]
-    found += [f"{each} is no state of the code" for each in grid if each not in rows()]
-    for state, cells in grid.items():
-        found += [
-            f"{state} has no cell for {each}" for each in columns() if each not in cells
-        ]
-        found += [
-            f"{state} {column} is {value!r}, not y or n"
-            for column, value in cells.items()
-            if value not in CELLS
-        ]
-    return found
-
-
-def findings(text: str, wording: Sequence[str]) -> Sequence[str]:
-    """What the matrix gets wrong.
+    """What the register's action words get wrong.
 
     Args:
-        text: the matrix file.
         wording: the words of the rules of the register.
+        exempt: the action words that are no ``Action``, each with its reason.
 
     Returns:
-        A finding for each missing or surplus row, column or cell, a cell that is
-        neither ``y`` nor ``n``, and each verb of an action that some rule's words
-        use and that is neither an ``Action`` nor marked ``matrix-exempt``.
+        A finding for each verb of an action that some rule's words use and that is
+        neither an ``Action`` nor exempt.
     """
-    header, grid, exempt = parse(text)
     known = {word(each) for each in Action} | set(exempt)
-    found = list(_cells(header, grid))
     used = {
         verb
         for words in wording
         for verb in VERBS
         if verb in words.lower().replace("-", "")
     }
-    found += [
-        f"the register uses the action word {verb!r}: add it to Action or mark it"
-        f" `{EXEMPT} {verb}: REASON`"
+    return [
+        f"the register uses the action word {verb!r}: add it to Action or to EXEMPT"
         for verb in sorted(used - known)
     ]
-    return found

@@ -51,7 +51,6 @@ pitboss = [
   "stepmatrix.tsv",
   "decidable.tsv",
   "ruleconflicts.tsv",
-  "actionmatrix.tsv",
   "actiongates.tsv",
   "knownred.tsv",
   "claims.tsv",

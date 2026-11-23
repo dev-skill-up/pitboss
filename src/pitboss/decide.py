@@ -12,7 +12,7 @@ label and no item gave a decision.
 import dataclasses
 from typing import AbstractSet, Mapping, Sequence, assert_never
 
-from . import actdecide, answer, blockedstep, finishstep, flowstep
+from . import actdecide, answer, blockedstep, carriedby, finishstep, flowstep
 from . import gate, holds, listed, pullfacts, sharedstep, slotbook, steps
 from . import stepwords, stuckwords, work, world
 from .gatestop import Stop
@@ -49,15 +49,6 @@ class Judgement:
     records: Mapping[str, world.Record]
 
 
-CARRIED: Mapping[steps.Step, answer.Carried] = {  # the gated verb of each step
-    steps.Step.MERGE: answer.Carried.MERGE,
-    steps.Step.UNDRAFT: answer.Carried.UNDRAFT,
-    steps.Step.REGULAR_REVIEW: answer.Carried.REVIEW,
-    steps.Step.WORKER: answer.Carried.PUSH,
-    steps.Step.RUN_E2E: answer.Carried.DISPATCH,
-}
-
-
 def _owner_stuck(record: world.PullRecord) -> answer.Decision:
     # keyword: stuck-ci: the run is the owner's to re-run
     return answer.Decision(
@@ -91,7 +82,7 @@ def _stepped(step: steps.Next, row: listed.Listed) -> answer.Decision:
         verb=stepwords.describe(step),
         item=row.reference,
         title=row.title,
-        carried=CARRIED.get(step.step, answer.Carried.NOTHING),
+        carried=carriedby.CARRIED.get(step.step, answer.Carried.NOTHING),
         lifts="",
     )
 
