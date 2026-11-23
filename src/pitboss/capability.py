@@ -200,7 +200,8 @@ def main(root: pathlib.Path) -> int:
     texts = {
         path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
         for path in sorted(root.rglob("*.py"))
-        if not {".venv", "build", ".git", "node_modules"} & set(path.parts)
+        if not {".venv", "build", ".git", "node_modules"}
+        & set(path.relative_to(root).parts)
     }
     found = check(texts)
     for each in found:
