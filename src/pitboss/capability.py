@@ -1,4 +1,4 @@
-"""The capability rule: only the capability packages reach the world (keyword: capability, #524).
+"""The capability rule: only capability packages reach the world (capability, #524).
 
 ``python -m pitboss.capability`` reads every ``.py`` file under the repository (not the
 import graph, so a new package is read too) and says each place a module outside the
@@ -15,7 +15,7 @@ import ast
 import dataclasses
 import pathlib
 import sys
-from typing import AbstractSet, Iterator, Sequence
+from typing import AbstractSet, Callable, Iterator, Mapping, Sequence
 
 # the packages and modules that may reach the world; nothing else may
 CAPABILITY: AbstractSet[str] = frozenset()
@@ -101,60 +101,77 @@ class Finding:
         return f"{self.path}:{self.line} {self.rule}: {self.what}"
 
 
-def _imported(node: ast.stmt) -> Iterator[str]:
-    if isinstance(node, ast.Import):
-        yield from (each.name for each in node.names)
-    elif isinstance(node, ast.ImportFrom) and node.level == 0:
-        yield node.module or ""
+def _made(path: str, node: ast.AST, rule: str, what: str) -> Finding:
+    return Finding(path=path, line=getattr(node, "lineno", 0), rule=rule, what=what)
+
+
+def _imports(path: str, node: ast.AST) -> Iterator[Finding]:
+    match node:
+        case ast.Import(names=names):
+            modules = [each.name for each in names]
+        case ast.ImportFrom(module=module, level=0):
+            modules = [module or ""]
+        case _:
+            modules = []
+    for name in modules:
+        if name and not _allowed(name):
+            yield _made(path, node, "E1", f"imports {name}")
 
 
 def _allowed(name: str) -> bool:
     return any(name == each or name.startswith(each + ".") for each in ALLOWED)
 
 
-def _runtime_type_checking(node: ast.If) -> bool:
-    test = node.test
-    named = isinstance(test, ast.Name) and test.id == "TYPE_CHECKING"
-    dotted = isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
-    return (named or dotted) and bool(node.orelse)
+def _banned_calls(path: str, node: ast.AST) -> Iterator[Finding]:
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        if node.func.id in BANNED_CALLS:
+            yield _made(path, node, "E3", f"calls {node.func.id}")
 
 
-def _findings(path: str, tree: ast.AST) -> Iterator[Finding]:
+def _attributes(path: str, node: ast.AST) -> Iterator[Finding]:
+    if not isinstance(node, ast.Attribute):
+        return
+    handed = isinstance(node.value, ast.Name) and node.value.id == "args"
+    said = (
+        (node.attr in BANNED_ATTRIBUTES, "E3", f"uses .{node.attr}"),
+        (node.attr in FRAMEWORK and handed, "E1", f"uses args.{node.attr}"),
+    )
+    for found, rule, what in said:
+        if found:
+            yield _made(path, node, rule, what)
+
+
+def _dunder_strings(path: str, node: ast.AST) -> Iterator[Finding]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        if "__" in node.value and node.value.strip("_") != "":
+            yield _made(path, node, "E3", "a string names a dunder")
+
+
+def _type_checking(path: str, node: ast.AST) -> Iterator[Finding]:
+    if isinstance(node, ast.If) and node.orelse:
+        test = node.test
+        named = isinstance(test, ast.Name) and test.id == "TYPE_CHECKING"
+        dotted = isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
+        if named or dotted:
+            yield _made(path, node, "E3", "runtime code under TYPE_CHECKING")
+
+
+RULES: Sequence[Callable[[str, ast.AST], Iterator[Finding]]] = (
+    _imports,
+    _banned_calls,
+    _attributes,
+    _dunder_strings,
+    _type_checking,
+)
+
+
+def _walk(path: str, tree: ast.AST) -> Iterator[Finding]:
     for node in ast.walk(tree):
-        line = getattr(node, "lineno", 0)
-        for name in _imported(node) if isinstance(node, ast.stmt) else ():
-            if name and not _allowed(name):
-                yield Finding(path=path, line=line, rule="E1", what=f"imports {name}")
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            if node.func.id in BANNED_CALLS:
-                yield Finding(
-                    path=path, line=line, rule="E3", what=f"calls {node.func.id}"
-                )
-        if isinstance(node, ast.Attribute):
-            if node.attr in BANNED_ATTRIBUTES:
-                yield Finding(
-                    path=path, line=line, rule="E3", what=f"uses .{node.attr}"
-                )
-            if node.attr in FRAMEWORK and _is_args(node.value):
-                yield Finding(
-                    path=path, line=line, rule="E1", what=f"uses args.{node.attr}"
-                )
-        if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if "__" in node.value and node.value.strip("_") != "":
-                yield Finding(
-                    path=path, line=line, rule="E3", what="a string names a dunder"
-                )
-        if isinstance(node, ast.If) and _runtime_type_checking(node):
-            yield Finding(
-                path=path, line=line, rule="E3", what="runtime code under TYPE_CHECKING"
-            )
+        for rule in RULES:
+            yield from rule(path, node)
 
 
-def _is_args(node: ast.expr) -> bool:
-    return isinstance(node, ast.Name) and node.id == "args"
-
-
-def check(texts: dict[str, str]) -> Sequence[Finding]:
+def check(texts: Mapping[str, str]) -> Sequence[Finding]:
     """What the files given could do to the world.
 
     Args:
@@ -167,7 +184,7 @@ def check(texts: dict[str, str]) -> Sequence[Finding]:
     for path in sorted(texts):
         if pathlib.PurePosixPath(path).stem in CAPABILITY:
             continue
-        found.extend(_findings(path, ast.parse(texts[path], filename=path)))
+        found.extend(_walk(path, ast.parse(texts[path], filename=path)))
     return found
 
 

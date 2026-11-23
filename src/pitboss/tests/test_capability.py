@@ -1,15 +1,18 @@
 """The capability rule finds each way a pure module could reach the world (#524)."""
 
+import contextlib
 import pathlib
 import tempfile
 import unittest
+
+from typing import AbstractSet, Iterator, Sequence
 
 from hamcrest import assert_that, contains_exactly, equal_to, has_length
 
 from .. import capability
 
 
-def found(text: str, path: str = "src/pitboss/pure.py") -> list[str]:
+def found(text: str, path: str = "src/pitboss/pure.py") -> Sequence[str]:
     """What the rule finds in one file.
 
     Args:
@@ -22,12 +25,32 @@ def found(text: str, path: str = "src/pitboss/pure.py") -> list[str]:
     return [f"{each.rule} {each.what}" for each in capability.check({path: text})]
 
 
+@contextlib.contextmanager
+def capability_of(names: AbstractSet[str]) -> Iterator[None]:
+    """Name the capability packages while the block runs.
+
+    Args:
+        names: the modules that may reach the world.
+
+    Yields:
+        Nothing; the names are put back on leaving.
+    """
+    before = capability.CAPABILITY
+    capability.CAPABILITY = names
+    try:
+        yield
+    finally:
+        capability.CAPABILITY = before
+
+
 class TestRules(unittest.TestCase):
     """One seed for each rule: the rule refuses it, and a clean module passes."""
 
     def test_a_clean_module_has_no_finding(self) -> None:
         """Values and syntax only."""
-        assert_that(found("import dataclasses\nimport urllib.parse\n"), equal_to([]))
+        text = "import dataclasses\nimport urllib.parse\nlen('a')\n"
+        text += "if len('a'):\n    pass\nelse:\n    pass\n"
+        assert_that(found(text), equal_to([]))
 
     def test_an_import_off_the_allowlist_is_refused(self) -> None:
         """An import that can read, plain or from."""
@@ -73,14 +96,10 @@ class TestRules(unittest.TestCase):
 
     def test_a_capability_module_is_not_read(self) -> None:
         """The capability packages are where the world is reached."""
-        before = capability.CAPABILITY
-        try:
-            capability.CAPABILITY = frozenset({"reader"})
-            text = "import subprocess\n"
+        text = "import subprocess\n"
+        with capability_of(frozenset({"reader"})):
             assert_that(found(text, "src/pitboss/reader.py"), equal_to([]))
             assert_that(found(text), has_length(1))
-        finally:
-            capability.CAPABILITY = before
 
 
 class TestMain(unittest.TestCase):
