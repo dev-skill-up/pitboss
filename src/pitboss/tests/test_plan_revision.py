@@ -7,6 +7,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import gradeline, reviews, shapes, work
 from . import blank, decisionline, fakes, quietworld, test_commands, world
+from . import worldcomments
 from .actreviewed import TO_REVIEW
 
 APPROVED = reviews.Verdict.APPROVED
@@ -56,7 +57,7 @@ def world_with(posted: shapes.Comment) -> world.World:
         The world.
     """
     here = world.make_world()
-    here.bodies[COMMENTS] = [world.comment_json(posted)]
+    here.bodies[COMMENTS] = [world.comment_json(posted), worldcomments.CLEAN_CHECK]
     return quietworld.at_rest(here)
 
 
