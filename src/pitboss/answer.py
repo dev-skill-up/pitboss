@@ -37,11 +37,13 @@ class Carried(enum.Enum):
         NOTHING: no gated verb (a ticket, a review, a fix, a stop's route).
         MERGE: ``act merge`` or ``act arm``: the PR merges.
         UNDRAFT: ``act undraft``: the PR is undrafted.
+        REVIEW: ``act review``: a reviewer grades the head (keyword: accepts).
     """
 
     NOTHING = enum.auto()
     MERGE = enum.auto()
     UNDRAFT = enum.auto()
+    REVIEW = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

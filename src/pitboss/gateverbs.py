@@ -37,7 +37,7 @@ class OwnVerb(enum.Enum):
 
     Attributes:
         DISARM: take auto-merge off a PR.
-        REVIEW: post a review in the one form the verdict reads.
+        REVIEW: post a review in the one form the verdict reads, on the review step.
         LABEL: add or take off a label.
         HOLD: make a hold.
         UNHOLD: end a hold.
@@ -97,6 +97,7 @@ CARRIED: Mapping[Verb, answer.Carried] = {  # the step each gated verb carries o
     ItemVerb.MERGE: answer.Carried.MERGE,
     ItemVerb.ARM: answer.Carried.MERGE,
     ItemVerb.UNDRAFT: answer.Carried.UNDRAFT,
+    OwnVerb.REVIEW: answer.Carried.REVIEW,
 }
 
 
@@ -129,7 +130,7 @@ def lookup(decided: answer.Decided, verb: Verb, item: str) -> Looked:
     match verb:
         case ItemVerb.DISPATCH_NEXT:
             found: Looked = project.dispatch_next(decided)
-        case ItemVerb():
+        case ItemVerb() | OwnVerb.REVIEW:
             found = decided.by_item.get(item) or project.dispatch_next(decided)
         case OwnVerb():
             found = None

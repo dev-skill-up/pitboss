@@ -52,6 +52,7 @@ class Judgement:
 CARRIED: Mapping[steps.Step, answer.Carried] = {  # the gated verb of each step
     steps.Step.MERGE: answer.Carried.MERGE,
     steps.Step.UNDRAFT: answer.Carried.UNDRAFT,
+    steps.Step.REGULAR_REVIEW: answer.Carried.REVIEW,
 }
 
 
@@ -77,7 +78,7 @@ def _routed(stop: Stop, row: listed.Listed) -> answer.Decision | None:
         verb=f"{routed.said} ({stop.line})",
         item=row.reference,
         title=row.title,
-        carried=answer.Carried.NOTHING,
+        carried=routed.carried,
         lifts=stop.line if routed.lifted else "",
     )
 

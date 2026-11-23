@@ -33,12 +33,14 @@ class Handling:
         said: what the actor does, empty when no actor takes it.
         lifted: whether ``act override`` may lift it (never a red, an unread
             input, or a route no actor takes).
+        carried: the ``act`` verb that carries the route out (keyword: accepts).
     """
 
     what: str
     actor: answer.Actor | None
     said: str
     lifted: bool
+    carried: answer.Carried
 
 
 OWNER = answer.Actor.OWNER
@@ -49,17 +51,23 @@ REVIEWER = answer.Actor.REVIEWER
 
 def _lifted(actor: answer.Actor, what: str, said: str) -> Handling:
     # a route an actor takes, which ``act override`` may lift
-    return Handling(what=what, actor=actor, said=said, lifted=True)
+    return Handling(
+        what=what, actor=actor, said=said, lifted=True, carried=answer.Carried.NOTHING
+    )
 
 
 def _kept(actor: answer.Actor, what: str, said: str) -> Handling:
     # a route an actor takes, which no override lifts (a red, an unread input)
-    return Handling(what=what, actor=actor, said=said, lifted=False)
+    return Handling(
+        what=what, actor=actor, said=said, lifted=False, carried=answer.Carried.NOTHING
+    )
 
 
 def _untaken(what: str) -> Handling:
     # a route no actor takes now, which no override lifts
-    return Handling(what=what, actor=None, said="", lifted=False)
+    return Handling(
+        what=what, actor=None, said="", lifted=False, carried=answer.Carried.NOTHING
+    )
 
 
 class Route(enum.Enum):
@@ -141,10 +149,13 @@ class Route(enum.Enum):
     UNDECIDED = _untaken("GitHub has not decided whether the PR merges")
     RUNNING = _untaken("a check or status of the head has not finished")
     RED = _kept(ORCHESTRATOR, "a check or status of the head failed", TRIAGE)
-    REVIEW = _lifted(
-        REVIEWER,
-        "the newest review is not of the head as it is",
-        "`act review` the head as it is now",
+    REVIEW = dataclasses.replace(
+        _lifted(
+            REVIEWER,
+            "the newest review is not of the head as it is",
+            "`act review` the head as it is now",
+        ),
+        carried=answer.Carried.REVIEW,
     )
     BODY = _lifted(
         WORKER,

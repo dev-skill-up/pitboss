@@ -34,7 +34,12 @@ Verb = Callable[[Act, Target, Options], str]
 Asked = actfacts.Asked
 # the verbs that run only when the item's decision is their own step
 GATED_ON_ITEM = frozenset(
-    {gateverbs.ItemVerb.MERGE, gateverbs.ItemVerb.ARM, gateverbs.ItemVerb.UNDRAFT}
+    {
+        gateverbs.ItemVerb.MERGE,
+        gateverbs.ItemVerb.ARM,
+        gateverbs.ItemVerb.UNDRAFT,
+        gateverbs.OwnVerb.REVIEW,
+    }
 )
 
 
