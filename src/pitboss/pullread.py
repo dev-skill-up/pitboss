@@ -4,7 +4,7 @@ import dataclasses
 import functools
 from typing import Callable
 
-from . import config, earlyreview, ghapi, holdscope, pinsonly, pulls
+from . import config, earlyreview, ghapi, handedread, holdscope, pinsonly, pulls
 
 
 def _unheld(
@@ -36,8 +36,11 @@ def _source(
         plan_review_check=settings.project.plan_review_check,
         merge_queue=settings.merge_queue.repositories,
         early=functools.partial(earlyreview.split, tools),
-        pins=pinsonly.asker(github, settings),
         no_drafts=_opens_ready(settings.project),
+        asks=pulls.Asks(
+            pins=pinsonly.asker(github, settings),
+            handed=handedread.asker(github.run, settings),
+        ),
     )
 
 

@@ -30,6 +30,7 @@ from .test_flow_sweep import (
     world_with,
 )
 from .test_slot_commands import next_output
+from . import reviewsteps
 
 TICKET_LINE = re.compile(r"^NEXT \d+ of \d+\. WORKER: \S+#\d+: write the code", re.M)
 THIRD_LINE = re.compile(
@@ -214,7 +215,7 @@ class TestTheFlow(unittest.TestCase):
     def test_a_draft_is_not_undrafted_before_its_plan_is_approved(self) -> None:
         """Quiet runners, no review: the Plan review comes first."""
         draft = state(checks=(), draft=True, undraft_clear=True)
-        expect(steps.regular_review(steps.Stage.PLAN_ONLY), draft)
+        expect(reviewsteps.review(steps.Stage.PLAN_ONLY), draft)
 
     def test_a_draft_with_a_rejected_plan_is_revised(self) -> None:
         """The first rejection is the worker's, the runners quiet or busy.

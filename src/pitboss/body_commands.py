@@ -133,7 +133,9 @@ def hand_back_check(args: argparse.Namespace) -> None:
         print(each)
     if lines:
         raise SystemExit(1)
-    handbackrun.accept(args)  # recorded only when nothing at all refused
+    handbackrun.accept(
+        args, commands.load_settings(args)
+    )  # recorded only when nothing at all refused
     print("ok")
 
 

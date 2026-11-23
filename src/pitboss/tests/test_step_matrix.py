@@ -14,6 +14,7 @@ from typing import Mapping
 from hamcrest import assert_that, empty, equal_to, has_item
 
 from .. import stepwords, phrases, stepmatrix, steps
+from . import reviewsteps
 
 ROWS = stepmatrix.parse(phrases.shipped_text("stepmatrix.tsv"))
 
@@ -29,7 +30,7 @@ def steps_of() -> Mapping[str, steps.Next]:
         for each in steps.Step
     }
     given["Step.WORKER"] = steps.worker(steps.Task.FIRST_ROUND)
-    given["Step.REGULAR_REVIEW"] = steps.regular_review(steps.Stage.PLAN_ONLY)
+    given["Step.REGULAR_REVIEW"] = reviewsteps.review(steps.Stage.PLAN_ONLY)
     return {
         **given,
         **{f"Task.{each.name}": steps.worker(each) for each in steps.Task},

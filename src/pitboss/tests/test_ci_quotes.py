@@ -11,6 +11,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import planbody, steps
 from . import test_flow, test_flow_sweep
+from . import reviewsteps
 
 QUOTES_PLAN = "## Plan\n1. CI quote: the Run Nox step of the head\n"
 PLAN_ONLY_APPROVED = test_flow_sweep.graded("approved", None, 1)
@@ -64,7 +65,7 @@ class TestFlow(unittest.TestCase):
 
     def test_the_step_follows_the_quotes_the_plan_names(self) -> None:
         """Quotes missing: a worker, no review; given or not named: the review."""
-        review = steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
+        review = reviewsteps.review(steps.Stage.EXECUTION_AGAINST_PLAN)
         cases = [
             (body(QUOTES_PLAN, UNQUOTED), steps.worker(steps.Task.ADD_CI_QUOTES)),
             (body(QUOTES_PLAN, QUOTED), review),

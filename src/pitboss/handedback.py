@@ -8,27 +8,16 @@ recorded head of the PR's worktree is counted done, whatever the harness lists.
 
 import argparse
 import pathlib
-import subprocess
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import ghapi, handbackrecord, ledger, listed, local, nextfound, running
+from . import ghapi, handbackrecord, handedread, ledger, listed, nextfound
 from . import slotholder
 from .totaljson import text
 
 
 def _worktree_dir(found: nextfound.Found, branch: str) -> pathlib.Path | None:
-    run = found.args.safe_run
     clone = found.settings.project.main_clone
-    try:
-        listed = local.parse_worktrees(
-            running.git(run, clone, "worktree", "list", "--porcelain")
-        )
-        path = next(each.path for each in listed if each.branch == branch)
-        return pathlib.Path(
-            running.git(run, path, "rev-parse", "--absolute-git-dir").strip()
-        )
-    except (subprocess.CalledProcessError, OSError, StopIteration):
-        return None
+    return handedread.worktree_directory(found.args.safe_run, clone, branch)
 
 
 def _recorded(found: nextfound.Found, row: listed.Listed) -> bool:

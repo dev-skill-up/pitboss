@@ -6,20 +6,20 @@ and approved after an Execution rejection leaves the head moved by an empty
 commit only, and the rejected Execution still stands.
 """
 
-import dataclasses
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
 from .. import flow, shapes, steps
-from . import test_flow, test_flow_sweep as scenes
+from . import pullstates, test_flow, test_flow_sweep as scenes
 from .suggestions import kind_of_third
 from .test_commands import sweep
 from .test_flow import APPROVED, CHANGES, OLDER, expect, graded, state
 from .test_flow_sweep import RULING_LINE
 from .test_slot_commands import next_output
 from .says import says
+from . import reviewsteps
 
 RULING_URL = "https://example.org/ruling/2"
 PLAN_ALONE = graded(APPROVED, None, 3)
@@ -35,7 +35,9 @@ def unmoved(pr: flow.PullState) -> flow.PullState:
     Returns:
         The PR with that recorded.
     """
-    return dataclasses.replace(pr, unchanged=frozenset(each.sha for each in pr.graded))
+    return pullstates.with_recorded(
+        pr, unchanged=frozenset(each.sha for each in pr.graded)
+    )
 
 
 def ruled(word: str, second: int = 2) -> Sequence[shapes.Comment]:
@@ -99,7 +101,7 @@ class TestUnfixedExecution(unittest.TestCase):
         """Code moved, the newest Execution verdict is approved, or none was graded."""
         approved = graded(APPROVED, APPROVED, 2, sha=OLDER)
         pushed = state(REJECTED, PLAN_ALONE, comments=ruled("revise the plan"))
-        review = steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
+        review = reviewsteps.review(steps.Stage.EXECUTION_AGAINST_PLAN)
         expect(review, pushed)
         expect(review, unmoved(state(REJECTED, approved, PLAN_ALONE)))
         expect(review, unmoved(state(PLAN_ALONE)))
@@ -108,7 +110,7 @@ class TestUnfixedExecution(unittest.TestCase):
         """No review of the head: the same answer, from the CI gate."""
         approved = graded(APPROVED, None, 1, sha=OLDER)
         pr = state(approved, graded(None, CHANGES, 2, sha=OLDER))
-        expect(steps.regular_review(steps.Stage.EXECUTION_ONLY), pr)
+        expect(reviewsteps.review(steps.Stage.EXECUTION_ONLY), pr)
         expect(steps.opus_ruling(), unmoved(pr))
 
 

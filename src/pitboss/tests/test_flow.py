@@ -22,6 +22,7 @@ from .. import (
 )
 from . import blank, fakes, pullstates, scratch
 from .checkcomment import clean_check
+from . import reviewsteps
 
 HEAD = fakes.HEAD
 OLDER = fakes.OLDER
@@ -225,7 +226,7 @@ class TestTable(unittest.TestCase):
 
     def test_plan_approved_execution_not_graded(self) -> None:
         """A review of the execution against the approved plan."""
-        want = steps.regular_review(Stage.EXECUTION_AGAINST_PLAN)
+        want = reviewsteps.review(Stage.EXECUTION_AGAINST_PLAN)
         expect(want, state(graded(*PLAN_APPROVED_ALONE, 1)))
 
     def test_execution_rejected_by_the_review_that_approves_the_plan(self) -> None:
@@ -274,7 +275,7 @@ class TestBranches(unittest.TestCase):
 
     def test_a_draft_whose_plan_is_not_approved_gets_a_plan_review(self) -> None:
         """No CI gate on a draft; the Plan only."""
-        expect(steps.regular_review(Stage.PLAN_ONLY), state(checks=(), draft=True))
+        expect(reviewsteps.review(Stage.PLAN_ONLY), state(checks=(), draft=True))
 
     def test_a_draft_with_the_plan_approved_waits_for_the_window(self) -> None:
         """It cannot be undrafted yet."""
@@ -306,11 +307,11 @@ class TestBranches(unittest.TestCase):
     ) -> None:
         """A review of the Execution only, the Plan carried over."""
         approved = graded(*PLAN_APPROVED_ALONE, 1, sha=OLDER)
-        expect(steps.regular_review(Stage.EXECUTION_ONLY), state(approved))
+        expect(reviewsteps.review(Stage.EXECUTION_ONLY), state(approved))
 
     def test_no_review_is_a_review_of_both(self) -> None:
         """The first review grades the Plan and the Execution together."""
-        expect(steps.regular_review(Stage.PLAN_AND_EXECUTION), state())
+        expect(reviewsteps.review(Stage.PLAN_AND_EXECUTION), state())
 
     def test_an_approved_execution_with_a_conflict_is_the_workers(self) -> None:
         """No new review for a conflict-only fix."""
@@ -332,9 +333,9 @@ class TestBranches(unittest.TestCase):
     def test_a_github_review_is_no_regular_review(self) -> None:
         """The pseudo code reads regular reviews only, gated repository or not."""
         for review in (github_review(APPROVED, 1), github_review(CHANGES, 1)):
-            expect(steps.regular_review(Stage.PLAN_AND_EXECUTION), state(review))
+            expect(reviewsteps.review(Stage.PLAN_AND_EXECUTION), state(review))
         twice = state(github_review(CHANGES, 1, sha=OLDER), github_review(CHANGES, 2))
-        expect(steps.regular_review(Stage.PLAN_AND_EXECUTION), twice)
+        expect(reviewsteps.review(Stage.PLAN_AND_EXECUTION), twice)
 
 
 def ruling_steps(second: int) -> steps.Next:

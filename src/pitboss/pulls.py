@@ -47,6 +47,7 @@ failed_checks = pullref.failed_checks
 
 
 Source = pullsource.Source
+Asks = pullsource.Asks
 
 
 def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
@@ -158,8 +159,10 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
     found = _base_state(source, repo, got)
     needs = _needs_e2e(source, repo, found)
     draft = dataclasses.replace(found.draft, needs_e2e=needs)
-    unchanged = _unchanged(source, repo, found)
-    return dataclasses.replace(found, draft=draft, unchanged=unchanged)
+    kept = dataclasses.replace(
+        found.recorded, unchanged=_unchanged(source, repo, found)
+    )
+    return dataclasses.replace(found, draft=draft, recorded=kept)
 
 
 def _unchanged(
@@ -193,7 +196,9 @@ def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullSta
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
-        unchanged=frozenset(),
+        recorded=flowstate.Recorded(
+            unchanged=frozenset(), handed=source.asks.handed(got.pull.head.branch)
+        ),
         draft=draftfacts.Draft(
             needs_e2e=False,
             plan_review_check=source.plan_review_check,
@@ -229,7 +234,7 @@ def _signals(
     # keyword: plan-approved (pitboss#296): the Plans that reviews approved
     plans = flowstate.approved_digests(state.graded)
     # keyword: pins-only (pitboss#34): asked only where a review would be offered
-    pins = pinsask.at_review(source.pins, repo, got.pull, flow.next_step(state))
+    pins = pinsask.at_review(source.asks.pins, repo, got.pull, flow.next_step(state))
     return dataclasses.replace(
         found,
         gate=unmet,

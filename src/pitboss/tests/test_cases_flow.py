@@ -13,6 +13,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import rulingreason, shapes, steps
 from . import blank, model
 from .model import History, Ruling, Verdict
+from . import reviewsteps
 
 V = Verdict
 APPROVED_PLAN = [(3, V.APPROVED, None, 0, 0)]
@@ -53,28 +54,21 @@ def step_of(made: model.Model) -> steps.Move:
 class TestAfterTheRuling(unittest.TestCase):
     """The ruling's steps, then the review that follows them."""
 
-    def test_i24_a_plan_check_before_the_ruling_still_asks_for_its_steps(self) -> None:
-        """Ruling `do these steps` newer than the Plan check: the worker's round."""
-        got = step_with(History(reviews=APPROVED_PLAN, rulings=RULED))
-        assert_that(
-            (got.step, got.task), equal_to((steps.Step.WORKER, steps.Task.RULING_STEPS))
-        )
+    def test_i24_i32_a_plan_check_never_applies_the_ruling(self) -> None:
+        """quire#1125 (PR 460, 04:41Z): a check is no hand-back; the steps stay.
 
-    def test_i24_a_plan_check_after_the_ruling_at_the_head_is_the_review(self) -> None:
-        """PR 460 at 04:41Z: the steps were done, the review is the step."""
-        history = History(
-            reviews=APPROVED_PLAN, rulings=RULED, checks=[(2, 0, 0), (5, 0, 0)]
-        )
-        got = step_with(history)
-        assert_that(
-            (got.step, got.stage),
-            equal_to((steps.Step.REGULAR_REVIEW, steps.Stage.RULING_STEPS)),
-        )
-
-    def test_i32_a_plan_check_newer_than_the_ruling_is_reviewed(self) -> None:
-        """A Plan not yet reviewed after the ruling and a newer check: a review."""
-        history = History(rulings=RULED, checks=[(2, 0, 0), (5, 0, 0)])
-        assert_that(step_with(history).step, equal_to(steps.Step.REGULAR_REVIEW))
+        Ruling `do these steps` newer than the Plan check, a check after it, or
+        a Plan not yet reviewed with a newer check: the worker's round each time.
+        """
+        checks = [(2, 0, 0), (5, 0, 0)]
+        histories = [
+            History(reviews=APPROVED_PLAN, rulings=RULED),
+            History(reviews=APPROVED_PLAN, rulings=RULED, checks=checks),
+            History(rulings=RULED, checks=checks),
+        ]
+        got = [(step_with(each).step, step_with(each).task) for each in histories]
+        worker = (steps.Step.WORKER, steps.Task.RULING_STEPS)
+        assert_that(got, equal_to([worker, worker, worker]))
 
     def test_i15_a_revised_plan_after_the_ruling_is_reviewed_not_rewritten(
         self,
@@ -110,7 +104,7 @@ class TestRulingReason(unittest.TestCase):
             _comment(RULING_TEXT, "2026-11-11T04:26:00Z"),
             _comment(CHECK_TEXT, "2026-11-11T04:41:11Z"),
         ]
-        review = steps.regular_review(steps.Stage.RULING_STEPS)
+        review = reviewsteps.review(steps.Stage.RULING_STEPS)
         times = rulingreason.times(comments, frozenset({"MEMBER"}), review)
         said = rulingreason.reason(times)
         assert_that(said, contains_string("2026-11-11T04:41:11Z is later"))
@@ -121,7 +115,7 @@ class TestRulingReason(unittest.TestCase):
         comments = [_comment(RULING_TEXT, "2026-11-11T04:26:00Z")]
         trusted = frozenset({"MEMBER"})
         other = rulingreason.times(comments, trusted, steps.merge())
-        review = steps.regular_review(steps.Stage.RULING_STEPS)
+        review = reviewsteps.review(steps.Stage.RULING_STEPS)
         lone = rulingreason.times(comments, trusted, review)
         assert_that(
             (rulingreason.reason(other), rulingreason.reason(lone)), equal_to(("", ""))

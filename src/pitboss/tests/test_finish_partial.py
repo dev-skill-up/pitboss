@@ -17,6 +17,7 @@ from . import fakes, quietworld, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
 from .test_work import NONE, facts
+from . import reviewsteps
 
 PROJECT = world.PROJECT
 COMMANDS = "Fixes #7\n\n## Plan\nthe plan\n\n$ echo hi\n\n## Execution\nx\n"
@@ -150,7 +151,7 @@ SEND_BACK = dataclasses.replace(
     findings="row 1: NOT RUN",
 )
 GATED = (
-    steps.regular_review(steps.Stage.PLAN_AND_EXECUTION),
+    reviewsteps.review(steps.Stage.PLAN_AND_EXECUTION),
     steps.undraft(),
     steps.merge(),
 )

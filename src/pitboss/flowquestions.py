@@ -6,7 +6,8 @@ recorded of the PR.
 
 from typing import AbstractSet, Protocol, Sequence
 
-from . import bodydigest, checkoutcome, draftfacts, expansion, plandigest, shapes
+from . import bodydigest, checkoutcome, draftfacts, expansion, handbacks
+from . import plandigest, shapes
 
 current_for = expansion.current_for
 Subject = expansion.Subject
@@ -35,6 +36,10 @@ class PullState(Protocol):
     @property
     def draft(self) -> draftfacts.Draft:
         """Return what the caller read for a draft."""
+
+    @property
+    def handed(self) -> handbacks.HandedBack:
+        """Return what the PR's worktree recorded of the hand-backs."""
 
     @property
     def unchanged(self) -> AbstractSet[str]:
@@ -120,8 +125,13 @@ def get_plan_rejections(pr: PullState) -> int:
     Returns:
         The count.
     """
-    reviews = regular_reviews(pr)
-    return sum(each.plan is Verdict.CHANGES_NEEDED for each in reviews)
+    states = {  # one state graded twice is one round (keyword: standing)
+        (each.sha, each.body)
+        for each in regular_reviews(pr)
+        if each.plan is Verdict.CHANGES_NEEDED
+        and handbacks.covers_state(pr.handed, each.sha, each.body)
+    }
+    return len(states)
 
 
 def plan_rejected_last(pr: PullState) -> bool:
@@ -187,3 +197,19 @@ def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
     """
     regular = [each for each in pr.graded if each.comment]
     return sorted(regular, key=lambda each: each.when)
+
+
+def used_again(pr: PullState, review: shapes.Graded, posted: shapes.Comment) -> bool:
+    """Whether a ruling was used and the review still rejects (a round).
+
+    Args:
+        pr: the PR.
+        review: the newest review that counts, which rejects.
+        posted: the ruling comment.
+
+    Returns:
+        True when the review came after the ruling and a worker handed back the
+        head and body it graded (keyword: standing).
+    """
+    handed = handbacks.covers_state(pr.handed, review.sha, review.body)
+    return review.when > posted.created_at and handed

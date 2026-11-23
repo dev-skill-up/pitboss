@@ -206,17 +206,17 @@ def unchecked(pr: Described) -> bool:
     return needs_check(pr.pull.body, pr.comments, pr.trusted)
 
 
-def review(pr: Described, stage: steps.Stage) -> steps.Next:
+def review(pr: Described, due: steps.Next) -> steps.Next:
     """A review that grades the Plan, once the Plan's commands were checked.
 
     Args:
         pr: the PR.
-        stage: what the review grades.
+        due: the step when the Plan is checked (``standing.reviewed``).
 
     Returns:
         For any Plan that no clean check covers: the send-back step with the
         findings quoted when the newest check of this Plan refused it, else
-        the check step; otherwise the review.
+        the check step; otherwise ``due``.
     """
     if unchecked(pr):
         refused = refusal(pr.pull.body, pr.comments, pr.trusted)
@@ -227,7 +227,7 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
             comment=refused.url,
             findings=findings(refused),
         )
-    return steps.regular_review(stage)
+    return due
 
 
 def filled(
@@ -300,54 +300,21 @@ def plan_unrun(
     return write_round(pr) if unrun else None
 
 
-def checked_since(pr: Pull, readable: Readable[Pull]) -> bool:
-    """Whether a clean check of the Plan came after the ruling (body-only-round).
-
-    GitHub gives no time for a body edit (``bodydigest``), and a round that edits
-    the body alone pushes nothing, so the clean ``Plan check`` the worker posts
-    after the ruling is the record that its steps are done (pitboss#462).
-
-    Args:
-        pr: the PR.
-        readable: reads the PR's readable ruling comment and what it rules.
-
-    Returns:
-        True when the newest trusted check of the Plan as it is now is clean and
-        newer than the ruling.
-    """
-    newest = newest_check(pr.pull.body, pr.comments, pr.trusted)
-    when = newest.created_at if newest and not unchecked(pr) else ""
-    posted = readable(pr)
-    return posted is not None and when > posted[0].created_at
-
-
-def execution_review(pr: Described, stage: steps.Stage) -> steps.Next:
+def execution_review(pr: Described, due: steps.Next) -> steps.Next:
     """A review of the Execution, once the Execution is written.
 
     Args:
         pr: the PR, whose Plan is approved.
-        stage: what the review grades.
+        due: the step when it is written (``standing.reviewed``).
 
     Returns:
         The worker round that runs the Plan's commands and fills the Execution
         while the body's Execution section is empty or a placeholder (keyword:
         unwritten-execution, pitboss#294), or the one that adds the CI quotes
-        the Plan names (keyword: ci-quotes, pitboss#277), else the review.
+        the Plan names (keyword: ci-quotes, pitboss#277), else ``due``.
     """
     if planbody.execution_unwritten(pr.pull.body):
         return write_round(pr)
     if planbody.ci_quotes_missing(pr.pull.body):
         return steps.worker(steps.Task.ADD_CI_QUOTES)
-    return steps.regular_review(stage)
-
-
-def plan_review(pr: Described) -> steps.Next:
-    """``review`` of the Plan alone.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The step.
-    """
-    return review(pr, steps.Stage.PLAN_ONLY)
+    return due

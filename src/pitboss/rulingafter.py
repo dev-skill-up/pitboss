@@ -8,23 +8,17 @@ from typing import Mapping, Sequence
 
 from . import rulingwords, steps
 
-# What follows each ruling but ``EXECUTION_IS_APPROVED``, in order. The flow reads
-# the first step; the later ones are not wired (a worker's push moves the head and
-# the ordinary review gate takes over).
+# What follows each ruling but ``EXECUTION_IS_APPROVED``: the worker's round. The
+# review after it is the ordinary review gate's, for the head and body the worker
+# handed back (keyword: standing).
 AS_RULED = (
     rulingwords.Ruling.SPLIT,
     rulingwords.Ruling.RESHAPE,
     rulingwords.Ruling.ABANDON,
 )
 AFTER: Mapping[rulingwords.Ruling, Sequence[steps.Next]] = {
-    rulingwords.Ruling.DO_THESE_STEPS: (
-        steps.worker(steps.Task.RULING_STEPS),
-        steps.regular_review(steps.Stage.RULING_STEPS),
-    ),
-    rulingwords.Ruling.REVISE_THE_PLAN: (
-        steps.worker(steps.Task.REVISE_PLAN),
-        steps.regular_review(steps.Stage.PLAN_ONLY),
-    ),
+    rulingwords.Ruling.DO_THESE_STEPS: (steps.worker(steps.Task.RULING_STEPS),),
+    rulingwords.Ruling.REVISE_THE_PLAN: (steps.worker(steps.Task.REVISE_PLAN),),
     rulingwords.Ruling.ESCALATE: (steps.ruling_escalates(),),
     **dict.fromkeys(AS_RULED, (steps.worker(steps.Task.RULING_AS_GIVEN),)),
 }

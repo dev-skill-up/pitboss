@@ -4,7 +4,10 @@
 P3; keyword: one-path).
 """
 
-from .. import draftfacts, flowstate, shapes
+import dataclasses
+from typing import AbstractSet
+
+from .. import draftfacts, flowstate, handbacks, shapes
 
 
 def bare(pull: shapes.Pull) -> flowstate.PullState:
@@ -26,5 +29,31 @@ def bare(pull: shapes.Pull) -> flowstate.PullState:
         undraft_clear=False,
         relock=False,
         draft=draftfacts.NONE,
-        unchanged=frozenset(),
+        recorded=flowstate.Recorded(
+            unchanged=frozenset(), handed=handbacks.NOT_REQUIRED
+        ),
     )
+
+
+def with_recorded(
+    pr: flowstate.PullState,
+    *,
+    unchanged: AbstractSet[str] | None = None,
+    handed: handbacks.HandedBack | None = None,
+) -> flowstate.PullState:
+    """A PR with some of what the caller read of the base and the worktree.
+
+    Args:
+        pr: the PR.
+        unchanged: the reviewed heads since which no code moved; kept when None.
+        handed: what the worktree recorded; kept when None.
+
+    Returns:
+        The PR with that recorded.
+    """
+    was = pr.recorded
+    recorded = flowstate.Recorded(
+        unchanged=was.unchanged if unchanged is None else unchanged,
+        handed=was.handed if handed is None else handed,
+    )
+    return dataclasses.replace(pr, recorded=recorded)

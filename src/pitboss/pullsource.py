@@ -3,7 +3,21 @@
 import dataclasses
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, earlyfound, ghapi, pinsask
+from . import config, earlyfound, ghapi, handedread, pinsask
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Asks:
+    """What is asked of the checkouts of the project.
+
+    Attributes:
+        pins: asks the pins-check command about a PR at a review step
+            (keyword: pins-only, pitboss#34).
+        handed: reads what the worktree of a branch recorded (keyword: standing).
+    """
+
+    pins: pinsask.Ask
+    handed: handedread.Asks
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -23,9 +37,8 @@ class Source:
         merge_queue: the repositories with a merge queue (keyword: fixed-on-base).
         early: takes the Execution reviews written before green out of a
             PR's comments (keyword: execution-before-green, pitboss#202).
-        pins: asks the pins-check command about a PR at a review step
-            (keyword: pins-only, pitboss#34).
         no_drafts: says whether a repository's PRs open ready (keyword: no-drafts).
+        asks: what is asked of the checkouts (``Asks``).
     """
 
     github: ghapi.GitHub
@@ -36,5 +49,5 @@ class Source:
     plan_review_check: str
     merge_queue: AbstractSet[str]
     early: earlyfound.Split
-    pins: pinsask.Ask
     no_drafts: Callable[[str], bool]
+    asks: Asks

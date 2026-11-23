@@ -30,6 +30,7 @@ Task.RULING_AS_GIVEN	pressure	the worker of a task pushes with pitboss push	test
 Task.RUN_PLAN	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.ADD_CI_QUOTES	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.FIX_ROUND	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
+Task.HAND_BACK	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.REFRESH_BODY	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.SHARED_RED	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.FIX_BLOCKED_BY	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not

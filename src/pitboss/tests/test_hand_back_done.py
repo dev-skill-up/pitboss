@@ -51,7 +51,7 @@ class TestOnce(unittest.TestCase):
         """Not recorded, recorded, another head, and a directory with no record."""
         git = fakes.directory()
         before = handbackrecord.recorded(git, HEAD)
-        handbackrecord.record(git, HEAD)
+        handbackrecord.record(git, HEAD, "d", "r")
         after = [handbackrecord.recorded(git, each) for each in (HEAD, OTHER)]
         same([before, *after], [False, True, False])
 

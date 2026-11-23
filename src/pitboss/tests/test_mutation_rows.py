@@ -16,7 +16,7 @@ class TestRowsHoldTheirFunctions1(unittest.TestCase):
         """The mutant: False -> True."""
         rerun(
             "test_body_only_round.TestBodyOnlyRound"
-            ".test_a_clean_check_of_another_plan_gives_the_fix"
+            ".test_t462_a_clean_check_after_the_ruling_is_no_hand_back"
         )
 
     def test_a1_plan_edited_without_ruling_2_is_held(self) -> None:
@@ -30,7 +30,7 @@ class TestRowsHoldTheirFunctions1(unittest.TestCase):
         """The mutant: newest and (not unchecked(pr)) -> newest or not unchecked."""
         rerun(
             "test_body_only_round.TestBodyOnlyRound"
-            ".test_t462_a_refusal_after_the_ruling_gives_the_fix"
+            ".test_unchecked_and_review_follow_the_check"
         )
 
     def test_a4_next_step_1_is_held(self) -> None:
@@ -52,7 +52,7 @@ class TestRowsHoldTheirFunctions1(unittest.TestCase):
         """The mutant: ci is Ci.RED -> ci is not Ci.RED."""
         rerun(
             "test_body_only_round.TestBodyOnlyRound"
-            ".test_a_clean_check_of_another_plan_gives_the_fix"
+            ".test_t462_a_clean_check_after_the_ruling_is_no_hand_back"
         )
 
     def test_a16_ci_gate_2_is_held(self) -> None:

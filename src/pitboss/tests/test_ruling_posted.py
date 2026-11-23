@@ -24,6 +24,7 @@ from .test_flow_sweep import graded as comment
 from .test_flow_sweep import reading as comment_reading
 from .test_flow_sweep import world_with
 from .test_plan_digest_collapse import digest
+from . import reviewsteps
 
 BODY = test_flow.BODY
 EDITED = BODY + "\nEvidence added after the review.\n"
@@ -123,7 +124,7 @@ class TestApprovedPlanAfterARuling(unittest.TestCase):
             reading(graded(APPROVED, None, 3), BODY),
         ]
         pr = state(*rounds, comments=[test_flow.ruling(2)], body=EDITED)
-        test_flow.expect(steps.regular_review(steps.Stage.EXECUTION_ONLY), pr)
+        test_flow.expect(reviewsteps.review(steps.Stage.EXECUTION_ONLY), pr)
 
 
 class TestNoFixRoundWithEqualHeads(unittest.TestCase):
@@ -169,7 +170,7 @@ class TestRulingJustPosted(unittest.TestCase):
     def test_a_push_after_the_ruling_hands_the_pr_to_the_review(self) -> None:
         """A check run of the head that started after the ruling: applied."""
         pr = ruled_pr(checks=[PUSHED])
-        test_flow.expect(steps.regular_review(steps.Stage.EXECUTION_ONLY), pr)
+        test_flow.expect(reviewsteps.review(steps.Stage.EXECUTION_ONLY), pr)
 
     def test_the_ruling_of_a_plan_revision_is_the_workers(self) -> None:
         """``revise the plan`` before any review of this head."""
@@ -182,7 +183,7 @@ class TestRulingJustPosted(unittest.TestCase):
     def test_a_review_after_the_ruling_ends_it(self) -> None:
         """The review is newer than the ruling: the flow reads the review."""
         newer = graded(*test_flow.EXECUTION_REJECTED, 3, sha=OLDER)
-        want = steps.regular_review(steps.Stage.EXECUTION_ONLY)
+        want = reviewsteps.review(steps.Stage.EXECUTION_ONLY)
         test_flow.expect(want, state(newer, comments=[test_flow.ruling(2)]))
 
 
@@ -248,7 +249,7 @@ class TestRulingOfAnEditedPlan(unittest.TestCase):
         """Done-when 4: ruling, new head, URL-only change, green checks."""
         pr = ruled(pointed(7), pointed(1), [PUSHED], OLDER)
         found = flow.next_step(pr)
-        assert_that(found, equal_to(steps.regular_review(steps.Stage.EXECUTION_ONLY)))
+        assert_that(found, equal_to(reviewsteps.review(steps.Stage.EXECUTION_ONLY)))
 
 
 class TestUnwrittenExecution(unittest.TestCase):
@@ -272,7 +273,7 @@ class TestUnwrittenExecution(unittest.TestCase):
     def test_a_written_execution_is_reviewed(self) -> None:
         """The nearest input that is not a placeholder."""
         pr = approved_alone(BODY, test_flow.HEAD)
-        test_flow.expect(steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN), pr)
+        test_flow.expect(reviewsteps.review(steps.Stage.EXECUTION_AGAINST_PLAN), pr)
 
 
 def unwritten(text: str) -> bool:
