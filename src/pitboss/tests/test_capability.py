@@ -22,7 +22,7 @@ def found(text: str, path: str = "src/pitboss/pure.py") -> Sequence[str]:
     Returns:
         The findings, as ``rule what``.
     """
-    return [f"{each.rule} {each.what}" for each in capability.check({path: text})]
+    return sorted(f"{each.rule} {each.what}" for each in capability.check({path: text}))
 
 
 @contextlib.contextmanager
@@ -55,8 +55,25 @@ class TestRules(unittest.TestCase):
     def test_an_import_off_the_allowlist_is_refused(self) -> None:
         """An import that can read, plain or from."""
         assert_that(
-            found("import subprocess\nfrom os import path\nfrom . import x\n"),
-            contains_exactly("E1 imports subprocess", "E1 imports os"),
+            found("import requests\nfrom os import environ\nfrom . import x\n"),
+            contains_exactly(
+                "E1 imports environ from os", "E1 imports requests from requests"
+            ),
+        )
+
+    def test_a_use_of_a_world_module_is_refused_unless_it_is_a_value(self) -> None:
+        """subprocess.run reads the world; the exception it raises is a value."""
+        text = "import subprocess\nimport sys\nsubprocess.run(['x'])\n"
+        text += "e = subprocess.CalledProcessError\nsys.stderr\nsys.argv\n"
+        assert_that(
+            found(text), contains_exactly("E1 uses subprocess.run", "E1 uses sys.argv")
+        )
+
+    def test_a_method_that_reads_is_refused_when_called_not_when_a_field(self) -> None:
+        """path.read_text() reads; found.now is a value."""
+        text = "a = path.read_text()\nb = found.now\nc = datetime.now()\n"
+        assert_that(
+            found(text), contains_exactly("E3 calls .now", "E3 calls .read_text")
         )
 
     def test_a_banned_call_and_attribute_are_refused(self) -> None:
@@ -65,10 +82,10 @@ class TestRules(unittest.TestCase):
         assert_that(
             found(text),
             contains_exactly(
-                "E3 calls open",
                 "E3 calls getattr",
-                "E3 uses .attrgetter",
+                "E3 calls open",
                 "E3 uses .__dict__",
+                "E3 uses .attrgetter",
             ),
         )
 
@@ -87,13 +104,13 @@ class TestRules(unittest.TestCase):
         assert_that(
             found(text),
             contains_exactly(
-                "E3 runtime code under TYPE_CHECKING", "E3 a string names a dunder"
+                "E3 a string names a dunder", "E3 runtime code under TYPE_CHECKING"
             ),
         )
 
     def test_a_capability_module_is_not_read(self) -> None:
         """The capability packages are where the world is reached."""
-        text = "import subprocess\n"
+        text = "import requests\n"
         with capability_of(frozenset({"reader"})):
             assert_that(found(text, "src/pitboss/reader.py"), equal_to([]))
             assert_that(found(text), has_length(1))
@@ -107,8 +124,8 @@ class TestMain(unittest.TestCase):
         with tempfile.TemporaryDirectory() as scratch:
             root = pathlib.Path(scratch)
             (root / "build").mkdir()
-            (root / "build" / "skipped.py").write_text("import os\n")
+            (root / "build" / "skipped.py").write_text("import requests\n")
             (root / "clean.py").write_text("import enum\n")
             assert_that(capability.main(root), equal_to(0))
-            (root / "bad.py").write_text("import os\n")
+            (root / "bad.py").write_text("import requests\n")
             assert_that(capability.main(root), equal_to(1))

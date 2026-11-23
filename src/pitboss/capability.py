@@ -17,34 +17,73 @@ import pathlib
 import sys
 from typing import AbstractSet, Callable, Iterator, Mapping, Sequence
 
+from . import importgraph
+
 # the packages and modules that may reach the world; nothing else may
 CAPABILITY: AbstractSet[str] = frozenset()
 
-# the imports a module outside them may have: values and syntax, nothing that reads
+# modules whose every use is a value or syntax: nothing in them reads
 ALLOWED = frozenset(
     {
         "__future__",
         "abc",
+        "argparse",
         "ast",
+        "base64",
         "collections",
         "contextlib",
         "dataclasses",
-        "datetime_types",
         "decimal",
         "enum",
+        "fnmatch",
         "fractions",
         "functools",
         "hashlib",
+        "heapq",
         "itertools",
         "json",
+        "logging",
         "math",
+        "pathlib",
         "re",
+        "shlex",
+        "stat",
+        "statistics",
         "string",
         "textwrap",
         "typing",
+        "unicodedata",
         "urllib.parse",
     }
 )
+# modules that read or change the world, and the names of each that do neither
+WORLD_MODULES: Mapping[str, AbstractSet[str]] = {
+    "subprocess": frozenset(
+        {"CalledProcessError", "TimeoutExpired", "CompletedProcess", "SubprocessError"}
+    ),
+    "os": frozenset({"fspath", "sep", "linesep", "PathLike", "path"}),
+    "sys": frozenset({"stdout", "stderr", "exit", "version_info"}),
+    "datetime": frozenset(
+        {"datetime", "date", "time", "timedelta", "timezone", "UTC", "tzinfo"}
+    ),
+    "tomllib": frozenset({"loads", "TOMLDecodeError"}),
+    "yaml": frozenset({"safe_load", "YAMLError"}),
+    "gather.commands": frozenset({"add_argument", "set_parser", "ProcessRunner"}),
+    "gather.api": frozenset({"Wrapper", "unique"}),
+    "time": frozenset(),
+    "tempfile": frozenset(),
+    "shutil": frozenset(),
+    "threading": frozenset(),
+    "concurrent": frozenset(),
+    "importlib": frozenset(),
+    "urllib.request": frozenset(),
+    "zipfile": frozenset(),
+    "zoneinfo": frozenset(),
+    "random": frozenset(),
+    "unittest": frozenset(),
+    "gather": frozenset(),
+    "commander_data": frozenset(),
+}
 BANNED_CALLS = frozenset(
     {
         "open",
@@ -63,6 +102,7 @@ BANNED_CALLS = frozenset(
         "dir",
     }
 )
+# attributes of any object that no pure module may use
 BANNED_ATTRIBUTES = frozenset(
     {
         "__setattr__",
@@ -76,6 +116,51 @@ BANNED_ATTRIBUTES = frozenset(
         "attrgetter",
         "itemgetter",
         "methodcaller",
+        "parse_args",
+        "parse_known_args",
+        "parse_intermixed_args",
+    }
+)
+# methods that read or change the world when called (a field of the same name is data)
+BANNED_METHODS = frozenset(
+    {
+        "read_text",
+        "read_bytes",
+        "write_text",
+        "write_bytes",
+        "iterdir",
+        "glob",
+        "rglob",
+        "exists",
+        "is_file",
+        "is_dir",
+        "is_symlink",
+        "mkdir",
+        "unlink",
+        "rmdir",
+        "touch",
+        "stat",
+        "lstat",
+        "resolve",
+        "samefile",
+        "readlink",
+        "symlink_to",
+        "rename",
+        "open",
+        "cwd",
+        "home",
+        "expanduser",
+        "chmod",
+        "now",
+        "today",
+        "utcnow",
+        "isfile",
+        "isdir",
+        "islink",
+        "getsize",
+        "getmtime",
+        "realpath",
+        "abspath",
     }
 )
 FRAMEWORK = frozenset({"world"})
@@ -105,27 +190,41 @@ def _made(path: str, node: ast.AST, rule: str, what: str) -> Finding:
     return Finding(path=path, line=getattr(node, "lineno", 0), rule=rule, what=what)
 
 
-def _imports(path: str, node: ast.AST) -> Iterator[Finding]:
-    match node:
-        case ast.Import(names=names):
-            modules = [each.name for each in names]
-        case ast.ImportFrom(module=module, level=0):
-            modules = [module or ""]
-        case _:
-            modules = []
-    for name in modules:
-        if name and not _allowed(name):
-            yield _made(path, node, "E1", f"imports {name}")
+# the key of WORLD_MODULES that is the name or a package of it, longest first
+def _world_key(name: str) -> str | None:
+    found = (each for each in importgraph.parents_of(name) if each in WORLD_MODULES)
+    return max(found, key=len, default=None)
 
 
 def _allowed(name: str) -> bool:
     return any(name == each or name.startswith(each + ".") for each in ALLOWED)
 
 
-def _banned_calls(path: str, node: ast.AST) -> Iterator[Finding]:
+def _imports(path: str, node: ast.AST) -> Iterator[Finding]:
+    match node:
+        case ast.Import(names=names):
+            found = [(each.name, "") for each in names]
+        case ast.ImportFrom(module=module, names=names, level=0):
+            found = [(module or "", each.name) for each in names]
+        case _:
+            found = []
+    for module, name in found:
+        key = _world_key(module)
+        if _allowed(module) or (key and (not name or name in WORLD_MODULES[key])):
+            continue
+        yield _made(path, node, "E1", f"imports {name or module} from {module}")
+
+
+def _banned_names(path: str, node: ast.AST) -> Iterator[Finding]:
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
         if node.func.id in BANNED_CALLS:
             yield _made(path, node, "E3", f"calls {node.func.id}")
+
+
+def _banned_methods(path: str, node: ast.AST) -> Iterator[Finding]:
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+        if node.func.attr in BANNED_METHODS:
+            yield _made(path, node, "E3", f"calls .{node.func.attr}")
 
 
 def _attributes(path: str, node: ast.AST) -> Iterator[Finding]:
@@ -158,14 +257,38 @@ def _type_checking(path: str, node: ast.AST) -> Iterator[Finding]:
 
 RULES: Sequence[Callable[[str, ast.AST], Iterator[Finding]]] = (
     _imports,
-    _banned_calls,
+    _banned_names,
+    _banned_methods,
     _attributes,
     _dunder_strings,
     _type_checking,
 )
 
 
+# the world modules a file binds, by the name it uses for each
+def _aliases(tree: ast.AST) -> Mapping[str, str]:
+    bound: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for each in node.names:
+                bound[each.asname or each.name.split(".")[0]] = (
+                    each.name if each.asname else each.name.split(".")[0]
+                )
+    return bound
+
+
+# each use of an imported world module that is not one of its safe names
+def _uses(path: str, tree: ast.AST) -> Iterator[Finding]:
+    bound = _aliases(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            key = _world_key(bound.get(node.value.id, ""))
+            if key and node.attr not in WORLD_MODULES[key]:
+                yield _made(path, node, "E1", f"uses {key}.{node.attr}")
+
+
 def _walk(path: str, tree: ast.AST) -> Iterator[Finding]:
+    yield from _uses(path, tree)
     for node in ast.walk(tree):
         for rule in RULES:
             yield from rule(path, node)
