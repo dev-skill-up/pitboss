@@ -14,6 +14,7 @@ from . import (
     expansion,
     handbacks,
     plandigest,
+    rulingtyped,
     rulingwords,
     sessionurl,
     shapes,
@@ -316,7 +317,11 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
         return None
     posted, ruled = answered
     if pr.handed.required:  # a worker's hand-back that saw the ruling applies it
-        return None if handbacks.applied(pr.handed, posted.url) else ruled
+        seen = handbacks.applied(pr.handed, posted.url)
+        # keyword: ruling-typed: and the body carries the ruling's typed edits
+        return (
+            None if seen and rulingtyped.carried(posted.body, pr.pull.body) else ruled
+        )
     reviewed = any(each.when > posted.created_at for each in pr.graded if each.comment)
     return None if reviewed or pushed_since(pr, posted) else ruled
 

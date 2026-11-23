@@ -13,6 +13,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import flow, shapes, steps
 from . import pullstates, test_flow, test_flow_sweep as scenes
+from . import usedrounds
 from .suggestions import kind_of_third
 from .test_commands import sweep
 from .test_flow import APPROVED, CHANGES, OLDER, expect, graded, state
@@ -68,10 +69,10 @@ class TestRulingFirst(unittest.TestCase):
         pr = state(REJECTED, comments=ruled("do these steps"))
         expect(test_flow.ruling_steps(2), pr)
 
-    def test_a_rejection_after_the_ruling_pauses(self) -> None:
-        """The ruling was used and the Execution is still rejected."""
+    def test_a_rejection_after_the_ruling_is_a_worker_round(self) -> None:
+        """The ruling was used and the Execution is still rejected: never the owner."""
         pr = state(REJECTED, graded(None, CHANGES, 3), comments=ruled("split"))
-        expect(steps.pause_for_owner(), pr)
+        usedrounds.expect_execution_round(pr)
 
 
 class TestUnfixedExecution(unittest.TestCase):
@@ -92,10 +93,10 @@ class TestUnfixedExecution(unittest.TestCase):
         expect(steps.opus_ruling(), unmoved(state(REJECTED, PLAN_ALONE)))
 
     def test_a_ruling_before_the_rejection_was_used(self) -> None:
-        """The owner decides."""
+        """A worker fixes the Execution against the ruling."""
         rejected = graded(APPROVED, CHANGES, 3, sha=OLDER)
         pr = unmoved(state(rejected, PLAN_ALONE, comments=ruled("split", 1)))
-        expect(steps.pause_for_owner(), pr)
+        usedrounds.expect_execution_round(pr)
 
     def test_the_execution_is_reviewed_when_nothing_stands_rejected(self) -> None:
         """Code moved, the newest Execution verdict is approved, or none was graded."""

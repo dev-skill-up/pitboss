@@ -42,14 +42,13 @@ def held() -> world.World:
 
 
 def at_a_wait() -> world.World:
-    """A world where PR 3 is a draft whose rounds disagree after the ruling.
+    """A world where PR 3 is a draft whose Plan was rejected twice, a ruling due.
 
     Returns:
         The world.
     """
     flow = test_flow_sweep
-    rounds = flow.RULED + [flow.graded(flow.CHANGES, None, 4)]
-    return with_pull_issues(flow.world_with(rounds, draft=True))
+    return with_pull_issues(flow.world_with(flow.TWO_PLAN_REJECTIONS, draft=True))
 
 
 class TestADecision(unittest.TestCase):
@@ -73,14 +72,14 @@ class TestADecision(unittest.TestCase):
         decided(here, "owner/project#50", "WORKER: owner/project#50: write the code")
 
     def test_a_pull_request_prints_its_decision(self) -> None:
-        """PR 1 is at a conflict, PR 3 at a pause for the owner."""
+        """PR 1 is at a conflict, PR 3 at a ruling due."""
         decided(
             with_pull_issues(world.make_world()),
             "owner/project#1",
             "WORKER: owner/project#1: resolve the conflict",
         )
-        paused = "ORCHESTRATOR: owner/project#3: label the PR and its ticket paused"
-        decided(at_a_wait(), "owner/project#3", paused)
+        ruling = "RULING: owner/project#3: start an Opus agent"
+        decided(at_a_wait(), "owner/project#3", ruling)
 
 
 Build = Callable[[], world.World]

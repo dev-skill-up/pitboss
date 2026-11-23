@@ -27,6 +27,7 @@ from . import (
     stagerounds,
     standing,
     steps,
+    usedstep,
 )
 
 current_for = expansion.current_for
@@ -76,7 +77,7 @@ def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
     )
     posted, ruled = answered
     again = flowquestions.used_again(pr, review, posted)
-    after = steps.pause_for_owner() if again else ruled_step(pr, ruled)
+    after = usedstep.of(review, posted) if again else ruled_step(pr, ruled)
     return after if staged is None else staged
 
 

@@ -238,7 +238,6 @@ RETIRED = frozenset(
         "BEHIND",
         "STALL",
         "RULING DUE",
-        "PAUSE",
         "RULING UNREADABLE",
         "RULING ESCALATES",
         "PLAN EDITED",

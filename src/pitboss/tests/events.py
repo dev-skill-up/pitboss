@@ -210,7 +210,6 @@ def simulated(model: Model, step: steps.Move, allowed: Allowed) -> Model | None:
     made = _checked(model, model.plan, model.head)
     done: Mapping[steps.Step, Callable[[], Model | None]] = {
         steps.Step.OPUS_RULING: lambda: ruled(model, Ruling.DO_THESE_STEPS, allowed),
-        steps.Step.PAUSE_FOR_OWNER: lambda: paused(model),
         steps.Step.PLAN_CHECK: lambda: _then(model, "plan check", history=made),
         steps.Step.SEND_BACK_PLAN_CHECK: lambda: _push_checked(model, "send back"),
         steps.Step.REGULAR_REVIEW: lambda: _reviewed(model, step),

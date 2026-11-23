@@ -118,7 +118,6 @@ STEP_CASES: Sequence[tuple[steps.Move, Kind | None]] = [
     (steps.IDLE, None),
     (steps.IDLE, None),
     (steps.opus_ruling(), None),
-    (steps.pause_for_owner(), None),
     (steps.fix_ruling(""), None),
     (steps.ruling_escalates(), None),
 ]

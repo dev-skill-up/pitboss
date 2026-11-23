@@ -13,6 +13,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, plancheck, plancheckflow, plandigest, reviewfindings, shapes, steps
 from . import blank, decisionline, test_flow, world
+from . import usedrounds
 from . import test_flow_sweep as sweeps
 from .suggestions import kind_of_third, next_output
 from .test_flow import CHANGES, OLDER, expect, graded, state
@@ -143,11 +144,11 @@ class TestFlow(unittest.TestCase):
         pr = rejected_pr(rejecting(NAMED, 1, OLDER), rejecting(NAMED, 2))
         expect(steps.opus_ruling(), pr)
 
-    def test_a_rejection_after_the_ruling_pauses(self) -> None:
-        """The ruling was used and the Plan is still rejected."""
+    def test_a_rejection_after_the_ruling_is_a_plan_round(self) -> None:
+        """The ruling was used and the Plan is still rejected: never the owner."""
         here = rejected_pr(rejecting(NAMED, 4))
         pr = dataclasses.replace(here, comments=[*here.comments, test_flow.ruling(3)])
-        expect(steps.pause_for_owner(), pr)
+        expect(usedrounds.PLAN_ROUND, pr)
 
     def test_a_rejected_execution_is_ruled_first_whatever_it_names(self) -> None:
         """The Execution stage starts with the ruling."""

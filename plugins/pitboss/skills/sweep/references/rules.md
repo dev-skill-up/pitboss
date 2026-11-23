@@ -474,8 +474,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   command as a read-only dry run where it can be tried and reports each that
   cannot run as written; a later round checks the earlier findings and the
   findings the changes since caused, and a finding it raises that was in the
-  unchanged text of an earlier head is written on a `Missed earlier:` line,
-  which the sweep counts on the `PAUSE` line. A finding outside the scope
+  unchanged text of an earlier head is written on a `Missed earlier:` line.
+  A finding outside the scope
   is not a ground for changes needed. A review brief says that a changes
   needed names a failure an honest worker could hit; a finding that needs
   deliberate evasion is a note, never a ground for changes needed and never a

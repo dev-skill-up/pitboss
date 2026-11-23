@@ -22,12 +22,6 @@ TEXTS: Mapping[Step, str] = {
         "start an Opus agent whose only brief is to make a ruling, and record it"
         f" as a PR comment whose first line is {RULING_FIRST_LINE!r}"
     ),
-    Step.PAUSE_FOR_OWNER: (
-        f"label the PR and its ticket {PAUSED_LABEL}, comment what the rounds"
-        " disagreed about, the options and a `How we got here` section, and report"
-        " the number and the options to the owner on a card that has the section"
-        f" and, on the card, {OWNER_ARTIFACT}"
-    ),
     Step.FIX_RULING: (
         "the newest Opus ruling has no readable `Ruling:` second line; an agent"
         " edits or reposts the comment; no Opus agent is asked for"

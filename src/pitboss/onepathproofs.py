@@ -2,12 +2,19 @@
 
 ``CASES`` is each bullet's proof and the one edit that breaks it (``proofseeds``,
 one-path). The proofs are in ``answerproofs``, ``actproofs``, ``pureproofs``,
-``readproofs`` and ``retryproofs``, and P4's in ``modeproof``.
+``readproofs``, ``retryproofs`` and ``rulingproofs``, and P4's in ``modeproof``.
 """
 
 from typing import Mapping
 
-from . import actproofs, answerproofs, pureproofs, readproofs, retryproofs
+from . import (
+    actproofs,
+    answerproofs,
+    pureproofs,
+    readproofs,
+    retryproofs,
+    rulingproofs,
+)
 from .proofcase import Case
 
 CASES: Mapping[str, Case] = {
@@ -16,4 +23,5 @@ CASES: Mapping[str, Case] = {
     **pureproofs.CASES,
     **readproofs.CASES,
     **retryproofs.CASES,
+    **rulingproofs.CASES,
 }

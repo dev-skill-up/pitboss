@@ -25,7 +25,6 @@ ACTORS: Mapping[steps.Step, answer.Actor] = {
     steps.Step.OPUS_RULING: answer.Actor.RULING,
     steps.Step.PLAN_EDITED: answer.Actor.RULING,
     steps.Step.UNDRAFT: answer.Actor.ORCHESTRATOR,
-    steps.Step.PAUSE_FOR_OWNER: answer.Actor.ORCHESTRATOR,
     steps.Step.FIX_RULING: answer.Actor.ORCHESTRATOR,
     steps.Step.RULING_ESCALATES: answer.Actor.ORCHESTRATOR,
     steps.Step.PLAN_CHECK: answer.Actor.ORCHESTRATOR,

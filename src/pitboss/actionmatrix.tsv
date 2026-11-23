@@ -8,7 +8,6 @@ Step.WORKER	y	y	y	y	y	y	y	y	y	y	y	y	y	y	y	y	y	n	n	n	n	n	n
 Step.UNDRAFT	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n	n	n	n
 Step.REGULAR_REVIEW	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
 Step.OPUS_RULING	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.PAUSE_FOR_OWNER	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n
 Step.FIX_RULING	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
 Step.RULING_ESCALATES	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n
 Step.PLAN_EDITED	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n

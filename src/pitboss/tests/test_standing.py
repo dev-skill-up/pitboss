@@ -11,6 +11,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import bodydigest, flow, flowquestions, handbacks, standing, steps
 from . import pullstates, reviewsteps, test_flow
+from . import usedrounds
 from .test_flow import CHANGES, HEAD, OLDER, expect, graded, state
 
 BODY_DIGEST = bodydigest.digest(test_flow.BODY)
@@ -173,8 +174,9 @@ class TestRounds(unittest.TestCase):
         )
 
     def test_a_rejection_of_a_handed_back_head_is_a_round(self) -> None:
-        """The second rejection after the ruling pauses for the owner."""
-        expect(steps.pause_for_owner(), rejected_after_ruling(held(ANYTHING)))
+        """The second rejection after the ruling is a worker's, never the owner's."""
+        pr = rejected_after_ruling(held(ANYTHING))
+        expect(usedrounds.PLAN_ROUND, pr)
 
     def test_plan_rejections_count_distinct_handed_back_states(self) -> None:
         """quire#1120: one state graded twice is one; an unhanded one is none."""

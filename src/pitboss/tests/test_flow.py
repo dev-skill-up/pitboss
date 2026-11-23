@@ -218,11 +218,11 @@ class TestTable(unittest.TestCase):
         expect(steps.opus_ruling(), state(FIRST_REJECTION, SECOND_REJECTION))
 
     def test_plan_rejected_after_an_opus_ruling(self) -> None:
-        """The owner decides."""
+        """A worker revises the Plan, not the owner."""
         rejected = state(
             FIRST_REJECTION, graded(*PLAN_REJECTED, 4), comments=[ruling(3)]
         )
-        expect(steps.pause_for_owner(), rejected)
+        expect(steps.worker(Task.REVISE_PLAN), rejected)
 
     def test_plan_approved_execution_not_graded(self) -> None:
         """A review of the execution against the approved plan."""
@@ -244,10 +244,10 @@ class TestTable(unittest.TestCase):
         expect(steps.opus_ruling(), state(first, graded(None, CHANGES, 2)))
 
     def test_execution_rejected_after_an_opus_ruling(self) -> None:
-        """The owner decides."""
+        """A worker fixes the Execution against the ruling, not the owner."""
         first = graded(*EXECUTION_REJECTED, 1, sha=OLDER)
         rejected = state(first, graded(None, CHANGES, 3), comments=[ruling(2)])
-        expect(steps.pause_for_owner(), rejected)
+        expect(steps.worker(Task.FIX_EXECUTION, ruling(2).url), rejected)
 
     def test_execution_approved_green_without_a_conflict(self) -> None:
         """Merge."""
@@ -326,9 +326,9 @@ class TestBranches(unittest.TestCase):
         expect(steps.merge(), state(graded(None, APPROVED, 1)))
 
     def test_a_ruling_is_used_whatever_came_before_it(self) -> None:
-        """A rejected plan after a ruling pauses, even the first one."""
-        rejected = state(graded(*PLAN_REJECTED, 2), comments=[ruling(1)])
-        expect(steps.pause_for_owner(), rejected)
+        """A rejected plan after a ruling is a Plan round, even the first one."""
+        pr = state(graded(*PLAN_REJECTED, 2), comments=[ruling(1)])
+        assert_that(flow.next_step(pr), equal_to(steps.worker(Task.REVISE_PLAN)))
 
     def test_a_github_review_is_no_regular_review(self) -> None:
         """The pseudo code reads regular reviews only, gated repository or not."""

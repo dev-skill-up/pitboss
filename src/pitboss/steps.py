@@ -38,7 +38,6 @@ class Step(enum.Enum):
         UNDRAFT: mark the PR ready (a draft approved at its head, pitboss#176).
         REGULAR_REVIEW: a new reviewer grades a stage.
         OPUS_RULING: one Opus agent makes a binding ruling.
-        PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
         FIX_RULING: the newest Opus ruling has no readable ``Ruling:`` line.
         RULING_ESCALATES: the Opus ruling escalated to the owner.
         PLAN_EDITED: the approved Plan was edited, no ruling allows it (plan-digest).
@@ -52,7 +51,6 @@ class Step(enum.Enum):
     UNDRAFT = enum.auto()
     REGULAR_REVIEW = enum.auto()
     OPUS_RULING = enum.auto()
-    PAUSE_FOR_OWNER = enum.auto()
     FIX_RULING = enum.auto()
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
@@ -167,7 +165,6 @@ class Next:
 UNRESOLVED = frozenset(
     {
         Step.OPUS_RULING,
-        Step.PAUSE_FOR_OWNER,
         Step.RULING_ESCALATES,
         Step.PLAN_EDITED,
     }
@@ -237,15 +234,6 @@ def opus_ruling() -> Next:
         The step.
     """
     return Next(step=Step.OPUS_RULING)
-
-
-def pause_for_owner() -> Next:
-    """The step that pauses the PR for the owner.
-
-    Returns:
-        The step.
-    """
-    return Next(step=Step.PAUSE_FOR_OWNER)
 
 
 def fix_ruling(comment: str) -> Next:

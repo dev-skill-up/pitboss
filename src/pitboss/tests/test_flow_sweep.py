@@ -30,6 +30,7 @@ RULING_LINE = "RULING: owner/project#3: start an Opus agent"
 PAUSE_LINE = "ORCHESTRATOR: owner/project#3: label the PR and its ticket paused-owner"
 ESCALATES = "ORCHESTRATOR: owner/project#3: the Opus ruling escalated to the owner"
 REVISE = "WORKER: owner/project#3: revise the PLAN only"
+FIX_EXECUTION = "WORKER: owner/project#3: fix the execution against the approved plan"
 REVIEW_THIRD = "REVIEWER: owner/project#3: grade Plan and Execution together"
 CONFLICT_THIRD = "WORKER: owner/project#3: resolve the conflict"
 # PR 3's commits since main: authored at the older head, a fix of a.bats at HEAD
@@ -196,19 +197,19 @@ class TestSweepAndNext(unittest.TestCase):
         assert_that(swept, contains_string(RULING_LINE))
         assert_that(listed, contains_string(RULING_LINE))
 
-    def test_pause_after_the_ruling_and_another_plan_rejection(self) -> None:
-        """The orchestrator posts the question to the owner: the decision."""
+    def test_a_plan_rejection_after_the_ruling_is_a_plan_round(self) -> None:
+        """A worker revises the Plan: no pause, no second ruling (pitboss#517)."""
         swept, listed = sweep_and_next([*RULED, graded(CHANGES, None, 4)])
-        assert_that(swept, contains_string(PAUSE_LINE))
-        assert_that(RULING_LINE in swept, equal_to(False))
-        assert_that(listed, contains_string(PAUSE_LINE))
+        assert_that(swept, contains_string(REVISE))
+        assert_that(PAUSE_LINE in swept or RULING_LINE in swept, equal_to(False))
+        assert_that(listed, contains_string(REVISE))
 
-    def test_pause_after_the_ruling_and_a_rejected_execution(self) -> None:
-        """An execution rejection after the ruling pauses too."""
+    def test_a_rejected_execution_after_the_ruling_is_a_fix_of_it(self) -> None:
+        """A worker fixes the Execution against the ruling; the owner is not asked."""
         rounds = [EXECUTION_TWICE[0], test_flow.ruling(2), graded(None, CHANGES, 3)]
         swept, listed = sweep_and_next(rounds)
-        assert_that(swept, contains_string(PAUSE_LINE))
-        assert_that(listed, contains_string(PAUSE_LINE))
+        assert_that(swept, contains_string(FIX_EXECUTION))
+        assert_that(listed, contains_string(FIX_EXECUTION))
 
     def test_a_review_that_approves_the_plan_and_asks_for_changes_is_a_ruling(
         self,
