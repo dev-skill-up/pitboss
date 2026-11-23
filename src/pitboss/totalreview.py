@@ -171,7 +171,8 @@ def plan_digest(body: str) -> str:
         The digest of its Plan section as ``plan-check`` records it: the expanded
         blocks collapsed and no ``Head:`` line (``expansion.section_digest``).
     """
-    return expansion.section_digest(plandigest.section(body))
+    section = plandigest.section(body)
+    return expansion.section_digest(section)
 
 
 def plan_reading(review: str, body: str) -> str:
