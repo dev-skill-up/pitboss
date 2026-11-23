@@ -78,11 +78,16 @@ class TestRecord(unittest.TestCase):
 class TestRead(unittest.TestCase):
     """The worktree of a branch."""
 
-    def test_a_branch_with_no_worktree_is_not_required(self) -> None:
-        """git cannot list a clone that is not there."""
+    def test_a_failed_git_read_is_no_hand_back_not_no_worker(self) -> None:
+        """git cannot list a clone that is not there: required, nothing recorded."""
         settings = fakes.settings(repositories.directory())
         ask = handedread.asker(_failing, settings)
-        assert_that(ask("no-such-branch"), equal_to(handbacks.NOT_REQUIRED))
+        none = handbacks.HandedBack(required=True, states=frozenset())
+        clone = settings.project.main_clone
+        directory = handedread.worktree_directory(_failing, clone, "x")
+        assert_that(ask("no-such-branch"), equal_to(none))
+        assert_that(directory, equal_to(None))
+        assert_that(handbacks.covers_state(none, HEAD, "digest"), equal_to(False))
 
     def test_a_worktree_with_a_record_is_read(self) -> None:
         """A worktree of the branch: its record is the states."""
