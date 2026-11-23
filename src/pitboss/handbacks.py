@@ -63,12 +63,14 @@ def covers_state(handed: HandedBack, head: str, digest: str) -> bool:
         digest: the digest of the body.
 
     Returns:
-        True when no worker is required, or a record names the head and the body.
+        True when no worker is required, or a record names the head (not an
+        empty one, which is a prefix of every head) and the body.
     """
-    return not handed.required or any(
+    named = bool(head) and any(
         sha.startswith(head) and _matches(body, digest)
         for sha, body, _ in handed.states
     )
+    return not handed.required or named
 
 
 def applied(handed: HandedBack, ruling: str) -> bool:

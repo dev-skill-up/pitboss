@@ -38,9 +38,14 @@ class TestCovers(unittest.TestCase):
 
     def test_a_review_names_the_head_abbreviated(self) -> None:
         """The head of a review may be a prefix, under any ruling."""
-        asked = [(HEAD[:7], "digest"), (HEAD[:7], "other"), (OTHER[:7], "digest")]
+        asked = [
+            (HEAD[:7], "digest"),
+            (HEAD[:7], "other"),
+            (OTHER[:7], "digest"),
+            ("", "digest"),
+        ]
         found = [handbacks.covers_state(RECORD, *each) for each in asked]
-        assert_that(found, equal_to([True, False, False]))
+        assert_that(found, equal_to([True, False, False, False]))
 
     def test_a_ruling_is_applied_once_a_hand_back_names_it(self) -> None:
         """The ruling a hand-back saw."""
