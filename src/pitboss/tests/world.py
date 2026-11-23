@@ -14,6 +14,7 @@ from gather import commands as gather_commands
 
 from .. import cli_parser, disk
 from . import fakes, fixeddisk, ownerbodies, repositories, ticket_bodies, worldcomments
+from .handedworld import plant
 from .worldreads import GATE_READS
 
 FUTURE = "2030-01-01T00:00:00+00:00"
@@ -22,7 +23,6 @@ PROJECT = "repos/owner/project"
 LIBRARY = "repos/owner/lib"
 EXTRA = """
 [runners]
-
 [libraries]
 repositories = ["lib"]
 no_auto_merge = ["lib"]
@@ -328,7 +328,7 @@ def invoke(
         What it did.
     """
     out, err = io.StringIO(), io.StringIO()
-    env = {**shell_env(world, directory), **dict(variables)}
+    env = {**shell_env(plant(world), directory), **dict(variables)}
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         code = exit_code(world, ["pitboss", *argv], env)
     return Result(out=out.getvalue(), err=err.getvalue(), code=code)

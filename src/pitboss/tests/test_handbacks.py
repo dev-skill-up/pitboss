@@ -7,9 +7,10 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import handbackrecord, handbacks, handedread, running
+from .. import config, handbackrecord, handbacks, handedread, running
 from . import fakes, handbackworld, repositories
 
+REPO = config.make_repo("owner", "project")
 HEAD = "a" * 40
 OTHER = "b" * 40
 RECORD = handbacks.HandedBack(
@@ -20,8 +21,8 @@ RECORD = handbacks.HandedBack(
 class TestCovers(unittest.TestCase):
     """What a record covers."""
 
-    def test_a_pr_no_worker_holds_is_covered(self) -> None:
-        """No worktree, no requirement."""
+    def test_a_relock_pr_is_covered(self) -> None:
+        """A relock PR owes none."""
         covered = handbacks.covers(handbacks.NOT_REQUIRED, OTHER, "x", "y")
         same_state = handbacks.covers_state(handbacks.NOT_REQUIRED, OTHER, "x")
         assert_that((covered, same_state), equal_to((True, True)))
@@ -86,25 +87,37 @@ class TestRead(unittest.TestCase):
         none = handbacks.HandedBack(required=True, states=frozenset())
         clone = settings.project.main_clone
         directory = handedread.worktree_directory(_failing, clone, "x")
-        refused = handedread.asker(_exits, settings)("no-such-branch")
+        refused = handedread.asker(_exits, settings)(REPO, "no-such-branch")
         assert_that(refused, equal_to(none))
-        assert_that(ask("no-such-branch"), equal_to(none))
+        assert_that(ask(REPO, "no-such-branch"), equal_to(none))
         assert_that(directory, equal_to(None))
         assert_that(handbacks.covers_state(none, HEAD, "digest"), equal_to(False))
 
     def test_a_worktree_with_a_record_is_read(self) -> None:
         """A worktree of the branch: its record is the states."""
         made = repositories.build()
-        clone = made.workspace / "project"
-        path = repositories.add_worktree(clone, "work")
+        path = repositories.add_worktree(made.workspace / "project", "work")
         git = pathlib.Path(handbackworld.git(path, "rev-parse", "--absolute-git-dir"))
         handbackrecord.record(git, HEAD, "digest", "ruling")
-        settings = fakes.settings(made.workspace)
-        ask = handedread.asker(_real, settings)
-        found = ask("work")
-        assert_that(found.required, equal_to(True))
-        assert_that(found.states, equal_to(RECORD.states))
-        assert_that(ask("other"), equal_to(handbacks.NOT_REQUIRED))
+        owed = handbacks.HandedBack(required=True, states=frozenset())
+        found = [asked_of(made.workspace, each) for each in ("work", "other")]
+        assert_that(found, equal_to([RECORD, owed]))
+
+
+def asked_of(
+    workspace: pathlib.Path, branch: str, repo: config.Repo = REPO
+) -> handbacks.HandedBack:
+    """What the main clone of a workspace says a branch handed back.
+
+    Args:
+        workspace: the workspace.
+        branch: the branch.
+        repo: the PR's repository.
+
+    Returns:
+        The answer of the asker.
+    """
+    return handedread.asker(_real, fakes.settings(workspace))(repo, branch)
 
 
 def _real(cmdargs: Sequence[str], /) -> running.Output:

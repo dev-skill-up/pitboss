@@ -5,11 +5,33 @@ to count the worker done (pitboss#471).
 """
 
 import pathlib
+import urllib.parse
 from typing import AbstractSet
 
 from . import handbacks
 
 RECORD = "pitboss-hand-back"
+KEPT = "pitboss-hand-backs"
+
+
+def kept(common: pathlib.Path, slug: str, branch: str) -> pathlib.Path:
+    """The directory that keeps a branch's record whatever worktree exists.
+
+    The keyword is durable-record (pitboss#513): a record only in a worktree's git
+    directory is gone with the worktree, and a PR then looks as no worker held it.
+    It is kept in the project's main clone for the PR's repository (a library's
+    too), the one clone the reading side asks.
+
+    Args:
+        common: the project's main clone's git directory.
+        slug: the PR's repository, ``owner/name``.
+        branch: the PR's head branch.
+
+    Returns:
+        The directory ``states`` and ``record`` take; it need not exist yet.
+    """
+    quoted = urllib.parse.quote
+    return common / KEPT / quoted(slug, safe="") / quoted(branch, safe="")
 
 
 def recorded(git_directory: pathlib.Path, head: str) -> bool:
@@ -62,7 +84,8 @@ def record(git_directory: pathlib.Path, head: str, digest: str, ruling: str) -> 
         ruling: the address of the PR's newest ruling, ``handbacks.NO_RULING``.
     """
     try:
-        with (git_directory / RECORD).open("a", encoding="utf-8") as kept:
-            kept.write(f"{head} {digest} {ruling}\n")
+        git_directory.mkdir(parents=True, exist_ok=True)
+        with (git_directory / RECORD).open("a", encoding="utf-8") as written:
+            written.write(f"{head} {digest} {ruling}\n")
     except OSError:  # pragma: no cover
         return
