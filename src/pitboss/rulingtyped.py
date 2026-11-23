@@ -19,9 +19,9 @@ def _line(source: str) -> re.Pattern[str]:
     return re.compile(source, re.IGNORECASE)
 
 
-HEADING = _line(r"^[ \t]*(?:#+[ \t]*)?\**steps\**[ \t]*:?\**[ \t]*$")
-NEXT_SECTION = _line(r"^[ \t]*(?:#+[ \t]|\**how[ \t]+we[ \t]+got[ \t]+here)")
-ITEM = re.compile(r"^[ \t]*(?:\d+[.)]|[-*])[ \t]+(.+?)[ \t]*$")
+HEADING = _line(r"^[ \t]*(?:#+[ \t]*)?\**steps\b[^\n]{0,40}$")
+NEXT_SECTION = _line(r"^[ \t]*(?:#+[ \t]|\*\*|how[ \t]+we[ \t]+got[ \t]+here)")
+ITEM = re.compile(r"^(?:\d+[.)]|[-*])[ \t]+(.+?)[ \t]*$")
 NOT_AN_EDIT = (
     "a `revise the plan` ruling orders only edits of the ticket or the body, each"
     " as `ticket|body delete|replace: text`; step {number} is not one: {text!r}"
@@ -117,8 +117,9 @@ def carried(text: str, body: str) -> bool:
         True when each ``body`` edit shows: its new text is in the body, and a
         deletion's text is not. A ruling with no body edit is carried by any body.
     """
+    edits = parts("\n".join(steps_of(text)))  # the steps only, not the analysis
     return all(
-        (new in body) if new else (old not in body)
-        for target, old, new in parts(text)
+        (new in body) and (old in new or old not in body) if new else (old not in body)
+        for target, old, new in edits
         if target == "body"
     )

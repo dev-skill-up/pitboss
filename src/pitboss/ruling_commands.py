@@ -74,7 +74,7 @@ def ruling(args: argparse.Namespace) -> None:
     second line is ``Ruling: <word>`` with a word of the ruling words, and it
     has a ``How we got here`` section with the analysis in it. It is also
     refused when the PR already has an Opus ruling and is not paused for the
-    owner (A6: one ruling per PR, a further rejection is the owner's). It posts
+    owner (A6: one ruling per PR; a further rejection is a worker's round). It posts
     as it is run, with no flag; the exit status is 2 for a refusal or a file it
     cannot read.
 

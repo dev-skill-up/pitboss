@@ -80,6 +80,13 @@ class TestRefusal(unittest.TestCase):
         said = rulingform.refusal("Opus ruling\nRuling: revise the plan\n" + HOW)
         assert_that(said, equal_to(""))
 
+    def test_a_heading_with_words_after_steps_is_read(self) -> None:
+        """`Steps (in order):` opens the steps as `Steps` does."""
+        body = text("revise the plan", EDIT, CODE).replace(
+            "Steps\n", "Steps (in order):\n"
+        )
+        assert_that(rulingform.refusal(body), contains_string("step 2 is not one"))
+
     def test_steps_end_at_the_analysis(self) -> None:
         """A bullet of the analysis is no step."""
         body = text("revise the plan", EDIT) + "- a bullet of the analysis\n"
@@ -100,6 +107,8 @@ class TestCarried(unittest.TestCase):
             (delete, "other", True),
             (delete, "old row", False),
             (ticket, "gone", True),  # the body holds nothing of the ticket
+            (replace, "new row old row", False),  # the old text must go
+            (replace + "\nbody delete: x\n", "new row", True),  # not a step line
         ):
             assert_that(rulingtyped.carried(ruling, body), is_(shown))
 
