@@ -339,11 +339,11 @@ def pushed_since(pr: PullState, posted: shapes.Comment) -> bool:
 
 
 def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
-    """The Plan review of a draft, once the check its repository requires is done.
+    """The Plan review of a draft, once the check its repository requires has passed.
 
     quire's lint refuses an approval of a head with no completed green ``check``
     run, and a draft runs that job (keyword: plan-review-check, pitboss#275), so
-    the review waits for the run as a ready PR's does; the Plan check needs no CI.
+    the review waits for a green run (a red one is fixed); the Plan check needs no CI.
 
     Args:
         pr: the draft, whose Plan is not approved and not rejected at its head.
@@ -351,11 +351,11 @@ def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
 
     Returns:
         The wait for CI when the step is the review and the configured check has
-        not completed at the head, else the step.
+        not passed at the head, else the step.
     """
     name = pr.draft.plan_review_check
     due = step.step is steps.Step.REGULAR_REVIEW and name
-    if due and not checkoutcome.any_finished(draftfacts.of_name(pr.checks, name)):
+    if due and not checkoutcome.all_passed(draftfacts.of_name(pr.checks, name)):
         return steps.IDLE
     return step
 

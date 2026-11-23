@@ -135,7 +135,7 @@ class TestTheFlow(unittest.TestCase):
             ([test_flow.RUNNING], "lint", steps.IDLE),
             ([test_flow.GREEN], "lint", steps.IDLE),
             ([test_flow.GREEN], "build", review),
-            ([test_flow.RED], "test", review),
+            ([test_flow.RED], "test", steps.worker(steps.Task.FIX_CI)),
         )
         for runs, name, wanted in cases:
             found = state(checks=runs, draft=True)

@@ -11,7 +11,6 @@ from . import (
     checkoutcome,
     conflicts,
     expansion,
-    draftfacts,
     evidence,
     floworder,
     flowquestions,
@@ -209,10 +208,10 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
         ready = _ready(pr)
         if pr.draft.no_drafts:  # keyword: no-drafts (pitboss#390): never reviewed
             # a red CI is fixed by the worker before the undraft (draft-red-ci)
-            return ci_gate(pr, review) if _red_besides(pr) else ready
+            return ci_gate(pr, review) if _red(pr) else ready
         # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
         rejection = rejection_step(pr, review) if review else None
-        if _red_besides(pr) and not rejection:  # keyword: draft-red-ci
+        if _red(pr) and not rejection:  # keyword: draft-red-ci
             return ci_gate(pr, review)
         if rejection or not plan_approved(pr):
             alone = _plan_review(pr)
@@ -224,10 +223,9 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
     return ci_gate(pr, review)
 
 
-def _red_besides(pr: PullState) -> bool:
-    # keyword: draft-red-ci: a check other than the Plan review's failed
-    others = draftfacts.besides(pr.checks, pr.draft.plan_review_check)
-    return checkoutcome.result(others) is checkoutcome.Ci.RED
+def _red(pr: PullState) -> bool:
+    # keyword: draft-red-ci: a failed check is fixed, the Plan review's too (quire#1134)
+    return checkoutcome.result(pr.checks) is checkoutcome.Ci.RED
 
 
 def _ready(pr: PullState) -> steps.Move:
