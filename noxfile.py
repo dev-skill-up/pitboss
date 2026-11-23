@@ -2,6 +2,8 @@ import functools
 import os
 import re
 import shutil
+import time
+import urllib.error
 import urllib.request
 
 import nox
@@ -39,14 +41,29 @@ def _publish_action_sha():
     return match.group(1)
 
 
-def _publish_action_file(sha, path):
+FETCH_TRIES = 5
+
+
+def publish_action_file(sha, path):
+    # keyword: fetch-retry. raw.githubusercontent.com answers 503 "max_conn" under
+    # load (dry_release of 5a40f7f): a server error is tried again with backoff; a
+    # 4xx, which a retry cannot change, is raised at once.
     url = f"https://raw.githubusercontent.com/{PUBLISH_ACTION}/{sha}/{path}"
-    with urllib.request.urlopen(url) as response:
-        return response.read().decode()
+    for attempt in range(FETCH_TRIES):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                return response.read().decode()
+        except urllib.error.HTTPError as error:
+            if error.code < 500 or attempt == FETCH_TRIES - 1:
+                raise
+        except urllib.error.URLError:
+            if attempt == FETCH_TRIES - 1:
+                raise
+        time.sleep(2**attempt)
 
 
 def _verify_publish_python(sha):
-    dockerfile = _publish_action_file(sha, "Dockerfile")
+    dockerfile = publish_action_file(sha, "Dockerfile")
     match = re.search(r"^FROM python:(\d+\.\d+)", dockerfile, re.MULTILINE)
     found = match.group(1) if match else None
     if found != PUBLISH_PYTHON:
@@ -58,7 +75,7 @@ def _verify_publish_python(sha):
 
 
 def _publish_twine_requirement(sha):
-    runtime = _publish_action_file(sha, "requirements/runtime.txt")
+    runtime = publish_action_file(sha, "requirements/runtime.txt")
     return re.search(r"^twine==\S+", runtime, re.MULTILINE).group(0)
 
 
