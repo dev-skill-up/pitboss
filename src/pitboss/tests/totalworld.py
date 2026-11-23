@@ -11,7 +11,7 @@ import json
 import pathlib
 from typing import Iterable, Mapping
 
-from .. import bodydigest, pullobject, totalreview
+from .. import expansion, plandigest, pullobject, totalreview
 from ..totaljson import JsonMap, members, name_at, text
 from ..plansection import plan_section
 
@@ -50,6 +50,12 @@ OPEN_TICKET = {
 FILE = {"filename": "src/x.bats", "status": "modified", "additions": 10, "deletions": 2}
 
 
+def _plan_lines(body: object) -> list[str]:
+    # the review's Plan-digest line, none for a body with no one Plan section
+    digest = expansion.section_digest(plandigest.section(text(body)))
+    return [] if plan_section(body) is None else [f"Plan-digest: {digest}"]
+
+
 def review(
     head: str, body: object, tickets: Mapping[str, object], grade: str = "approved"
 ) -> Pull:
@@ -64,15 +70,13 @@ def review(
     Returns:
         The timeline event.
     """
-    section = plan_section(body)
-    plan = [] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]
     lines = [
         f"{INDEPENDENT} {head}: {grade}",
         "Plan: approved",
         f"Execution: {grade}",
         f"Verdict: {grade}",
         f"Body: {totalreview.digest_of(text(body))}",
-        *plan,
+        *_plan_lines(body),
         *totalreview.ticket_lines(pullobject.tickets_of(tickets)),
     ]
     return {

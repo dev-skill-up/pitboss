@@ -14,7 +14,7 @@ It reads the typed timeline and tickets ``pullstate`` made (plan 6.1).
 import re
 from typing import Mapping, Sequence
 
-from . import bodydigest
+from . import bodydigest, expansion, plandigest
 from .reviewattempt import LOOSE_GRADE, is_attempt
 from .plansection import plan_section
 from .pullrecords import Errored, Event, Ticket
@@ -177,7 +177,8 @@ def plan_reading(review: str, body: str) -> str:
     section = plan_section(body)
     if section is None:
         return "the body has not exactly one `## Plan` section"
-    if f"Plan-digest: {bodydigest.digest(section)}" not in lines:
+    now = plandigest.section(body)
+    if f"Plan-digest: {expansion.section_digest(now)}" not in lines:
         return (
             "the Plan changed since the newest review"
             " (no `Plan-digest:` line of the Plan the body holds)"
