@@ -79,19 +79,28 @@ def _listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
     # users path is tried only after the organization's answered 404; a bound
     # session's refusal goes to the search (pitboss#305); any other refusal (403,
     # SSO, proxy, 5xx) is raised, not answered with a shorter list. The search is
-    # started with the organization's list (keyword: one-path), so a refusal does
-    # not wait for it: its answer is used only then, and is not waited for else.
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    searching = pool.submit(_search, github, f"org:{owner}")
-    pool.shutdown(wait=False)
-    try:
-        return ghapi.pages(github, PATHS[0].format(owner=owner), repositories)
-    except subprocess.CalledProcessError as refused:
-        if is_bound_refusal(refused):
-            return searching.result() or _search(github, f"user:{owner}")
-        if ghapi.status_of(refused) != "HTTP 404":
-            raise
-        return _as_user(github, owner, refused)
+    # started with the organization's list (keyword: one-path) and always finished
+    # before this returns, so the reads of a command never depend on timing
+    # (keyword: reads-joined, #524).
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        searching = pool.submit(_search, github, f"org:{owner}")
+        try:
+            return ghapi.pages(github, PATHS[0].format(owner=owner), repositories)
+        except subprocess.CalledProcessError as refused:
+            return _refused(github, owner, refused, searching)
+
+
+def _refused(
+    github: ghapi.GitHub,
+    owner: str,
+    refused: subprocess.CalledProcessError,
+    searching: concurrent.futures.Future[Sequence[tuple[str, bool]]],
+) -> Sequence[tuple[str, bool]]:
+    if is_bound_refusal(refused):
+        return searching.result() or _search(github, f"user:{owner}")
+    if ghapi.status_of(refused) != "HTTP 404":
+        raise refused
+    return _as_user(github, owner, refused)
 
 
 def listed_slugs(github: ghapi.GitHub, owner: str) -> AbstractSet[str]:

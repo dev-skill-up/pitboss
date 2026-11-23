@@ -82,7 +82,8 @@ class TestFourForms(unittest.TestCase):
                 configcases.seen(here, result, command) for here, result in runs
             ]
         same = {name: [seen[0]] * len(seen) for name, seen in found.items()}
-        assert_that(found, equal_to(same))
+        reads = configcases.read_differences(configcases.every_run())
+        assert_that(found, equal_to(same), reads)
 
     def test_the_old_word_prints_the_deprecation_line_once(self) -> None:
         """Only the old first word says it is deprecated, and once."""

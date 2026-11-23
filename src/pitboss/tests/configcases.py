@@ -1,5 +1,6 @@
 """Every command that takes a configuration, in a world (keyword: default-config)."""
 
+import collections
 import dataclasses
 import os
 import pathlib
@@ -248,6 +249,34 @@ def every_run() -> Mapping[tuple[str, str], Ran]:
     return {
         (case.before[0], form): form_run(case, form) for case in CASES for form in FORMS
     }
+
+
+def read_differences(runs: Mapping[tuple[str, str], Ran]) -> str:
+    """The paths a form read that the command's first form did not, and the reverse.
+
+    A failure of the forms test carries it, so a read that depends on timing
+    names itself (keyword: reads-joined, #524).
+
+    Args:
+        runs: what each run did, by its command and its form.
+
+    Returns:
+        One line for each path read a different number of times, empty when
+        every form of every command read the same.
+    """
+    lines = []
+    for command in sorted({name for name, _ in runs}):
+        reads = [_reads(runs[command, form].here) for form in FORMS]
+        for form, each in zip(FORMS, reads):
+            lines += [f"{command} {form}: +{path}" for path in each - reads[0]]
+            lines += [f"{command} {form}: -{path}" for path in reads[0] - each]
+    return "\n".join(lines)
+
+
+def _reads(here: world.World) -> collections.Counter[str]:
+    return collections.Counter(
+        call[-1] for call in here.calls if list(call[:2]) == ["gh", "api"]
+    )
 
 
 def deprecation(command: str) -> str:
