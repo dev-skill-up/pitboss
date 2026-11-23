@@ -109,6 +109,26 @@ class TestStanding(unittest.TestCase):
         assert_that(found, equal_to([False, True, True, True]))
 
 
+class TestAfterARuling(unittest.TestCase):
+    """A ruling opens another review of a state a review already graded."""
+
+    def test_a_review_before_the_ruling_does_not_name_the_state(self) -> None:
+        """The steps change neither head nor body: the review follows the hand-back."""
+        stage = steps.Stage.RULING_STEPS
+        before = dataclasses.replace(
+            graded(test_flow.APPROVED, CHANGES, 1), body=BODY_DIGEST
+        )
+        after = dataclasses.replace(
+            graded(test_flow.APPROVED, CHANGES, 5), body=BODY_DIGEST
+        )
+        record = held((HEAD, BODY_DIGEST, RULING))
+        ruled = [test_flow.ruling(3)]
+        waiting = worked(state(before, comments=ruled), record)
+        answered = worked(state(before, after, comments=ruled), record)
+        found = [has_standing(waiting, stage), has_standing(answered, stage)]
+        assert_that(found, equal_to([True, False]))
+
+
 class TestWithoutAHandBack(unittest.TestCase):
     """What the flow prints where a review had been."""
 

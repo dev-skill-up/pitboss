@@ -69,22 +69,29 @@ def ruling_address(
     Returns:
         The address, ``handbacks.NO_RULING`` when there is no ruling.
     """
+    newest = _newest_ruling(comments, trusted)
+    return newest.url if newest and newest.url else handbacks.NO_RULING
+
+
+def _newest_ruling(
+    comments: Sequence[shapes.Comment], trusted: AbstractSet[str]
+) -> shapes.Comment | None:
     found = [
         each
         for each in comments
         if sessionurl.first_line_is(each.body, steps.RULING_FIRST_LINE)
         and each.author_association in trusted
     ]
-    newest = max(found, key=lambda each: each.created_at, default=None)
-    return newest.url if newest and newest.url else handbacks.NO_RULING
+    return max(found, key=lambda each: each.created_at, default=None)
 
 
 def _alone(stage: steps.Stage) -> bool:
     return stage is steps.Stage.PLAN_ONLY
 
 
-def _names(review: shapes.Graded, pr: Held, stage: steps.Stage) -> bool:
-    # a review of this head and body (as the review recorded the body) of this stage
+def _names(review: shapes.Graded, pr: Held, stage: steps.Stage, since: str) -> bool:
+    # a review of this head and body (as the review recorded the body) of this stage,
+    # posted after the newest ruling: a ruling opens another review of the same state
     digest = bodydigest.digest(pr.pull.body)
     same_state = pr.pull.head.sha.startswith(review.sha) and expansion.current_for(
         expansion.Subject.BODY, review.body, digest
@@ -94,6 +101,7 @@ def _names(review: shapes.Graded, pr: Held, stage: steps.Stage) -> bool:
         and same_state
         and (review.execution is None) is _alone(stage)
         and bool(review.sha)
+        and review.when > since
     )
 
 
@@ -106,8 +114,8 @@ def of(pr: Held, stage: steps.Stage) -> steps.Standing | None:
 
     Returns:
         A standing when a worker handed this head and body back under the PR's
-        newest ruling (or no worker is required) and no review of the stage names
-        them; else None.
+        newest ruling (or no worker is required) and no review of the stage,
+        posted after the newest ruling, names them; else None.
     """
     granted = steps.Standing(
         head=pr.pull.head.sha, body=bodydigest.digest(pr.pull.body), stage=stage
@@ -115,7 +123,10 @@ def of(pr: Held, stage: steps.Stage) -> steps.Standing | None:
     ruling = ruling_address(pr.comments, pr.trusted)
     if not handbacks.covers(pr.handed, granted.head, granted.body, ruling):
         return None
-    return None if any(_names(each, pr, stage) for each in pr.graded) else granted
+    newest = _newest_ruling(pr.comments, pr.trusted)
+    since = newest.created_at if newest else ""
+    named = any(_names(each, pr, stage, since) for each in pr.graded)
+    return None if named else granted
 
 
 def reviewed(pr: Held, stage: steps.Stage) -> steps.Next:

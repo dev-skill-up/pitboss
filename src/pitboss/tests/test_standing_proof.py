@@ -4,8 +4,10 @@ The proof reads the parsed text of ``src/pitboss`` without its tests and runs no
 of its code. It holds that ``steps.Standing`` is built only in ``standing.py``,
 that a ``REGULAR_REVIEW`` step is built only in ``steps.regular_review``, whose
 parameter is a ``Standing``, and that each call of ``regular_review`` passes a name
-bound from ``standing.of``. The type checker (``mypy src/pitboss``) holds the rest:
-``regular_review`` takes nothing else.
+bound from ``standing.of``: no code of the package builds one by any of these
+forms (a heuristic over the text, not a bar to a determined alias). The type
+checker (``mypy src/pitboss``) holds the rest: ``regular_review`` takes nothing
+else.
 """
 
 import ast

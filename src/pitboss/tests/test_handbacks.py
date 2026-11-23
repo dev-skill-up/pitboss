@@ -1,6 +1,7 @@
 """What the worktrees recorded of the hand-backs (keyword: standing, pitboss#507)."""
 
 import pathlib
+import subprocess
 import unittest
 from typing import Sequence
 
@@ -85,6 +86,8 @@ class TestRead(unittest.TestCase):
         none = handbacks.HandedBack(required=True, states=frozenset())
         clone = settings.project.main_clone
         directory = handedread.worktree_directory(_failing, clone, "x")
+        refused = handedread.asker(_exits, settings)("no-such-branch")
+        assert_that(refused, equal_to(none))
         assert_that(ask("no-such-branch"), equal_to(none))
         assert_that(directory, equal_to(None))
         assert_that(handbacks.covers_state(none, HEAD, "digest"), equal_to(False))
@@ -106,6 +109,10 @@ class TestRead(unittest.TestCase):
 
 def _real(cmdargs: Sequence[str], /) -> running.Output:
     return fakes.run_for_real(cmdargs, None, None)
+
+
+def _exits(cmdargs: Sequence[str], /) -> running.Output:
+    raise subprocess.CalledProcessError(128, list(cmdargs))
 
 
 def _failing(cmdargs: Sequence[str], /) -> running.Output:
