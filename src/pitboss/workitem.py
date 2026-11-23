@@ -48,6 +48,7 @@ class Category(enum.IntEnum):
             (keyword: blocked-by).
         FINISH_PARTIAL: an author finishes a PR a worker handed back unfinished (a
             PR; keyword: finish-partial).
+        HAND_BACK: an author hands the head and body back (keyword: standing).
     """
 
     FIX_REVIEW = 1
@@ -69,6 +70,7 @@ class Category(enum.IntEnum):
     FIX_BLOCKED_BY = 18
     AFTER_BLOCKER = 19
     FINISH_PARTIAL = 20
+    HAND_BACK = 21
 
 
 CATEGORY_WORDS = {
@@ -91,6 +93,7 @@ CATEGORY_WORDS = {
     Category.FIX_BLOCKED_BY: "correct the Blocked-by lines of the body",
     Category.AFTER_BLOCKER: "merge the base into the branch, the blockers merged",
     Category.FINISH_PARTIAL: "finish the PR a worker handed back unfinished",
+    Category.HAND_BACK: "hand the head and body back",
 }
 
 

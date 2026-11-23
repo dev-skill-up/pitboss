@@ -32,6 +32,9 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.FIX_BLOCKED_BY: Category.FIX_BLOCKED_BY,
     steps.Task.AFTER_BLOCKER: Category.AFTER_BLOCKER,
     steps.Task.FINISH_PARTIAL: Category.FINISH_PARTIAL,
+    steps.Task.HAND_BACK: Category.HAND_BACK,
+    steps.Task.FIX_EXECUTION: Category.FIX_REVIEW,
+    steps.Task.FIX_ROUND: Category.FIX_REVIEW,
 }
 
 
@@ -48,7 +51,7 @@ def category_of(pull: pullfacts.PullFacts) -> Category | None:
     if isinstance(step, steps.Idle):
         return None
     if step.step is steps.Step.WORKER:
-        return CATEGORY_OF_TASK.get(step.task, Category.FIX_REVIEW)
+        return CATEGORY_OF_TASK[step.task]
     # review-flow: the step alone decides, so ``next`` and ``slots next`` agree
     if step.step is not steps.Step.REGULAR_REVIEW:
         return None
