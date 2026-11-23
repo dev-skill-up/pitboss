@@ -161,20 +161,6 @@ def _verdict_finding(lines: Sequence[str]) -> str:
     return ""
 
 
-def plan_digest(body: str) -> str:
-    """The Plan digest a review records and the flow compares (act-plan-digest).
-
-    Args:
-        body: the PR body.
-
-    Returns:
-        The digest of its Plan section as ``plan-check`` records it: the expanded
-        blocks collapsed and no ``Head:`` line (``expansion.section_digest``).
-    """
-    section = plandigest.section(body)
-    return expansion.section_digest(section)
-
-
 def plan_reading(review: str, body: str) -> str:
     """Why the newest review does not approve the Plan the body holds now.
 
@@ -191,7 +177,8 @@ def plan_reading(review: str, body: str) -> str:
     section = plan_section(body)
     if section is None:
         return "the body has not exactly one `## Plan` section"
-    if f"Plan-digest: {plan_digest(body)}" not in lines:
+    recorded = expansion.section_digest(plandigest.section(body))
+    if f"Plan-digest: {recorded}" not in lines:
         return (
             "the Plan changed since the newest review"
             " (no `Plan-digest:` line of the Plan the body holds)"
