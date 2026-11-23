@@ -133,10 +133,7 @@ def hand_back_check(args: argparse.Namespace) -> None:
         print(each)
     if lines:
         raise SystemExit(1)
-    handbackrun.accept(
-        args, commands.load_settings(args)
-    )  # recorded only when nothing at all refused
-    print("ok")
+    print("ok")  # nothing is recorded: the PR shows the hand-back (#524)
 
 
 def _refusals(args: argparse.Namespace, text: str) -> Sequence[str]:

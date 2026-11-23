@@ -14,7 +14,6 @@ import subprocess
 from typing import AbstractSet, Protocol, Sequence
 
 from . import (
-    bodydigest,
     evidence,
     forms,
     ghapi,
@@ -23,7 +22,6 @@ from . import (
     pullfiles,
     relockfix,
     shapes,
-    standing,
 )
 
 SHOWN = 100
@@ -97,21 +95,6 @@ def jobs_line(found: Sequence[str]) -> str:
         + (f" (and {len(found) - 1} more)" if len(found) > 1 else "")
         + "; wait for it in the foreground (a command's own timeout) and send"
         " the hand-back once, after every command has ended"
-    )
-
-
-def second_line(head: str) -> str:
-    """The refusal of a second hand-back for a head.
-
-    Args:
-        head: the head.
-
-    Returns:
-        The line.
-    """
-    return (
-        f"refused: the hand-back for head {head} was already accepted; it is sent"
-        " once, and a second one is not a report"
     )
 
 
@@ -292,23 +275,6 @@ def _read(pushed: Subject) -> tuple[shapes.Pull, Sequence[shapes.Comment]]:
     pull = parsing.pull(ghapi.get(pushed.github, f"{base}/pulls/{pushed.number}"))
     where = f"{base}/issues/{pushed.number}/comments"
     return pull, ghapi.pages(pushed.github, where, parsing.comments)
-
-
-def state_of(pushed: Subject) -> tuple[str, str]:
-    """The body and the ruling a hand-back is for (keyword: standing).
-
-    Args:
-        pushed: the PR and the head.
-
-    Returns:
-        The digest of the PR's body and the address of its newest ruling,
-        ``handbacks.NO_RULING`` when it has none.
-    """
-    pull, listed = _read(pushed)
-    return (
-        bodydigest.digest(pull.body),
-        standing.ruling_address(listed, pushed.trusted),
-    )
 
 
 def pull_lines(pushed: Subject) -> Sequence[str]:

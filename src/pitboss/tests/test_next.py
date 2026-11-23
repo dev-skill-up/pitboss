@@ -7,7 +7,15 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import steps, stepwords
-from . import actreviewed, decisionline, fakes, quietworld, test_flow_sweep, world
+from . import (
+    actreviewed,
+    decisionline,
+    fakes,
+    headed,
+    quietworld,
+    test_flow_sweep,
+    world,
+)
 from .says import read_failed
 
 BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -52,6 +60,7 @@ def third(here: world.World, **changes: object) -> None:
         **changes: changes to its JSON.
     """
     changes = {"body": BODY, "head": {"sha": "3" * 40, "ref": "branch-3"}, **changes}
+    changes = dict(headed.headed(changes, "3" * 40))
     here.bodies[THIRD] = fakes.pull_body(3, **changes)
     fakes.listed_row(here.bodies, world.PROJECT, 3, **changes)
 

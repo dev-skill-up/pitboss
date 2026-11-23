@@ -18,8 +18,8 @@ from . import (
     flowquestions,
     flowstate,
     folds,
+    handbackderive,
     handbacks,
-    handedread,
     headchecks,
     ghapi,
     mergesonly,
@@ -188,23 +188,30 @@ def _needs_e2e(source: Source, repo: config.Repo, state: flow.PullState) -> bool
     return touched and not dispatchruns.completed(github, slug, pull.head.sha)
 
 
-def _handed(source: Source, repo: config.Repo, branch: str) -> handbacks.HandedBack:
-    # keyword: durable-record: only a relock PR owes no hand-back
-    return handedread.held(source.asks.handed, repo, branch, source.relock_prefix)
+def _handed(
+    source: Source, got: Fetched, trusted: AbstractSet[str]
+) -> handbacks.HandedBack:
+    # keyword: standing: only a relock PR owes no hand-back
+    if relock.is_relock(got.pull.head.branch, source.relock_prefix):
+        return handbacks.NOT_REQUIRED
+    return handbackderive.derive(got.pull, got.posted.comments, trusted)
 
 
 def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
+    trusted = source.review.trusted
+    is_relock = relock.is_relock(got.pull.head.branch, source.relock_prefix)
     return flow.PullState(
         pull=got.pull,
         labels=got.labels,
         checks=basefix.settle(got.checks, got.fixed),
         graded=reviews.recorded(source.review, repo.slug, got.posted),
         comments=got.posted.comments,
-        trusted=source.review.trusted,
+        trusted=trusted,
         undraft_clear=got.pull.draft and source.undraft(),
-        relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
+        relock=is_relock,
         recorded=flowstate.Recorded(
-            unchanged=frozenset(), handed=_handed(source, repo, got.pull.head.branch)
+            unchanged=frozenset(),
+            handed=_handed(source, got, trusted),
         ),
         draft=draftfacts.Draft(
             needs_e2e=False,

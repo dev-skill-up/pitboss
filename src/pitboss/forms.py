@@ -27,10 +27,11 @@ from . import (
     rowchecks,
     sessionurl,
 )
+from . import headlinepattern
 from .donewhen import HEADING as DONE_WHEN
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
-HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
+HEAD_LINE = headlinepattern.HEAD_LINE
 FULL_SHA = 40
 SHOWN = 80
 

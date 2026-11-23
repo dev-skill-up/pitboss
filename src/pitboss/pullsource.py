@@ -3,7 +3,7 @@
 import dataclasses
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, earlyfound, ghapi, handedread, pinsask
+from . import config, earlyfound, ghapi, pinsask
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -13,11 +13,9 @@ class Asks:
     Attributes:
         pins: asks the pins-check command about a PR at a review step
             (keyword: pins-only, pitboss#34).
-        handed: reads what the worktree of a branch recorded (keyword: standing).
     """
 
     pins: pinsask.Ask
-    handed: handedread.Asks
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

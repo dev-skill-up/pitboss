@@ -129,7 +129,7 @@ def get_plan_rejections(pr: PullState) -> int:
         (each.sha, each.body)
         for each in regular_reviews(pr)
         if each.plan is Verdict.CHANGES_NEEDED
-        and handbacks.covers_state(pr.handed, each.sha, each.body)
+        and handbacks.covers_review(pr.handed, each)
     }
     return len(states)
 
@@ -211,5 +211,6 @@ def used_again(pr: PullState, review: shapes.Graded, posted: shapes.Comment) -> 
         True when the review came after the ruling and a worker handed back the
         head and body it graded (keyword: standing).
     """
-    handed = handbacks.covers_state(pr.handed, review.sha, review.body)
-    return review.when > posted.created_at and handed
+    return review.when > posted.created_at and handbacks.covers_review(
+        pr.handed, review
+    )

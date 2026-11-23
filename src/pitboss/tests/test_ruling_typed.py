@@ -5,13 +5,12 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, is_
 
-from .. import flow, flowstate, handbacks, rulingform, rulingtyped, steps
+from .. import flow, flowstate, rulingform, rulingtyped, steps
 from . import pullstates, test_flow
+from .derivedhand import held
 
 URL = "https://example.org/ruling/3"
-SAW = handbacks.HandedBack(
-    required=True, states=frozenset({(test_flow.HEAD, handbacks.ANY, URL)})
-)
+SAW = held(test_flow.HEAD)
 HOW = "\nHow we got here\nthe rounds disagreed\n"
 EDIT = "1. body replace: old row => new row"
 CODE = "2. change src/x.py so the check fails"

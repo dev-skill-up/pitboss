@@ -86,6 +86,6 @@ def _rejections(
         for each in reviews
         if each.execution is Verdict.CHANGES_NEEDED
         and window[0] < each.when <= window[1]
-        and handbacks.covers_state(handed, each.sha, each.body)
+        and handbacks.covers_state(handed, each.sha, each.when)
     }
     return len(rejected)

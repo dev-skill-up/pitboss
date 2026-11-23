@@ -350,8 +350,11 @@ def _stale_body(pr: PullState) -> bool:
 
 
 def _refreshed(pr: PullState, found: steps.Move) -> steps.Move:
-    refreshed = isinstance(found, steps.Next) and found.step in steps.REFRESHED
-    stale = refreshed and _stale_body(pr)
+    # a body with an older head's line is no hand-back of this head: refresh it
+    owed = isinstance(found, steps.Next) and (
+        found.step in steps.REFRESHED or found.task is steps.Task.HAND_BACK
+    )
+    stale = owed and _stale_body(pr)
     return steps.worker(steps.Task.REFRESH_BODY) if stale else found
 
 

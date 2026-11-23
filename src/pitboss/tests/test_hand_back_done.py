@@ -4,7 +4,7 @@ import json
 import unittest
 from typing import Mapping, Sequence
 
-from .. import handbackcheck, handbackrecord, plancheck, plandigest
+from .. import handbackcheck, plancheck, plandigest
 from . import fakes, world
 from .handbackrun import hand_back, processes
 from .handbackworld import BASE, ready, unposted
@@ -44,19 +44,11 @@ class TestJobs(unittest.TestCase):
         same(handbackcheck.running_jobs(top, proc, 5), ["7 (unreadable)"])
 
 
-class TestOnce(unittest.TestCase):
-    """The hand-back of a head is accepted once."""
+class TestAccepts(unittest.TestCase):
+    """The hand-back is refused for a job, then accepted, and nothing is recorded."""
 
-    def test_the_record_names_the_heads(self) -> None:
-        """Not recorded, recorded, another head, and a directory with no record."""
-        git = fakes.directory()
-        before = handbackrecord.recorded(git, HEAD)
-        handbackrecord.record(git, HEAD, "d", "r")
-        after = [handbackrecord.recorded(git, each) for each in (HEAD, OTHER)]
-        same([before, *after], [False, True, False])
-
-    def test_the_command_refuses_a_running_job_then_accepts_once(self) -> None:
-        """A job in the worktree first; then ok; then the same head again."""
+    def test_the_command_refuses_a_running_job_then_accepts(self) -> None:
+        """A job in the worktree first; then ok; the same head again is ok too."""
         here = ready(world.make_world())
         busy = processes(fakes.directory(), {7: here.clone.resolve()})
         quiet = processes(fakes.directory(), {})
@@ -68,22 +60,15 @@ class TestOnce(unittest.TestCase):
         shown = [(each.code, each.out) for each in done]
         same(shown[0][0], 1)
         same("a job you started is still running: 7 sleep" in shown[0][1], True)
-        same(shown[1], (0, "ok\n"))
-        same(shown[2][0], 1)
-        same("was already accepted" in shown[2][1], True)
+        same([shown[1], shown[2]], [(0, "ok\n"), (0, "ok\n")])
 
-    def test_a_refusal_for_a_missing_line_records_nothing(self) -> None:
-        """No `Deviations:` line: refused; with it: ok; once more: the second one."""
+    def test_a_refusal_for_a_missing_line_is_refused(self) -> None:
+        """No `Deviations:` line: refused; with it: ok."""
         here = ready(world.make_world())
         quiet = processes(fakes.directory(), {})
-        done = [
-            hand_back(here, quiet, text="no line\n"),
-            hand_back(here, quiet),
-            hand_back(here, quiet),
-        ]
-        same([each.code for each in done], [1, 0, 1])
+        done = [hand_back(here, quiet, text="no line\n"), hand_back(here, quiet)]
+        same([each.code for each in done], [1, 0])
         same("NOT STARTED" in done[0].out, True)
-        same("was already accepted" in done[2].out, True)
 
     def test_the_default_invocation_checks_the_plan_check(self) -> None:
         """With no `--pr` the branch's PR is found; an unposted check refuses."""

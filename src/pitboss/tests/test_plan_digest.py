@@ -20,6 +20,7 @@ from . import blank, decisionline, fakes, world
 from . import test_plan_digest_urls as urls
 from .test_plan_digest_urls import pointed
 from .test_commands import sweep
+from .test_plan_check_step import check_comment
 from .test_plan_digest_collapse import digest, legacy_digest
 from .test_plan_digest_collapse import plan as expanded_plan
 from .test_flow_sweep import (
@@ -253,7 +254,10 @@ class TestThePlanEditedLine(unittest.TestCase):
 
     def test_a_ruling_before_the_approval_does_not(self) -> None:
         """The ruling must come after the approval."""
-        here = world_with([ruling(1), approving(2)], body=EDITED_PLAN)
+        checked = dataclasses.replace(
+            check_comment(EDITED_PLAN), created_at="2026-10-01T00:00:00Z"
+        )
+        here = world_with([checked, ruling(1), approving(2)], body=EDITED_PLAN)
         says(sweep(here).out, EDIT_LINE)
 
     def test_a_ruling_of_another_word_is_executed_not_held(self) -> None:

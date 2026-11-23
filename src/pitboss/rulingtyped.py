@@ -123,3 +123,16 @@ def carried(text: str, body: str) -> bool:
         for target, old, new in edits
         if target == "body"
     )
+
+
+def edits_body(text: str) -> bool:
+    """Whether a ruling orders an edit of the PR body.
+
+    Args:
+        text: the ruling.
+
+    Returns:
+        True when one of its steps is a ``body`` edit, which the body alone shows
+        was done (no push is needed to see it).
+    """
+    return any(target == "body" for target, _, _ in parts("\n".join(steps_of(text))))

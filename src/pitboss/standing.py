@@ -57,22 +57,6 @@ class Held(Protocol):
         """
 
 
-def ruling_address(
-    comments: Sequence[shapes.Comment], trusted: AbstractSet[str]
-) -> str:
-    """The address of a PR's newest trusted ruling.
-
-    Args:
-        comments: the PR's issue comments.
-        trusted: the author associations whose comments count.
-
-    Returns:
-        The address, ``handbacks.NO_RULING`` when there is no ruling.
-    """
-    newest = _newest_ruling(comments, trusted)
-    return newest.url if newest and newest.url else handbacks.NO_RULING
-
-
 def _newest_ruling(
     comments: Sequence[shapes.Comment], trusted: AbstractSet[str]
 ) -> shapes.Comment | None:
@@ -120,8 +104,7 @@ def of(pr: Held, stage: steps.Stage) -> steps.Standing | None:
     granted = steps.Standing(
         head=pr.pull.head.sha, body=bodydigest.digest(pr.pull.body), stage=stage
     )
-    ruling = ruling_address(pr.comments, pr.trusted)
-    if not handbacks.covers(pr.handed, granted.head, granted.body, ruling):
+    if not handbacks.covers(pr.handed, granted.head):
         return None
     newest = _newest_ruling(pr.comments, pr.trusted)
     since = newest.created_at if newest else ""

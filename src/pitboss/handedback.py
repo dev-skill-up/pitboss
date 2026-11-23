@@ -1,33 +1,29 @@
 """A slot is done once its worker's hand-back is recorded (keyword: hand-back-done).
 
 The worker of pitboss#467 handed back more than ten times and stayed listed as
-running, so its slot looked full (pitboss#471). ``hand-back-check`` records the
-head it accepted in the worktree's git directory; a slot whose PR's head is a
-recorded head of the PR's worktree is counted done, whatever the harness lists.
+running, so its slot looked full (pitboss#471). A slot whose PR shows a hand-back of
+its head (``handbacks.derive``: the body names the head under a clean Plan check) is
+counted done, whatever the harness lists; nothing is recorded (#524).
 """
 
 import argparse
-import pathlib
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import ghapi, handbackrecord, handedread, ledger, listed, nextfound
+from . import ghapi, handbackderive, handbacks, ledger, listed, nextfound, parsing
 from . import slotholder
 from .totaljson import text
 
 
-def _worktree_dir(found: nextfound.Found, branch: str) -> pathlib.Path | None:
-    clone = found.settings.project.main_clone
-    return handedread.worktree_directory(found.args.world.safe_run, clone, branch)
-
-
 def _recorded(found: nextfound.Found, row: listed.Listed) -> bool:
     # the row of a slot's PR has no branch or head (keyword: org-search): the PR
-    # is read for them, one read for each slot held
-    head = _head(found, row)
-    directory = _worktree_dir(found, text(head.get("ref")))
-    return directory is not None and handbackrecord.recorded(
-        directory, text(head.get("sha"))
+    # and its comments are read, and the hand-back is what they show (#524)
+    base = f"repos/{row.repo.slug}"
+    pull = parsing.pull(ghapi.get(found.github, f"{base}/pulls/{row.number}"))
+    posted = ghapi.pages(
+        found.github, f"{base}/issues/{row.number}/comments", parsing.comments
     )
+    handed = handbackderive.derive(pull, posted, found.settings.review.trusted)
+    return handbacks.covers(handed, pull.head.sha)
 
 
 def head_of(found: nextfound.Found, row: listed.Listed) -> str:

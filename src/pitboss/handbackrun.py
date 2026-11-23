@@ -13,7 +13,7 @@ import re
 import subprocess
 from typing import Sequence
 
-from . import config, ghclient, handbackcheck, handbackrecord
+from . import config, ghclient, handbackcheck
 
 
 def git_out(args: argparse.Namespace, *words: str) -> str:
@@ -51,19 +51,11 @@ def _path(args: argparse.Namespace, kind: str) -> pathlib.Path:
     return pathlib.Path(git_out(args, "rev-parse", kind))
 
 
-def _jobs_and_record(
-    args: argparse.Namespace, settings: config.Config, head: str
-) -> Sequence[str]:
+def _jobs(args: argparse.Namespace) -> Sequence[str]:
     root, proc = _path(args, "--show-toplevel"), pathlib.Path(args.processes)
-    shown = [
+    return [
         handbackcheck.jobs_line(handbackcheck.running_jobs(root, proc, os.getpid()))
     ]
-    pushed = _pushed(args, settings, head)
-    if not isinstance(pushed, str):
-        state = (head, *handbackcheck.state_of(pushed))
-        if state in handbackrecord.states(_path(args, "--absolute-git-dir")):
-            shown.append(handbackcheck.second_line(head))
-    return shown
 
 
 ORIGIN = re.compile(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$")
@@ -106,7 +98,7 @@ def _pull_lines(
 
 
 def refusals(args: argparse.Namespace, settings: config.Config) -> Sequence[str]:
-    """What stops a hand-back: a job still running, a second one, an unposted check.
+    """What stops a hand-back: a job still running, an unposted check.
 
     Args:
         args: the parsed arguments.
@@ -121,28 +113,8 @@ def refusals(args: argparse.Namespace, settings: config.Config) -> Sequence[str]
     return [
         each
         for each in (
-            *_jobs_and_record(args, settings, head),
+            *_jobs(args),
             *_pull_lines(args, settings, head),
         )
         if each
     ]
-
-
-def accept(args: argparse.Namespace, settings: config.Config) -> None:
-    """Record that a hand-back was accepted for the worktree's head and the PR's body.
-
-    Args:
-        args: the parsed arguments.
-        settings: the configuration.
-    """
-    head = git_out(args, "rev-parse", "HEAD")
-    pushed = _pushed(args, settings, head)
-    if isinstance(pushed, str):  # pragma: no cover
-        return  # refused above, so nothing is recorded
-    digest, ruling = handbackcheck.state_of(pushed)
-    handbackrecord.record(_path(args, "--absolute-git-dir"), head, digest, ruling)
-    # keyword: durable-record (pitboss#513): kept in the project's main clone
-    common = settings.project.main_clone / ".git"
-    branch = pushed.branch or git_out(args, "rev-parse", "--abbrev-ref", "HEAD")
-    kept = handbackrecord.kept(common, pushed.slug, branch)
-    handbackrecord.record(kept, head, digest, ruling)

@@ -10,9 +10,11 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import bodydigest, shapes
 from . import (
     actreviewed,
+    blank,
     decisionline,
     fakes,
     fullpull,
+    headed,
     quietworld,
     test_flow,
     world,
@@ -20,7 +22,6 @@ from . import (
 )
 from .test_commands import sweep
 from .test_slot_commands import next_output
-from . import blank
 
 HEAD = "3" * 40
 OLDER = "2" * 40
@@ -83,7 +84,7 @@ def reading(review: shapes.Comment, body: str) -> shapes.Comment:
     """
     lines = review.body.splitlines()
     at = next(n for n, line in enumerate(lines) if line.startswith("Reviewed:")) + 1
-    lines.insert(at, f"Body: {bodydigest.digest(body)}")
+    lines.insert(at, f"Body: {bodydigest.digest(headed.with_head_line(body, HEAD))}")
     return dataclasses.replace(review, body="\n".join(lines) + "\n")
 
 
@@ -99,9 +100,10 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
     """
     here = world.make_world()
     path = fakes.page("repos/owner/project/issues/3/comments")
-    said = [world.comment_json(each) for each in rounds]
-    here.bodies[path] = [*said, worldcomments.CLEAN_CHECK]
-    changes.setdefault("head", {"sha": HEAD, "ref": "branch-3"})
+    here.bodies[path] = [*map(world.comment_json, rounds), worldcomments.CLEAN_CHECK]
+    changes = dict(
+        headed.headed({"head": {"sha": HEAD, "ref": "branch-3"}, **changes}, HEAD)
+    )
     here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, **changes)
     # keyword: one-path: the open listing's row carries what the pull carries
     fakes.listed_row(here.bodies, world.PROJECT, 3, **fullpull.row_fields(changes))
@@ -382,9 +384,7 @@ def unfixed_rounds(*recorded: shapes.Comment, files: Sequence[str] = ()) -> worl
 
 
 def unfixed_after_the_ruling(files: Sequence[str] = ()) -> world.World:
-    """An Execution rejected, ruled on, its Plan revised and approved alone.
-
-    PR 3's head has no code the rejection has not seen but files (pitboss#390).
+    """An Execution rejected, ruled on, its Plan revised and approved alone (#390).
 
     Args:
         files: the paths the last commit changes.

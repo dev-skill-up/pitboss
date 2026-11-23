@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to, less_than
 
 from .. import shapes
-from . import fakes, test_flow_sweep, test_slot_commands
+from . import fakes, headed, test_flow_sweep, test_slot_commands
 from .test_commands import sweep
 from .says import says
 
@@ -42,6 +42,7 @@ def listing(sha: str, read: str | None, body: str, standing: str) -> str:
     Returns:
         The output of ``slots next``.
     """
+    read = None if read is None else headed.with_head_line(read, HEAD)
     here = test_flow_sweep.world_with(
         [rejection(sha, read)], body=body, head={"sha": HEAD, "ref": "branch-3"}
     )

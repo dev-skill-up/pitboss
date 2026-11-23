@@ -7,15 +7,18 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, shapes
-from . import blank, decisionline, fakes, world
+from . import blank, decisionline, fakes, headed, world
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, world_with
 from .test_slot_commands import next_output
 from .says import says
 from ..textparts import having
 
-EDITED = fakes.PLAN_AND_EXECUTION + "\nEvidence added after the review.\n"
-OLD_LINE = f"Body: {bodydigest.digest(fakes.PLAN_AND_EXECUTION)}"
+BASE = headed.with_head_line(fakes.PLAN_AND_EXECUTION, HEAD)
+EDITED = headed.with_head_line(
+    fakes.PLAN_AND_EXECUTION + "\nEvidence added after the review.\n", HEAD
+)
+OLD_LINE = f"Body: {bodydigest.digest(BASE)}"
 NEW_LINE = f"Body: {bodydigest.digest(EDITED)}"
 REVIEWING = "REVIEWER: owner/project#3: review"
 RULING = "RULING: owner/project#3: start an Opus agent"
@@ -114,13 +117,13 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
 
     def test_body_unchanged(self) -> None:
         """The same body: the review still stands, the ruling is next."""
-        swept, listed = looked_at([review(1, OLD_LINE)], fakes.PLAN_AND_EXECUTION)
+        swept, listed = looked_at([review(1, OLD_LINE)], BASE)
         assert_that(swept, contains_string("review=changes-needed"))
         assert_that(listed, contains_string(RULING))
 
     def test_body_unchanged_with_other_line_endings(self) -> None:
         """A web edit's CRLF and a final newline are the same body."""
-        body = fakes.PLAN_AND_EXECUTION.replace("\n", "\r\n") + "\r\n"
+        body = BASE.replace("\n", "\r\n") + "\r\n"
         swept, _ = looked_at([review(1, OLD_LINE)], body)
         assert_that(swept, contains_string("review=changes-needed"))
 
@@ -132,7 +135,7 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
 
     def test_new_head(self) -> None:
         """A head that moved by no code is older-head, with the body edit or without."""
-        for body in (EDITED, fakes.PLAN_AND_EXECUTION):
+        for body in (EDITED, BASE):
             with self.subTest(body[-10:]):
                 swept, listed = looked_at([review(1, OLD_LINE, OLDER)], body)
                 assert_that(swept, contains_string("review=older-head"))

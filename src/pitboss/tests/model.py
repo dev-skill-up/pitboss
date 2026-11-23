@@ -11,7 +11,7 @@ import dataclasses
 from typing import Callable, Sequence
 
 from .. import bodydigest, expansion, flow, plandigest, rulingwords, shapes, steps
-from . import blank, checkcomment, pullstates, test_flow
+from . import blank, checkcomment, headed, pullstates, test_flow
 
 Verdict = shapes.Verdict
 Ruling = rulingwords.Ruling
@@ -170,7 +170,7 @@ def _graded(each: Review) -> shapes.Graded:
         when=stamp(second),
         plan=plan,
         execution=execution,
-        body=bodydigest.digest(body),
+        body=bodydigest.digest(headed.with_head_line(body, sha_of(head))),
         plan_digest=expansion.section_digest(plandigest.section(body)),
     )
 

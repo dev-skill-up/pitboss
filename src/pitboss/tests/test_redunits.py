@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import redcost, redlog, redshapes, redtext, redtranscripts, shapes
-from . import fakes, redworld
+from . import faketranscripts, redworld
 
 
 def _run(identifier: int, conclusion: str, created: str) -> shapes.WindowRun:
@@ -98,7 +98,7 @@ class TestSmall(unittest.TestCase):
     def test_the_search_stops_when_every_push_is_found(self) -> None:
         """Later transcripts are not read once each push has its own."""
         texts = {"a": redworld.transcript("feat", redworld.ALPHA), "b": "other"}
-        source = fakes.FakeTranscripts(_texts=texts)
+        source = faketranscripts.FakeTranscripts(_texts=texts)
         found = redtranscripts.search(source, [("feat", redworld.ALPHA)])
         assert_that(
             (list(found.pushes), found.count), equal_to(([("feat", "aaaaaaa")], 2))

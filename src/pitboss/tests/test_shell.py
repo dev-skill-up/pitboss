@@ -9,7 +9,7 @@ from collections.abc import MutableSequence, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import shell
-from . import fakes
+from . import fakeargs, fakes
 
 
 def parser_of(seen: MutableSequence[argparse.Namespace]) -> argparse.ArgumentParser:
@@ -30,23 +30,6 @@ def parser_of(seen: MutableSequence[argparse.Namespace]) -> argparse.ArgumentPar
     made.add_subparsers().add_parser("go").set_defaults(__gather_command__=command)
     made.add_argument("--no-dry-run", action="store_true")
     return made
-
-
-def exit_of(parser: argparse.ArgumentParser) -> object:
-    """The code a command line with no command exits with.
-
-    Args:
-        parser: the parser.
-
-    Returns:
-        The code.
-    """
-    try:
-        with contextlib.redirect_stdout(io.StringIO()):
-            shell.run_maybe_dry(parser=parser, argv=["pitboss"])
-    except SystemExit as stopped:
-        return stopped.code
-    return None
 
 
 class TestTheWorld(unittest.TestCase):
@@ -102,4 +85,13 @@ class TestTheWorld(unittest.TestCase):
 
     def test_no_command_exits_one(self) -> None:
         """A command line that names no command is refused."""
-        assert_that(exit_of(parser_of([])), equal_to(1))
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+            stopped = stack.enter_context(self.assertRaises(SystemExit))
+            shell.run_maybe_dry(parser=parser_of([]), argv=["pitboss"])
+        assert_that(stopped.exception.code, equal_to(1))
+
+    def test_the_fake_world_runs_nothing_unless_told(self) -> None:
+        """A test that names no runner gets one that answers empty output."""
+        found = fakeargs.args().world.run(["x"])
+        assert_that(found.stdout, equal_to(""))

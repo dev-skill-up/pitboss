@@ -7,11 +7,13 @@ body-only-round, standing).
 
 import dataclasses
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import bodydigest, flow, handbacks, plancheckflow, shapes, steps
+from .. import flow, handbacks, plancheckflow, shapes, steps
 from . import blank, pullstates, test_flow
+from .derivedhand import held
 from .checkcomment import clean_text
 from .test_flow import expect, state
 from . import reviewsteps
@@ -20,8 +22,8 @@ OK = "Plan check: ok"
 RULING = "https://example.org/ruling/3"
 REVIEW = reviewsteps.review(steps.Stage.RULING_STEPS)
 FIX = steps.worker(steps.Task.RULING_STEPS, RULING)
-HAND_BACK = reviewsteps.HAND_BACK
-NOTHING = handbacks.HandedBack(required=True, states=frozenset())
+NOTHING = held()
+HANDED = held(test_flow.HEAD)
 REJECTIONS = (test_flow.FIRST_REJECTION, test_flow.SECOND_REJECTION)
 
 
@@ -46,60 +48,42 @@ def check_after(text: str, digest: str = "") -> shapes.Comment:
     )
 
 
-def handed(ruling: str = RULING, body: str = "") -> handbacks.HandedBack:
-    """A worktree whose record holds the head and body of the test PR.
-
-    Args:
-        ruling: the ruling the hand-back saw.
-        body: the body digest it holds, that of the test PR's body when "".
-
-    Returns:
-        What the worktree recorded.
-    """
-    head = test_flow.HEAD
-    digest = body or bodydigest.digest(test_flow.BODY)
-    states = frozenset({(head, digest, ruling)})
-    return handbacks.HandedBack(required=True, states=states)
-
-
 def ruled(
-    *after: shapes.Comment, held: handbacks.HandedBack = handbacks.NOT_REQUIRED
+    *after: shapes.Comment,
+    held: handbacks.HandedBack = handbacks.NOT_REQUIRED,
+    checks: Sequence[shapes.CheckRun] = (test_flow.GREEN,),
 ) -> flow.PullState:
     """A PR ruled ``do these steps`` after two Plan rejections.
 
     Args:
         *after: the comments after the ruling.
-        held: what its worktree recorded.
+        held: what the PR shows of its hand-back.
+        checks: the check runs of its head.
 
     Returns:
         The state.
     """
-    both = state(*REJECTIONS, comments=[test_flow.ruling(3), *after])
+    both = state(*REJECTIONS, comments=[test_flow.ruling(3), *after], checks=checks)
     return pullstates.with_recorded(both, handed=held)
 
 
 class TestBodyOnlyRound(unittest.TestCase):
     """The step of a ruling whose steps the body alone could do."""
 
-    def test_t462_a_hand_back_that_saw_the_ruling_gives_the_review(self) -> None:
-        """The worker handed the body back after the ruling: its review."""
-        expect(REVIEW, ruled(held=handed()))
+    def test_t462_a_push_after_the_ruling_under_a_hand_back_gives_the_review(
+        self,
+    ) -> None:
+        """The head is handed back and a check ran after the ruling: its review."""
+        pushed = dataclasses.replace(test_flow.GREEN, started_at="2026-10-30T00:00:09Z")
+        expect(REVIEW, ruled(held=HANDED, checks=(pushed,)))
 
     def test_t462_no_hand_back_gives_the_fix(self) -> None:
-        """The worker holds the PR and handed nothing back."""
+        """The body names no head under a clean check."""
         expect(FIX, ruled(held=NOTHING))
 
     def test_t462_a_clean_check_after_the_ruling_is_no_hand_back(self) -> None:
         """A Plan check never applies a ruling (quire#1125)."""
         expect(FIX, ruled(check_after(OK), held=NOTHING))
-
-    def test_a_hand_back_before_the_ruling_gives_the_fix(self) -> None:
-        """The record names another ruling: this one was not seen."""
-        expect(FIX, ruled(held=handed("https://example.org/ruling/2")))
-
-    def test_a_hand_back_of_another_body_gives_the_hand_back(self) -> None:
-        """The body moved after the hand-back: the worker owes another."""
-        expect(HAND_BACK, ruled(held=handed(body="0" * 16)))
 
     def test_a_pr_no_worker_holds_follows_its_reviews_and_pushes(self) -> None:
         """With no worktree the ruling is applied by a later review or push."""

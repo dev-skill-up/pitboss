@@ -17,7 +17,7 @@ from typing import (
 )
 
 from .. import config, configfile, ghapi
-from . import captured, fullpull, repositories, worldreads
+from . import captured, fullpull, headed, repositories, worldreads
 
 HEAD = "a" * 40
 PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -252,7 +252,7 @@ def pull_body(number: int, **changes: object) -> MutableMapping[str, object]:
         "state": "open",
         "merged_at": None,
     }
-    body.update(changes)
+    body.update(headed.headed({**body, **changes}, HEAD))
     return body
 
 
@@ -359,42 +359,3 @@ def calls_of(api: ghapi.GitHub) -> Sequence[Sequence[str]]:
     """
     runner = api.run
     return runner.calls if isinstance(runner, FakeProcesses) else []
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class FakeTranscripts:
-    """Transcripts held in a dict (``_texts``: each agent id and its text)."""
-
-    _texts: Mapping[str, str]
-
-    def names(self) -> Sequence[str]:
-        """List the agents.
-
-        Returns:
-            The ids.
-        """
-        return sorted(self._texts)
-
-    def read(self, agent: str) -> str:
-        """Read a transcript.
-
-        Args:
-            agent: the id.
-
-        Returns:
-            The text.
-        """
-        return self._texts[agent]
-
-
-def seed_ledger(path: pathlib.Path, names: Sequence[str]) -> None:
-    """Write a ledger of empty slots, as the owner would create it.
-
-    Args:
-        path: the ledger file.
-        names: the slot names, each on the model of the same position in
-            ``small``, ``large``.
-    """
-    models = ("small", "large")
-    rows = [f'{{"name": "{n}", "model": "{m}"}}' for n, m in zip(names, models)]
-    path.write_text('{"slots": [' + ", ".join(rows) + '], "failed": {}}')
