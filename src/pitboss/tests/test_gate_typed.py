@@ -117,8 +117,8 @@ class TestRows(unittest.TestCase):
         made = gatestate.state(holds=[Hold(title="freeze", scope="all")])
         _says(gaterows.hold_stops("merge", made), ["hold: freeze holds all"])
 
-    def test_6_1_a_paused_pr_armed_and_a_formal_request(self) -> None:
-        """Changes requested, and auto-merge on a paused PR."""
+    def test_6_1_a_retired_paused_label_armed_and_a_formal_request(self) -> None:
+        """Changes requested; the retired label on an armed PR is a label stop only."""
         merging = gatestate.merge_fields(auto_merge=True, labels=["paused-owner"])
         timeline = [gatestate.happened("reviewed", state="changes_requested")]
         made = gatestate.state(
@@ -126,7 +126,7 @@ class TestRows(unittest.TestCase):
             reads=gatestate.lists_of(timeline=timeline),
         )
         found = _routed(gaterows.merge_stops("merge", made))
-        assert_that(found, equal_to([Route.CHANGES_REQUESTED, Route.PAUSED]))
+        assert_that(found, equal_to([Route.CHANGES_REQUESTED]))
         assert_that(gaterows.merge_stops("undraft", made), equal_to([]))
 
     def test_6_1_the_diff(self) -> None:

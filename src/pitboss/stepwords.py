@@ -7,8 +7,6 @@ import dataclasses
 from typing import Mapping
 
 from .steps import (
-    OWNER_ARTIFACT,
-    PAUSED_LABEL,
     PLAN_CHECK_FIRST_LINE,
     RULING_FIRST_LINE,
     RUN_E2E_MARKER,
@@ -27,10 +25,9 @@ TEXTS: Mapping[Step, str] = {
         " edits or reposts the comment; no Opus agent is asked for"
     ),
     Step.RULING_ESCALATES: (
-        "the Opus ruling escalated to the owner: label the PR and its ticket"
-        f" {PAUSED_LABEL}, comment the options and a `How we got here` section,"
-        " and report the number and the options to the owner on a card that has"
-        f" the section and, on the card, {OWNER_ARTIFACT}"
+        "the Opus ruling escalated: the orchestrator decides it under the project's"
+        " rules, citing them; a PR no rule lets any round finish goes to `pitboss"
+        " impossible`; nothing waits for the owner"
     ),
     Step.PLAN_EDITED: (
         "the Plan was edited after its approval: restore the approved Plan, or"

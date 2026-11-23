@@ -20,7 +20,7 @@ from .. import (
     shapes,
     steps,
 )
-from . import blank, fakes, pullstates, scratch
+from . import blank, card, fakes, pullstates, scratch
 from .checkcomment import clean_check
 from . import reviewsteps
 
@@ -257,10 +257,9 @@ class TestTable(unittest.TestCase):
 class TestBranches(unittest.TestCase):
     """The other branches of the flow, in the order written."""
 
-    def test_a_paused_pr_waits_for_the_owner(self) -> None:
-        """Before anything else, whatever the body is."""
-        labels = frozenset({steps.PAUSED_LABEL})
-        expect(steps.IDLE, state(body="", labels=labels))
+    def test_an_impossible_pr_has_no_step(self) -> None:
+        """Before anything else, whatever the body is (keyword: impossible-state)."""
+        expect(steps.IDLE, state(body="", comments=[card.impossible()]))
 
     def test_no_plan_and_execution_body_is_the_first_work(self) -> None:
         """The worker writes the body, before any review or gate."""
@@ -390,11 +389,7 @@ class TestRulingBranches(unittest.TestCase):
                 with self.subTest(line=line):
                     expect(steps.fix_ruling(RULING_URL), pr)
 
-    def test_a_paused_pr_with_an_unreadable_ruling_waits_for_the_owner(self) -> None:
-        """The pause label is checked first."""
-        labels = frozenset({steps.PAUSED_LABEL})
-        comments = [ruling(5, line="no ruling line")]
-        expect(
-            steps.IDLE,
-            state(comments=comments, labels=labels),
-        )
+    def test_an_impossible_pr_with_an_unreadable_ruling_has_no_step(self) -> None:
+        """The impossible row is checked first."""
+        comments = [ruling(5, line="no ruling line"), card.impossible()]
+        expect(steps.IDLE, state(comments=comments))

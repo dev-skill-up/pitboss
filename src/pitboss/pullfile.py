@@ -1,6 +1,6 @@
 """The arguments of a command that posts a file to a PR or ticket (keyword: pull-file).
 
-``ruling post``, ``owner-pause`` and ``case post`` take ``OWNER/NAME#NUMBER`` and a
+``ruling post``, ``impossible`` and ``case post`` take ``OWNER/NAME#NUMBER`` and a
 file, refuse with status 2 and say why, and change nothing when they refuse. The
 module reads the file it is given.
 """
@@ -103,7 +103,6 @@ def post_comment(
     args: argparse.Namespace,
     command: str,
     check: Callable[[ghapi.GitHub, str, int, str], str],
-    before: Callable[[ghapi.GitHub, str, int], object] | None = None,
 ) -> None:
     """Post the file as a comment on the PR, unless the check refuses it.
 
@@ -111,14 +110,11 @@ def post_comment(
         args: the parsed arguments, with a ``pull`` and a ``file``.
         command: the command as the user types it.
         check: says why the text may not be posted; empty when it may.
-        before: changes something first (a label), once the check passed.
     """
     slug, number, text = read(command, args.pull, args.file)
     github = github_of(args)
     if why := check(github, slug, number, text):
         refuse(command, why)
-    if before:
-        before(github, slug, number)
     print(comment(github, slug, number, text))
 
 

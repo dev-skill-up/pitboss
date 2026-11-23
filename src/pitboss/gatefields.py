@@ -156,7 +156,7 @@ ROWS: Mapping[str, tuple[Check, str]] = {
     "title": (lambda state, action: state.pull.title_is_text, "not text"),
     "labels": (
         _labels,
-        "a label pitboss does not apply, or paused-owner on merge, arm or undraft",
+        "a label pitboss does not apply, or the retired paused-owner label",
     ),
     "milestone": (lambda state, action: True, ""),  # no rule names a milestone
     "requested_reviewers": (
@@ -175,7 +175,7 @@ ROWS: Mapping[str, tuple[Check, str]] = {
 
 
 def _labels_route(merging: Merging) -> Route:
-    return Route.PAUSED if PAUSED in merging.labels else Route.LABEL
+    return Route.LABEL
 
 
 def _merge_route(merging: Merging) -> Route:

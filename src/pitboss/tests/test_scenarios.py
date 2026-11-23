@@ -46,7 +46,8 @@ def revised_then_ruled(times: Sequence[str]) -> Sequence[Mark]:
         The marks (A1, A2, A4).
     """
     rules = ("A2", "A1", "A1", "A1", "A4")
-    wants = (RULING_STEPS, "PLAN_EDITED", RULING_STEPS, RULING_STEPS, "IDLE")
+    # the retired paused-owner label of the capture holds nothing back now (A4)
+    wants = (RULING_STEPS, "PLAN_EDITED", RULING_STEPS, RULING_STEPS, RULING_STEPS)
     return [Mark(*each) for each in zip(times, rules, wants)]
 
 
@@ -146,6 +147,10 @@ def digest_kept(name: str) -> None:
 
 class TestScenarios(unittest.TestCase):
     """The scenarios of the captured PRs."""
+
+    def test_an_idle_step_is_named_idle(self) -> None:
+        """A PR nobody acts on is named IDLE (an impossible PR is one)."""
+        assert_that(scenario.kind(steps.IDLE), equal_to("IDLE"))
 
     def test_a1_a2_a3_pitboss_465(self) -> None:
         """465: `revise the plan` then `do these steps` is executed (A1, A2)."""
@@ -303,8 +308,7 @@ class TestCaptureTimeline(unittest.TestCase):
             sorted(scenario.labels_at(data, when))
             for when in ("2026-11-11T22:40:00Z", "2026-11-11T23:00:00Z")
         ]
-        assert_that(labels, equal_to([[steps.PAUSED_LABEL], []]))
-        assert_that(steps.PAUSED_LABEL, equal_to("paused-owner"))
+        assert_that(labels, equal_to([["paused-owner"], []]))
         assert_that(ghapi.PAGE_SIZE, equal_to(100))
 
     def test_capture_timeline_command_writes_the_file(self) -> None:

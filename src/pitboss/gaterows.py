@@ -11,7 +11,7 @@ from typing import Protocol, Sequence
 from . import totalbody, totalchecks
 from .gatestop import Body, Plan, Review, Route, Stop
 from .pullrecords import Errored, Event, GateState, Mistyped, Ticket, listed
-from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS, PAUSED
+from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS
 
 CHANGES_REQUESTED = ("changes_requested", "CHANGES_REQUESTED")
 
@@ -221,10 +221,6 @@ def merge_stops(action: str, state: GateState) -> Sequence[Stop]:
     if _changes_requested(listed(state.reads.timeline)):
         line = "review: a formal request for changes stands"
         found.append(Stop(route=Route.CHANGES_REQUESTED, line=line))
-    merging = state.pull.merging
-    if PAUSED in merging.labels and merging.auto_merge:
-        line = "auto_merge armed on a paused-owner PR: only disarm is allowed"
-        found.append(Stop(route=Route.PAUSED, line=line))
     return found
 
 

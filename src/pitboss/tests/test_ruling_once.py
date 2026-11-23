@@ -1,6 +1,6 @@
-"""A6: ``pitboss ruling post`` refuses a second ruling before the PR is paused.
+"""A6: ``pitboss ruling post`` refuses a second ruling.
 
-Owner, 2026-11-11: one ruling per PR; a further rejection goes to the owner
+Owner, 2026-11-11: one ruling per PR; a further rejection is a worker's round
 (pitboss#444, keyword: one-ruling).
 """
 
@@ -19,22 +19,19 @@ EARLIER = {"id": 1, "html_url": "u", "body": GOOD}
 REVIEW = {"id": 2, "html_url": "u", "body": "Review\nVerdict: changes needed\n"}
 
 
-def world_with(comments: Sequence[object], labels: Sequence[str]) -> world.World:
-    """A world whose PR 3 has some comments and labels and takes a comment.
+def world_with(comments: Sequence[object]) -> world.World:
+    """A world whose PR 3 has some comments and takes a comment.
 
     Args:
         comments: the comments the PR has.
-        labels: the PR's labels.
 
     Returns:
         The world.
     """
-    labelled = [{"name": each} for each in labels]
     return refused.world_of(
         {
             COMMENTS: {"id": 5, "html_url": URL},
             LISTED: list(comments),
-            ISSUE: {"labels": labelled},
         }
     )
 
@@ -53,23 +50,26 @@ def posted(here: world.World) -> Sequence[str]:
 
 
 class TestOnce(unittest.TestCase):
-    """A PR gets one ruling; the owner decides after it."""
+    """A PR gets one ruling."""
 
-    def test_a6_a_second_ruling_before_the_pause_is_refused(self) -> None:
+    def test_a6_a_second_ruling_is_refused(self) -> None:
         """Pitboss 465: a ruling, a rejection, and a second ruling is posted."""
-        here = world_with([EARLIER, REVIEW], [])
+        here = world_with([EARLIER, REVIEW])
         done = refused.run(here, GOOD, "ruling", "post", PULL, refused.FILE)
         refused.assert_refused(done, "already has an Opus ruling", here)
 
     def test_a6_the_first_ruling_is_posted(self) -> None:
         """The nearest input it must still accept: no ruling yet."""
-        assert_that(posted(world_with([REVIEW], [])), equal_to([GOOD]))
+        assert_that(posted(world_with([REVIEW])), equal_to([GOOD]))
 
-    def test_a6_a_paused_pr_takes_a_ruling_again(self) -> None:
-        """The owner decided; the label says the PR is paused."""
-        assert_that(posted(world_with([EARLIER], ["paused-owner"])), equal_to([GOOD]))
+    def test_a6_an_impossible_pr_takes_no_ruling(self) -> None:
+        """The card ends the PR: a further ruling is refused too."""
+        card = {"id": 3, "html_url": "u", "body": "Impossible state\n"}
+        here = world_with([EARLIER, card])
+        done = refused.run(here, GOOD, "ruling", "post", PULL, refused.FILE)
+        refused.assert_refused(done, "already has an Opus ruling", here)
 
     def test_a6_the_guard_reads_the_first_line_of_a_comment(self) -> None:
         """A comment that only mentions a ruling is no ruling."""
         said = ["Review: the Opus ruling is wrong"]
-        assert_that(rulingguard.refusal(said, []), equal_to(""))
+        assert_that(rulingguard.refusal(said), equal_to(""))

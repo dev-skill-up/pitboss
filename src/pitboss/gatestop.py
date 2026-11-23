@@ -43,7 +43,6 @@ class Handling:
     carried: answer.Carried
 
 
-OWNER = answer.Actor.OWNER
 ORCHESTRATOR = answer.Actor.ORCHESTRATOR
 WORKER = answer.Actor.WORKER
 REVIEWER = answer.Actor.REVIEWER
@@ -83,7 +82,6 @@ class Route(enum.Enum):
 
     Attributes:
         HOLD: a hold covers the action.
-        PAUSED: the owner paused the PR.
         LOCK: the conversation is locked.
         REVIEWERS: a human review was requested.
         CHANGES_REQUESTED: a human's formal request for changes stands.
@@ -108,15 +106,16 @@ class Route(enum.Enum):
     """
 
     HOLD = _untaken("a hold covers the action")
-    PAUSED = _lifted(OWNER, "the owner paused the PR", "remove paused-owner")
-    LOCK = _lifted(OWNER, "the conversation is locked", "unlock the conversation")
+    LOCK = _lifted(
+        ORCHESTRATOR, "the conversation is locked", "unlock the conversation"
+    )
     REVIEWERS = _lifted(
-        OWNER,
+        ORCHESTRATOR,
         "a human review was requested",
-        "give or withdraw the requested human review",
+        "withdraw the requested human review",
     )
     CHANGES_REQUESTED = _lifted(
-        OWNER,
+        ORCHESTRATOR,
         "a human's formal request for changes stands",
         "dismiss the formal request for changes",
     )

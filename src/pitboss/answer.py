@@ -20,14 +20,12 @@ class Actor(enum.Enum):
         REVIEWER: a reviewer in a slot, never the author.
         RULING: an Opus agent, no slot.
         ORCHESTRATOR: the orchestrator itself.
-        OWNER: the owner.
     """
 
     WORKER = enum.auto()
     REVIEWER = enum.auto()
     RULING = enum.auto()
     ORCHESTRATOR = enum.auto()
-    OWNER = enum.auto()
 
 
 class Carried(enum.Enum):

@@ -6,12 +6,12 @@ the configured prefix; the cases below run it and a normal PR side by side.
 
 import dataclasses
 import unittest
-from typing import AbstractSet, Sequence
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, configfile, flow, forms, relock, shapes, steps
-from . import decisionline, fakes, test_flow, world
+from . import card, decisionline, fakes, test_flow, world
 from .formchecks import body_checks, checks, subject
 from .linting import BODY, FOOTER, HEAD, lines, lint, write_text
 from .test_commands import sweep
@@ -60,20 +60,20 @@ def prefixed(here: world.World, prefix: str) -> None:
 
 def relock_state(
     *recorded: shapes.Graded,
-    labels: AbstractSet[str] = frozenset(),
+    comments: Sequence[shapes.Comment] = (),
     checks: Sequence[shapes.CheckRun] = (test_flow.GREEN,),
 ) -> flow.PullState:
     """A relock PR with no body, as the flow reads it.
 
     Args:
         *recorded: the reviews that count.
-        labels: its labels.
+        comments: its comments.
         checks: the check runs of its head.
 
     Returns:
         The state.
     """
-    pr = test_flow.state(*recorded, labels=labels, checks=checks, body="")
+    pr = test_flow.state(*recorded, comments=comments, checks=checks, body="")
     return dataclasses.replace(pr, relock=True)
 
 
@@ -168,7 +168,7 @@ class TestFlow(unittest.TestCase):
 
     def test_a_relock_pr_is_still_held_by_ci_the_label_and_a_review(self) -> None:
         """Only the body is skipped: red CI, the pause label and approval count."""
-        paused = relock_state(labels=frozenset({steps.PAUSED_LABEL}))
+        paused = relock_state(comments=[card.impossible()])
         approved = relock_state(test_flow.graded(*test_flow.EVERYTHING_APPROVED, 1))
         found = [
             flow.next_step(relock_state(checks=(test_flow.RED,))),

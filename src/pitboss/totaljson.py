@@ -86,19 +86,6 @@ def records(value: object) -> Sequence[JsonMap]:
     return [members(each) for each in listing(value)]
 
 
-def listed(value: object, key: str) -> Sequence[JsonMap]:
-    """The objects of an array that is a field of a JSON object.
-
-    Args:
-        value: what was read.
-        key: the field's name.
-
-    Returns:
-        Each item as an object; none when there is no such array.
-    """
-    return records(field(value, key))
-
-
 def at(value: object, *keys: str) -> object:
     """A value reached by a path of fields.
 

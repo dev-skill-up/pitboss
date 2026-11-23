@@ -135,11 +135,11 @@ class TestDecideItem(unittest.TestCase):
         found = decide.decide_in(grounds, pull_record([STUCK]))
         assert_that(found, none())
 
-    def test_a_stuck_run_is_the_owners(self) -> None:
-        """A run stuck past its limit is the owner's verb on the PR."""
+    def test_a_stuck_run_is_the_orchestrators(self) -> None:
+        """A run stuck past its limit is the orchestrator's re-run of the PR."""
         found = decide.decide_item(pull_record([STUCK]))
         said = answer.Decision(
-            actor=answer.Actor.OWNER,
+            actor=answer.Actor.ORCHESTRATOR,
             verb=stuckwords.warning(STUCK),
             item="owner/project#3",
             title="PR 3",

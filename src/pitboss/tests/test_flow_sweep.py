@@ -11,6 +11,7 @@ from .. import bodydigest, shapes
 from . import (
     actreviewed,
     blank,
+    card,
     decisionline,
     fakes,
     fullpull,
@@ -28,13 +29,12 @@ OLDER = "2" * 40
 CHANGES = "changes needed"
 APPROVED = "approved"
 RULING_LINE = "RULING: owner/project#3: start an Opus agent"
-PAUSE_LINE = "ORCHESTRATOR: owner/project#3: label the PR and its ticket paused-owner"
-ESCALATES = "ORCHESTRATOR: owner/project#3: the Opus ruling escalated to the owner"
+PAUSE_LINE = "paused-owner"  # retired: no line says it (keyword: impossible-state)
+ESCALATES = "ORCHESTRATOR: owner/project#3: the Opus ruling escalated: the orchestrator"
 REVISE = "WORKER: owner/project#3: revise the PLAN only"
 FIX_EXECUTION = "WORKER: owner/project#3: fix the execution against the approved plan"
 REVIEW_THIRD = "REVIEWER: owner/project#3: grade Plan and Execution together"
 CONFLICT_THIRD = "WORKER: owner/project#3: resolve the conflict"
-# PR 3's commits since main: authored at the older head, a fix of a.bats at HEAD
 AUTHORED = {"sha": "1", "parents": [{"sha": "0"}]}
 COMMITS: Mapping[str, object] = {
     f"{world.PROJECT}/compare/main...{HEAD}": {
@@ -238,11 +238,11 @@ class TestSweepAndNext(unittest.TestCase):
         """The control: with no review comment, PR 3 is listed."""
         assert_that(sweep_and_next([])[1], contains_string(REVIEW_THIRD))
 
-    def test_a_paused_pr_is_listed_for_nothing(self) -> None:
-        """The label holds it, and it prints no line of the limit."""
-        here = world_with([], labels=[{"name": "paused-owner"}])
-        assert_that(listed_for_third(here), equal_to([]))
-        assert_that(RULING_LINE in sweep(here).out, equal_to(False))
+    def test_an_impossible_pr_is_listed_for_nothing(self) -> None:
+        """The card ends it, and it prints no line of the limit."""
+        here = world_with([card.impossible()])
+        shown = (listed_for_third(here), RULING_LINE in sweep(here).out)
+        assert_that(shown, equal_to(([], False)))
 
     def test_the_ticket_of_a_held_pr_stays_taken(self) -> None:
         """The PR is at its ruling; the ticket its body fixes is not offered again."""

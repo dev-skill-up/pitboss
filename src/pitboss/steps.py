@@ -8,16 +8,11 @@ import dataclasses
 import enum
 from typing import AbstractSet
 
-PAUSED_LABEL = "paused-owner"
+IMPOSSIBLE_FIRST_LINE = "Impossible state"  # keyword: impossible-state
 RULING_FIRST_LINE = "Opus ruling"
 PLAN_CHECK_FIRST_LINE = "Plan check"  # keyword: plan-check (pitboss#192)
 PLAN_CHECK_OK = "Plan check: ok"
 RUN_E2E_MARKER = "RUN E2E BEFORE APPROVAL"  # keyword: run-e2e (pitboss#199)
-# keyword: owner-artifact (pitboss#237, the owner's standing ruling of 2026-11-04)
-OWNER_ARTIFACT = (
-    "attach a markdown artifact with the sections 'What happened', 'Recommendation' "
-    "and 'Suggested mitigation'"
-)
 FIRST_STEP = (
     "write the code, open the PR as a draft whose body has a Plan section and an"
     " Execution section; no open PR says it fixes this ticket"

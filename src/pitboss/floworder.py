@@ -28,11 +28,11 @@ class Row(Generic[State, Step]):
 
 
 STATED: Mapping[tuple[str, str], str] = {
-    ("paused-owner", "ruling-hold"): "a PR paused for the owner is owed nothing else",
-    ("paused-owner", "conflict"): "the owner decides before any fix of a conflict",
-    ("paused-owner", "first-round"): "the owner decides before any first round",
-    ("paused-owner", "gates"): "the owner decides before any gate",
-    ("paused-owner", "rule-conflict"): "the owner decides before any ruling",
+    ("impossible", "ruling-hold"): "an impossible PR is owed nothing else",
+    ("impossible", "conflict"): "an impossible PR has no conflict fixed",
+    ("impossible", "first-round"): "an impossible PR has no first round",
+    ("impossible", "gates"): "an impossible PR has no gate",
+    ("impossible", "rule-conflict"): "an impossible PR has no ruling",
     ("ruling-hold", "rule-conflict"): "an unreadable ruling is fixed before a new one",
     ("rule-conflict", "conflict"): "the rules are settled before a conflict is fixed",
     ("rule-conflict", "first-round"): "the rules are settled before a first round",

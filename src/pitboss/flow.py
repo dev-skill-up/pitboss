@@ -15,6 +15,7 @@ from . import (
     floworder,
     flowquestions,
     flowstate,
+    impossiblecard,
     headline,
     plancheckflow,
     planbody,
@@ -48,7 +49,7 @@ plan_revised = flowquestions.plan_revised
 get_plan_rejections = flowquestions.get_plan_rejections
 
 
-PAUSED = steps.IDLE
+TERMINAL = steps.IDLE  # keyword: impossible-state: the queue moves past the PR
 
 
 def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
@@ -330,7 +331,7 @@ def _ruling_held(pr: PullState) -> steps.Move:
     # (keyword: plan-digest, pitboss#172)
     held = flowstate.ruling_hold(pr)
     if held is None:  # pragma: no cover
-        return PAUSED  # unreachable: the row holds only when held
+        return TERMINAL  # unreachable: the row holds only when held
     return rulingafter.held_step(held, flowstate.ruling_unapplied(pr))
 
 
@@ -367,9 +368,9 @@ def _no_body(pr: PullState) -> bool:
 # hold at once, and a test fails for a pair that has none (keyword: flow-order).
 ROWS: Sequence[Row] = (
     Row(
-        name="paused-owner",
-        holds=lambda pr: steps.PAUSED_LABEL in pr.labels,
-        step=lambda pr: PAUSED,
+        name="impossible",
+        holds=lambda pr: impossiblecard.ended(pr.comments, pr.trusted),
+        step=lambda pr: TERMINAL,
     ),
     Row(
         name="ruling-hold",

@@ -171,20 +171,6 @@ def comment_texts(github: ghapi.GitHub, path: str) -> Sequence[str]:
     return ghapi.pages(github, f"{path}/comments", _texts)
 
 
-def label_names(github: ghapi.GitHub, path: str) -> Sequence[str]:
-    """The names of the labels of a pull request or an issue.
-
-    Args:
-        github: the API.
-        path: its issue path.
-
-    Returns:
-        The names.
-    """
-    found = totaljson.listed(ghapi.get_object(github, path), "labels")
-    return [totaljson.text(each.get("name")) for each in found]
-
-
 def _bodies(text: str) -> Sequence[tuple[int, str]]:
     found = json.loads(text)
     return [(int(each["number"]), totaljson.text(each.get("body"))) for each in found]

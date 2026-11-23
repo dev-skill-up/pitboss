@@ -39,7 +39,7 @@ def _paused_armed(given: knownkit.Kit) -> bool:
     )
     hub = knownkit.made(given, knownkit.change(pull=ARMED, events=[armed]))
     return (
-        knownkit.stops(given, "merge", world, "auto_merge armed on a paused-owner")
+        knownkit.stops(given, "merge", world, "labels=")
         and knownplay.verb_refused(given, hub, "label", name="paused-owner")
         and pull_now(hub)["auto_merge"] is not None
     )

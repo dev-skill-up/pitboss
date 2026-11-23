@@ -49,10 +49,10 @@ class Judgement:
     records: Mapping[str, world.Record]
 
 
-def _owner_stuck(record: world.PullRecord) -> answer.Decision:
-    # keyword: stuck-ci: the run is the owner's to re-run
+def _stuck(record: world.PullRecord) -> answer.Decision:
+    # keyword: stuck-ci: the orchestrator re-runs the run (a GitHub problem, C13)
     return answer.Decision(
-        actor=answer.Actor.OWNER,
+        actor=answer.Actor.ORCHESTRATOR,
         verb=stuckwords.warning(record.stuck[0]),
         item=record.row.reference,
         title=record.row.title,
@@ -112,7 +112,7 @@ def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
     step = facts_of(record).step
     match step:
         case steps.Idle() if record.stuck:
-            return _owner_stuck(record)
+            return _stuck(record)
         case steps.Idle():
             return None  # keyword: one-path: no actor takes an idle PR
         case steps.Next():
