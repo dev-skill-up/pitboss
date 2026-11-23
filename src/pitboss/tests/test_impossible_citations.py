@@ -48,6 +48,11 @@ class TestCitations(unittest.TestCase):
         """A quote that is in neither the register nor the PR's ruling."""
         _refused(_cites("the worker's own wording"), "no ruling of the register")
 
+    def test_one_real_quote_with_one_that_is_no_ruling_is_refused(self) -> None:
+        """The nearest input to an accepted filing: one quote of it is changed."""
+        near = REGISTER_WORDS.replace("never", "always")
+        _refused(_cites(REGISTER_WORDS, near), "no ruling of the register")
+
     def test_a_cited_conflict_is_accepted(self) -> None:
         """One ruling of the register, and two: a rule and the PR's own ruling."""
         one = made([RULING])
