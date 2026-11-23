@@ -9,7 +9,7 @@ import pathlib
 import subprocess
 from typing import Callable
 
-from . import config, handbackrecord, handbacks, local, running
+from . import config, handbackrecord, handbacks, local, relock, running
 
 Asks = Callable[[str], handbacks.HandedBack]
 
@@ -60,6 +60,24 @@ def worktree_directory(
         return None
 
 
+def held(ask: Asks, branch: str, prefix: str) -> handbacks.HandedBack:
+    """What a PR's branch handed back, with no hand-back owed only for a relock PR.
+
+    The keyword is durable-record (pitboss#513): a PR is not freed of a hand-back
+    because no worktree holds its branch, only because it is a relock PR, which
+    no worker writes.
+
+    Args:
+        ask: ``asker``'s function.
+        branch: the PR's head branch.
+        prefix: the head branch prefix of a relock PR.
+
+    Returns:
+        ``handbacks.NOT_REQUIRED`` for a relock PR, else what ``ask`` reads.
+    """
+    return handbacks.NOT_REQUIRED if relock.is_relock(branch, prefix) else ask(branch)
+
+
 def asker(run: running.Run, settings: config.Config) -> Asks:
     """The function that reads what was handed back for a branch.
 
@@ -75,13 +93,15 @@ def asker(run: running.Run, settings: config.Config) -> Asks:
     def ask(branch: str) -> handbacks.HandedBack:
         try:
             directory = worktree_found(run, clone, branch)
+            common = pathlib.Path(
+                running.git(run, clone, "rev-parse", "--absolute-git-dir").strip()
+            )
         except (subprocess.CalledProcessError, OSError):
             # git failed: no worker is known not to hold the PR, so none handed back
             return handbacks.HandedBack(required=True, states=frozenset())
-        if directory is None:
-            return handbacks.NOT_REQUIRED
-        return handbacks.HandedBack(
-            required=True, states=handbackrecord.states(directory)
-        )
+        # keyword: durable-record: a hand-back is required whatever worktree exists
+        found = handbackrecord.states(handbackrecord.kept(common, branch))
+        older = frozenset() if directory is None else handbackrecord.states(directory)
+        return handbacks.HandedBack(required=True, states=found | older)
 
     return ask

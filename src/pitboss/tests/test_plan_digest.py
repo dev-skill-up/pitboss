@@ -78,6 +78,7 @@ def ruling(second: int, word: str = RULING_WORDS) -> shapes.Comment:
         body=f"Opus ruling\nRuling: {word}\n",
         author_association="MEMBER",
         created_at=f"2026-10-30T00:00:{second:02d}Z",
+        url=f"https://example.org/ruling/{second}",
     )
 
 
