@@ -55,7 +55,7 @@ def _started(
 ) -> int | str:
     directory, timeout = where
     try:
-        done = args.safe_run(
+        done = args.world.safe_run(
             ["sh", "-c", command],
             cwd=directory,
             timeout=timeout,

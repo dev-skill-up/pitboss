@@ -111,7 +111,7 @@ def sourced(
         The source, with no volume read.
     """
     given = configfile.named(found.args)
-    start = pathlib.Path(found.args.env.get("PWD", "."))
+    start = pathlib.Path(found.args.world.env.get("PWD", "."))
     return Source(
         github=found.github,
         settings=found.settings,

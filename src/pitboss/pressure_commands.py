@@ -80,7 +80,7 @@ def _pushed_repository(args: argparse.Namespace) -> str | None:
     # keyword: pitboss-exempt (pitboss#113): the repository a push goes to
     named = [each for each in args.git_arguments if not each.startswith("-")]
     try:
-        done = args.safe_run(
+        done = args.world.safe_run(
             ["git", "remote", "get-url", named[0] if named else "origin"]
         )
     except subprocess.CalledProcessError:
@@ -109,7 +109,7 @@ def _free(args: argparse.Namespace, found: commands.Context, slug: str | None) -
 
 def _wanted(args: argparse.Namespace) -> Sequence[str]:
     # the branches the push names, the current one when it names none
-    current = pushdraft.current_branch(args.safe_run)
+    current = pushdraft.current_branch(args.world.safe_run)
     return pushdraft.branches(args.git_arguments, current)
 
 
@@ -167,7 +167,7 @@ def _refuse_draft(args: argparse.Namespace, slug: str | None) -> None:
 def _refuse(args: argparse.Namespace, slug: str | None) -> None:
     # keyword: markup-gate (pitboss#398): no .md or .rst line is added, at any push
     _refuse_draft(args, slug)
-    found = markupgate.findings(markupgate.through(args.safe_run))
+    found = markupgate.findings(markupgate.through(args.world.safe_run))
     for each in found:
         print(each)
     if found:
@@ -185,7 +185,7 @@ def pressure(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 until the quiet period is over.
     """
-    tracefs.say(args.safe_run)
+    tracefs.said(args.world)
     found = commands.load_context(args)
     looked = _look(found)
     _note_look(found, looked)
@@ -243,10 +243,10 @@ def _git_push(args: argparse.Namespace) -> Sequence[pushcheck.Outcome]:
     # No git arguments: push the current branch of this worktree to origin.
     wanted = args.git_arguments or ["origin", "HEAD"]
     found = pushcheck.targets(
-        args.safe_run, wanted, pushdraft.current_branch(args.safe_run)
+        args.world.safe_run, wanted, pushdraft.current_branch(args.world.safe_run)
     )
     try:
-        args.run(["git", "push", *wanted])
+        args.world.run(["git", "push", *wanted])
     except subprocess.CalledProcessError as failure:
         # A push that git refused never exits 0, even for a signal's status.
         return [
@@ -259,7 +259,7 @@ def _git_push(args: argparse.Namespace) -> Sequence[pushcheck.Outcome]:
         ]
     if not found:
         return [pushcheck.unverified(wanted)]
-    return [pushcheck.judge(args.safe_run, each) for each in found]
+    return [pushcheck.judge(args.world.safe_run, each) for each in found]
 
 
 def _went_out(outcomes: Sequence[pushcheck.Outcome]) -> bool:
@@ -362,6 +362,6 @@ def push(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
-    tracefs.say(args.safe_run)
+    tracefs.said(args.world)
     found, free = _gate(args, _checked(args))
     _after(args, found, (free, _send(args)))

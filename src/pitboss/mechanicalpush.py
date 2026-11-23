@@ -62,7 +62,7 @@ def exempt(
     if not getattr(args, "mechanical", False):
         return False
     branches = pushdraft.branches(
-        args.git_arguments, pushdraft.current_branch(args.safe_run)
+        args.git_arguments, pushdraft.current_branch(args.world.safe_run)
     )
     if slug is None or len(branches) != 1:
         why = "the repository or the one branch pushed cannot be told"

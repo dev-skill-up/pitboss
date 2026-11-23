@@ -17,7 +17,7 @@ from .totaljson import text
 
 def _worktree_dir(found: nextfound.Found, branch: str) -> pathlib.Path | None:
     clone = found.settings.project.main_clone
-    return handedread.worktree_directory(found.args.safe_run, clone, branch)
+    return handedread.worktree_directory(found.args.world.safe_run, clone, branch)
 
 
 def _recorded(found: nextfound.Found, row: listed.Listed) -> bool:

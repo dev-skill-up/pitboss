@@ -49,7 +49,7 @@ def _started(args: argparse.Namespace) -> datetime.datetime | None:
     given = getattr(args, "process_start", None)
     if given:
         return datetime.datetime.fromisoformat(given)
-    return processstart.of_claude(args.safe_run)
+    return processstart.of_claude(args.world.safe_run)
 
 
 def once(

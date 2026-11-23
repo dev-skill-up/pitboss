@@ -11,6 +11,7 @@ from typing import Callable, Mapping, MutableSequence, Sequence
 from hamcrest import assert_that, contains_string, greater_than
 
 from .. import cleaning, cleanconfig, dead, deadscan, disk
+from . import fakeargs
 from . import fakes, repositories
 from .cleanworld import candidates, failing, same
 
@@ -228,7 +229,7 @@ class TestCommandPieces(unittest.TestCase):
     def test_a_path_that_stays_is_said(self) -> None:
         """A path that rm left is a COULD NOT REMOVE PATH line, not a removal."""
         _, found = directories("stay")
-        args = argparse.Namespace(no_dry_run=True, run=failing, batch=2)
+        args = fakeargs.args(no_dry_run=True, run=failing, batch=2)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             gone = cleaning.remove_all(args, allowed, found)

@@ -116,7 +116,7 @@ class TestCaptureOfBodyEdits(unittest.TestCase):
         args = arguments(None, edits_file(self))
         self.enterContext(contextlib.redirect_stdout(io.StringIO()))
         capture_commands.capture_timeline(args)
-        asked = [each for each in args.safe_run.calls if "graphql" in each]
+        asked = [each for each in args.world.safe_run.calls if "graphql" in each]
         assert_that(asked, equal_to([]))
 
     def test_capture_timeline_without_a_file_records_no_edits(self) -> None:

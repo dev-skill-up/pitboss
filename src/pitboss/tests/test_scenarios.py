@@ -19,6 +19,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_inanyorder, contains_string, equal_to
 
 from .. import capture, capture_commands, expansion, ghapi, plandigest, steps
+from . import fakeargs
 from . import fakes, scenario
 from .scenario import Mark
 
@@ -256,7 +257,7 @@ def arguments(to: str | None, edits: str | None = None) -> argparse.Namespace:
         The namespace.
     """
     run = fakes.FakeProcesses(bodies=dict(github_bodies()))
-    return argparse.Namespace(pull="o/r#7", to=to, edits=edits, safe_run=run)
+    return fakeargs.args(pull="o/r#7", to=to, edits=edits, safe_run=run)
 
 
 class TestCaptureTimeline(unittest.TestCase):
@@ -322,7 +323,7 @@ class TestCaptureTimeline(unittest.TestCase):
 
     def test_capture_timeline_command_refuses_a_bad_pull(self) -> None:
         """An argument that is not OWNER/NAME#N exits with the reason."""
-        args = argparse.Namespace(pull="nope", to=None, edits=None, safe_run=None)
+        args = fakeargs.args(pull="nope", to=None, edits=None, safe_run=None)
         with self.assertRaises(SystemExit) as raised:
             capture_commands.capture_timeline(args)
         assert_that(str(raised.exception), contains_string("not OWNER/NAME#NUMBER"))

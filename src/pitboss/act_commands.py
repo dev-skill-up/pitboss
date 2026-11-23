@@ -109,7 +109,7 @@ def act(args: argparse.Namespace) -> None:
     owner = actwiring.owner_of(path)
     questions, given = _decided(found, args, options)
     asking = actwiring.Asking(owner=owner, questions=questions)
-    world = actwiring.act_of(found.github, found.settings, args.run, asking)
+    world = actwiring.act_of(found.github, found.settings, args.world.run, asking)
     given(world)
     target = actledger.target_of(args.target)
     asked = actfacts.Asked(verb=args.verb, target=target, options=options)

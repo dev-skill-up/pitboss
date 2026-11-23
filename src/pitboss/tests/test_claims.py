@@ -4,7 +4,6 @@ quire#1115: a worker pushed to ``w1113-merge`` and reported it as pushed; the PR
 stayed 75f820a while the body named 7ba2eca. Each shape is played with a fake GitHub.
 """
 
-import argparse
 import unittest
 from typing import Mapping, Sequence
 
@@ -31,6 +30,7 @@ from .. import (
     reviews,
     shapes,
 )
+from . import fakeargs
 from . import fakes, world
 from .test_report import facts
 from .says import ended, exits, says
@@ -243,7 +243,7 @@ class TestTable(unittest.TestCase):
     def test_c29_the_pushed_branch_is_the_upstream_without_its_remote(self) -> None:
         """origin/worker/444 is worker/444; no upstream is none."""
 
-        args = argparse.Namespace(
+        args = fakeargs.args(
             repo=".", safe_run=lambda words: fakes.Output(stdout="origin/worker/444\n")
         )
         assert_that(handbackrun.pushed_branch(args), equal_to("worker/444"))

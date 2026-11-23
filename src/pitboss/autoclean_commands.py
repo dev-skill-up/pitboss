@@ -34,11 +34,13 @@ def clean(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     found = load_context(args)
-    run = args.run if args.dry_run else args.safe_run
+    run = args.world.run if args.dry_run else args.world.safe_run
     option = cleanjob.Option(run=run, dry=args.dry_run, command="pitboss clean")
-    machine = machines.real_machine(args.env, found.now, running_in(args), args.usage)
+    machine = machines.real_machine(
+        args.world.env, found.now, running_in(args), args.usage
+    )
     for text in autoclean.clean_report(sweep_look(found), machine, option).lines:
         print(text)
-    source = scratch.source_of(args.safe_run, found.scratch, found.now)
+    source = scratch.source_of(args.world.safe_run, found.scratch, found.now)
     for text in (scratch.listing if args.dry_run else scratch.cleaning)(source):
         print(text)

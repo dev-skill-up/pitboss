@@ -43,7 +43,7 @@ def git(args: argparse.Namespace, *words: str) -> str:
         usage_error: when git fails.
     """
     try:
-        done = args.safe_run(
+        done = args.world.safe_run(
             ["git", "-C", args.repo, *words],
             check=True,
             capture_output=True,

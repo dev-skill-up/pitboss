@@ -27,7 +27,7 @@ def git_out(args: argparse.Namespace, *words: str) -> str:
         The output, stripped; empty when git failed.
     """
     try:
-        done = args.safe_run(["git", "-C", str(args.repo), *words])
+        done = args.world.safe_run(["git", "-C", str(args.repo), *words])
         return str(done.stdout).strip()
     except (OSError, subprocess.CalledProcessError):
         return ""
@@ -79,7 +79,7 @@ def _pushed(
     args: argparse.Namespace, settings: config.Config, head: str
 ) -> handbackcheck.Pushed | str:
     # the PR the hand-back is for, or the line that says there is none
-    github = ghclient.read_only(args.safe_run)
+    github = ghclient.read_only(args.world.safe_run)
     slug = _slug(args, settings)
     number = args.pr
     if number is None:

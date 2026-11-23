@@ -5,10 +5,10 @@ import graph, so a new package is read too) and says each place a module outside
 capability packages could read or change the world: an import that is not on the
 allowlist, a banned name, a banned way to reach one without writing it, a string that
 names a dunder, a runtime branch under ``TYPE_CHECKING`` and a use of the
-``args.run``, ``args.safe_run`` or ``args.env`` the command framework hands every
-command (all of them reach the world and none is a typed value). Each finding is
-one line, ``path:line rule: what``; the exit status is the count's truth: 0 when there
-are none. The rules and what each closes are in the ticket (dev-skill-up/pitboss#524).
+``args.world`` the shell hands every command (processes and the environment). Each
+finding is one line, ``path:line rule: what``; the exit status is the count's truth:
+0 when there are none. The rules and what each closes are in the ticket
+(dev-skill-up/pitboss#524).
 """
 
 import ast
@@ -78,7 +78,7 @@ BANNED_ATTRIBUTES = frozenset(
         "methodcaller",
     }
 )
-FRAMEWORK = frozenset({"run", "safe_run", "env", "orig_run"})
+FRAMEWORK = frozenset({"world"})
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

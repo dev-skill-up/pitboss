@@ -158,7 +158,7 @@ def working_directory(args: argparse.Namespace) -> pathlib.Path:
     Returns:
         ``PWD`` of the environment, else the current directory.
     """
-    return pathlib.Path(args.env.get("PWD", "."))
+    return pathlib.Path(args.world.env.get("PWD", "."))
 
 
 def named(args: argparse.Namespace) -> str:
@@ -178,10 +178,10 @@ def named(args: argparse.Namespace) -> str:
     """
     if args.config is not None:
         return str(args.config)
-    from_environment = args.env.get(ENVIRONMENT_VARIABLE)
+    from_environment = args.world.env.get(ENVIRONMENT_VARIABLE)
     if from_environment:
         return str(from_environment)
-    return str(find_default(working_directory(args), ceilings(args.env)))
+    return str(find_default(working_directory(args), ceilings(args.world.env)))
 
 
 def in_config_directory(name: str, start: pathlib.Path) -> pathlib.Path | None:

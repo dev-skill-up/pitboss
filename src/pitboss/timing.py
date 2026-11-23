@@ -57,8 +57,9 @@ def logged_args(args: argparse.Namespace, clock: Clock) -> argparse.Namespace:
     Returns:
         A copy of the arguments whose ``safe_run`` logs, and the ``clock``.
     """
-    logging_run = calllog.logging_run(args.safe_run, clock.log, clock.read)
-    return argparse.Namespace(**{**vars(args), "safe_run": logging_run, "clock": clock})
+    logging_run = calllog.logging_run(args.world.safe_run, clock.log, clock.read)
+    world = dataclasses.replace(args.world, safe_run=logging_run)
+    return argparse.Namespace(**{**vars(args), "world": world, "clock": clock})
 
 
 def mark(clock: Clock, section: str, count: int = 0, noun: str = "") -> calllog.Phase:

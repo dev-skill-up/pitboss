@@ -228,7 +228,7 @@ def body_head(args: argparse.Namespace) -> None:
     """
     slug, number = _pull(args.pull)
     path = f"repos/{slug}/pulls/{number}"
-    done = bodyhead.move(args.safe_run, args.safe_run, path)
+    done = bodyhead.move(args.world.safe_run, args.world.safe_run, path)
     if done is None:
         print(f"{args.pull}: the body has no line `Head: <40 hex>`", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)

@@ -33,7 +33,7 @@ def show_next(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
-    tracefs.say(args.safe_run)
+    tracefs.said(args.world)
     found = load_context(args)
     onepath.answer_of(found)
     repoaccess.finish(found.access)

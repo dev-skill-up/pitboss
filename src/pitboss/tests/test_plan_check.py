@@ -1,6 +1,5 @@
 """Tests for ``pitboss plan-check`` (keyword: plan-check, pitboss#192)."""
 
-import argparse
 import contextlib
 import re
 import tempfile
@@ -17,6 +16,7 @@ from .. import (
     plantickets,
     steps,
 )
+from . import fakeargs
 from . import captured, fakes, world
 from .linting import write_text
 from .test_expand_commands import real_world
@@ -194,7 +194,7 @@ class TestRunner(unittest.TestCase):
 
     def test_a_shell_that_cannot_start_is_not_run(self) -> None:
         """An OSError is a command that cannot start."""
-        args = argparse.Namespace(safe_run=cannot_start)
+        args = fakeargs.args(safe_run=cannot_start)
         done = plancheckrun.run_in(args, fakes.directory(), 1, "true")
         assert_that(done.problem, contains_string("cannot start"))
 

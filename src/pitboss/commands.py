@@ -1,6 +1,6 @@
 """The commands: thin wrappers that read, decide with the other modules, and print.
 
-Reads go through ``args.safe_run``; changes through ``args.run``, which is
+Reads go through ``args.world.safe_run``; changes through ``args.world.run``, which is
 a dry run unless ``--no-dry-run`` is given.
 """
 
@@ -150,7 +150,7 @@ def load_settings(args: argparse.Namespace) -> config.Config:
 def _reading(args: argparse.Namespace) -> KeywordRun:
     # keyword: read-retry: a read that may pass is tried again, then the command fails
     tried = retrying.with_retries(
-        args.safe_run, functools.partial(random.uniform, 0.0), time.sleep
+        args.world.safe_run, functools.partial(random.uniform, 0.0), time.sleep
     )
     # keyword: read-memo (pitboss#453): a question of what is next reads a path once
     asks = {getattr(args, "action", None), getattr(args, "__gather_name__", None)}
@@ -169,7 +169,7 @@ def load_context(args: argparse.Namespace) -> Context:
     """
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
-    github = ghclient.GitHub(run=_reading(args), mutate=args.run)
+    github = ghclient.GitHub(run=_reading(args), mutate=args.world.run)
     start = working_directory(args)
     given = configfile.named(args)
     access = repoaccess.read(
@@ -213,7 +213,7 @@ def sweep_look(found: Context) -> dead.Look:
         The look.
     """
     return dead.Look(
-        run=found.args.safe_run,
+        run=found.args.world.safe_run,
         github=found.github,
         settings=found.settings,
         clean=found.clean,
@@ -225,15 +225,15 @@ def sweep_look(found: Context) -> dead.Look:
 def _clean_section(found: Context) -> account.Report:
     # A sweep that removes: safe_run really runs (keyword: auto-clean).
     listed = found.clean.worktrees is cleanconfig.Worktrees.LIST
-    option = cleanjob.Option(run=found.args.safe_run, dry=False, list_only=listed)
+    option = cleanjob.Option(run=found.args.world.safe_run, dry=False, list_only=listed)
     look = sweep_look(found)
     machine = machines.real_machine(
-        found.args.env, found.now, running_in(found.args), found.args.usage
+        found.args.world.env, found.now, running_in(found.args), found.args.usage
     )
     done = autoclean.clean_report(look, machine, option)
     for text in done.lines:
         print(text)
-    source = scratch.source_of(found.args.safe_run, found.scratch, found.now)
+    source = scratch.source_of(found.args.world.safe_run, found.scratch, found.now)
     for text in (scratch.listing if listed else scratch.cleaning)(source):
         print(text)
     return done
@@ -251,7 +251,7 @@ def _repository_sections(
     report.print_queue(pressure, runs, found.settings, found.now)
     timing.lap(clock, "merge queue done")
     localsections.print_stragglers(
-        found.args.safe_run, found.settings.project.workspace
+        found.args.world.safe_run, found.settings.project.workspace
     )
     for line in diskline.lines(cleaned, found.clean.min_free_gib):
         print(line)
@@ -317,7 +317,7 @@ def sweep_sections(found: Context, clock: timing.Clock, seen: Seen) -> bool:
     args = found.args
     where = configfile.locate(configfile.named(args), working_directory(args))
     ledgerowner.say_sweep(load_settings(args), where)
-    localsections.print_update_check(args.safe_run)
+    localsections.print_update_check(args.world.safe_run)
     timing.lap(clock, "update check and configuration read")
     cleaned = _clean_section(found)
     timing.lap(clock, "cleaning done")

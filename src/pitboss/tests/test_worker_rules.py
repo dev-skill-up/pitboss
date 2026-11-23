@@ -14,6 +14,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import partial, ticketbranch
+from . import fakeargs
 from . import fakes, world
 from .cleanworld import same
 from .says import says
@@ -42,7 +43,7 @@ def branch_of(name: str) -> argparse.Namespace:
         assert_that(list(command), equal_to(["git", "branch", "--show-current"]))
         return fakes.Output(stdout=name + "\n")
 
-    return argparse.Namespace(ticket="owner/pitboss#444", safe_run=run)
+    return fakeargs.args(ticket="owner/pitboss#444", safe_run=run)
 
 
 def fails(error: BaseException) -> argparse.Namespace:
@@ -58,7 +59,7 @@ def fails(error: BaseException) -> argparse.Namespace:
     def run(command: Sequence[str]) -> fakes.Output:
         raise error
 
-    return argparse.Namespace(ticket="444", safe_run=run)
+    return fakeargs.args(ticket="444", safe_run=run)
 
 
 def required(args: argparse.Namespace, env: Mapping[str, str]) -> object:
@@ -138,7 +139,9 @@ class TestTicketBranch(unittest.TestCase):
         same(required(branch_of("worker/444"), {}), None)
         same(required(argparse.Namespace(ticket=None), {}), None)
         env = {"PITBOSS_TICKET": "444"}
-        unreadable = argparse.Namespace(ticket=None, safe_run=fails(OSError()).safe_run)
+        unreadable = fakeargs.args(
+            ticket=None, safe_run=fails(OSError()).world.safe_run
+        )
         same(required(unreadable, env), 1)
 
     def test_b15_push_refuses_the_main_clone_branch_for_a_ticket(self) -> None:

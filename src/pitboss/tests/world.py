@@ -10,9 +10,8 @@ import os
 import pathlib
 from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
-from gather import commands as gather_commands
 
-from .. import cli_parser, disk
+from .. import cli_parser, disk, shell
 from . import fakes, fixeddisk, ownerbodies, repositories, ticket_bodies, worldcomments
 from .handedworld import plant
 from .worldreads import GATE_READS
@@ -346,7 +345,7 @@ def exit_code(world: World, argv: Sequence[str], env: Mapping[str, str]) -> obje
         The code it exited with; 0 when it returned.
     """
     try:
-        gather_commands.run_maybe_dry(
+        shell.run_maybe_dry(
             parser=parser(world),
             argv=list(argv),
             env=env,

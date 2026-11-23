@@ -5,7 +5,6 @@ played with each way a command fails: a non-zero status, a crash, an empty outpu
 a timeout and a missing argument.
 """
 
-import argparse
 import dataclasses
 import subprocess
 from sys import executable
@@ -16,6 +15,7 @@ from commander_data.run import Runner
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_
 
 from .. import config, configfile, gaterun, nox_commands, prepush
+from . import fakeargs
 from . import fakes, world
 from .says import exits, says
 from .pushworld import branch_one, configured
@@ -105,7 +105,7 @@ class TestEachGateEachWay(unittest.TestCase):
         """No failure mode is a green session."""
         for mode, runner in WAYS:
             done = nox_commands.gate_command(
-                argparse.Namespace(safe_run=runner), ["nox"], {}
+                fakeargs.args(safe_run=runner), ["nox"], {}
             )
             assert_that(done.status != 0, is_(True), mode.name)
 

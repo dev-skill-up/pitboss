@@ -1,6 +1,5 @@
 """An Evidence block records its head; another head is refused (pitboss#398)."""
 
-import argparse
 import pathlib
 import subprocess
 import unittest
@@ -9,6 +8,7 @@ from typing import NoReturn, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import evidence, expand_commands, expansion
+from . import fakeargs
 from . import diffrepo
 from .linting import HEAD, OK, lint, write_text
 from .plancheckrun import body_of, passed, plan_check, refused_with
@@ -55,7 +55,7 @@ class TestRecord(unittest.TestCase):
         def failing(command: Sequence[str], **_: object) -> NoReturn:
             raise subprocess.CalledProcessError(128, command)
 
-        args = argparse.Namespace(cwd=".", safe_run=failing)
+        args = fakeargs.args(cwd=".", safe_run=failing)
         assert_that(expand_commands.head_of(args), equal_to(""))
 
     def test_a_block_with_a_head_is_still_produced_and_collapses(self) -> None:

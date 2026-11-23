@@ -73,12 +73,9 @@ class TestRules(unittest.TestCase):
         )
 
     def test_the_frameworks_world_is_refused(self) -> None:
-        """args.run, args.safe_run and args.env are the world as an untyped value."""
-        text = "def f(args):\n    return args.safe_run(['gh']), args.env, args.run\n"
-        assert_that(
-            sorted(found(text)),
-            equal_to(["E1 uses args.env", "E1 uses args.run", "E1 uses args.safe_run"]),
-        )
+        """args.world, which holds the processes and the environment, is the world."""
+        text = "def f(args):\n    return args.world.safe_run(['gh']), args.world.env\n"
+        assert_that(found(text), equal_to(["E1 uses args.world", "E1 uses args.world"]))
 
     def test_a_string_naming_a_dunder_and_type_checking_code_are_refused(self) -> None:
         """The two ways a module runs what mypy does not read."""

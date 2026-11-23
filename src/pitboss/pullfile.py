@@ -81,7 +81,7 @@ def github_of(args: argparse.Namespace) -> ghapi.GitHub:
     Returns:
         The API, whose reads and changes both go through the safe runner.
     """
-    return ghapi.GitHub(mutate=args.safe_run, run=args.safe_run)
+    return ghapi.GitHub(mutate=args.world.safe_run, run=args.world.safe_run)
 
 
 def comment(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:

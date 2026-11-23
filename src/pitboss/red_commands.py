@@ -38,7 +38,7 @@ def _now(args: argparse.Namespace) -> str:
 def _sources(
     args: argparse.Namespace, settings: config.Config, repo: config.Repo
 ) -> redreport.Sources:
-    reader = args.safe_run
+    reader = args.world.safe_run
     github = ghclient.GitHub(run=reader, mutate=reader)
     wanted = _repos(settings, repo)
     failures = redreport.unreadable(github, wanted)
