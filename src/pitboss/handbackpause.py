@@ -9,7 +9,7 @@ the ``paused-owner`` label and posts the question, and nothing waits.
 import re
 from typing import Sequence
 
-from . import analysis, flowstate, handbackform, partial, steps
+from . import analysis, flowstate, handbackform, impossiblecites, partial, steps
 
 IMPOSSIBLE = re.compile(handbackform.IMPOSSIBLE.pattern, re.MULTILINE)
 OPTIONS = (
@@ -46,25 +46,33 @@ def shows_impossibility(handback: str) -> bool:
     return bool(IMPOSSIBLE.search(handback) or partial.IMPOSSIBLE.search(handback))
 
 
-def refusal(handback: str, comments: Sequence[str], labels: Sequence[str]) -> str:
+def refusal(
+    handback: str,
+    comments: Sequence[str],
+    labels: Sequence[str],
+    register: Sequence[str],
+) -> str:
     """Say why a hand-back may not pause a PR for the owner.
 
     Args:
         handback: the hand-back text.
         comments: the texts of the PR's comments.
         labels: the PR's labels.
+        register: the words of each rule of the register of the owner's rules.
 
     Returns:
         The reason; empty when the hand-back shows an impossibility, the PR has an
-        Opus ruling and is not yet paused for the owner.
+        Opus ruling, is not yet paused for the owner and the hand-back cites the
+        rulings in their exact words (``impossiblecites``).
     """
     if not shows_impossibility(handback):
         return NO_IMPOSSIBILITY
     if steps.PAUSED_LABEL in labels:
         return PAUSED
-    if not any(flowstate.is_ruling(each) for each in comments):
+    rulings = [each for each in comments if flowstate.is_ruling(each)]
+    if not rulings:
         return NO_RULING
-    return ""
+    return impossiblecites.refusal(handback, register, rulings)
 
 
 def question(handback: str) -> str:
