@@ -78,7 +78,14 @@ def _not_done(why: answer.Why, line: str) -> Sequence[answer.NotDone]:
     return [answer.NotDone(why=why, line=line)]
 
 
+def _not_done_all(findings: Sequence[str]) -> Sequence[answer.NotDone]:
+    # a correction of Done-when rows is refused for each thing it changes besides
+    return [answer.NotDone(why=answer.Why.STARTED, line=each) for each in findings[:1]]
+
+
 def _started(check: actfacts.Starters) -> Sequence[answer.NotDone]:
+    if check.corrects:
+        return _not_done_all(check.findings)
     if not check.pulls:
         return []
     line = f"PR #{check.pulls[0]} closes {check.ticket}, so a worker started:"

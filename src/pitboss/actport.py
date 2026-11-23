@@ -76,6 +76,7 @@ class Hub:
 
     Attributes:
         pull: reads a PR of a repository, as GitHub answers.
+        one_issue: reads an issue of a repository, as GitHub answers.
         timeline: reads a PR's events, oldest first.
         issues: reads a repository's open issues with a label.
         open_pulls: reads a repository's open PRs.
@@ -84,6 +85,7 @@ class Hub:
     """
 
     pull: Callable[[str, int], Pull]
+    one_issue: Callable[[str, int], Pull]
     timeline: Callable[[str, int], Sequence[object]]
     issues: Callable[[str, str], Sequence[Pull]]
     open_pulls: Callable[[str], Sequence[Pull]]

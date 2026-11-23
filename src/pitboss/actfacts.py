@@ -23,10 +23,15 @@ class Starters:
     Attributes:
         ticket: the ticket, ``owner/name#number``.
         pulls: their numbers.
+        corrects: the rows the edit names, empty for an edit that names none.
+        findings: what refuses a correction of the Done-when rows the edit names
+            (``corrects``): the rows named are the only change.
     """
 
     ticket: str
     pulls: Sequence[int]
+    corrects: str
+    findings: Sequence[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

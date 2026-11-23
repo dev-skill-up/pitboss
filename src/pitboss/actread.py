@@ -8,7 +8,7 @@ decides nothing; ``actdecide`` does.
 
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import actcore, actfacts, actgit, actwrite, config
+from . import actcore, actfacts, actgit, actwrite, config, donewhencorrection
 from .totaljson import members, name_at, records, text
 
 Facts = Callable[[actcore.Act, actfacts.Asked], Sequence[actfacts.Check]]
@@ -33,8 +33,23 @@ def _edit(act: actcore.Act, asked: actfacts.Asked) -> Sequence[actfacts.Check]:
     target = asked.target
     found = _works_on(act, target.repo)
     started = [number for number, names in found if target.name in names]
-    starters = actfacts.Starters(ticket=target.name, pulls=started)
-    return [starters, _form(act, asked, "body")]
+    corrects = asked.options.get("corrects", "")
+    return [_starters(act, asked, started, corrects), _form(act, asked, "body")]
+
+
+def _starters(
+    act: actcore.Act, asked: actfacts.Asked, started: Sequence[int], corrects: str
+) -> actfacts.Check:
+    # a started ticket's edit that names the rows it corrects is held to them
+    target = asked.target
+    found: Sequence[str] = ()
+    if corrects:
+        old = text(act.hub.one_issue(target.repo, target.number).get("body"))
+        new = actcore.option(asked.options, "body")
+        found = donewhencorrection.findings(old, new, corrects)
+    return actfacts.Starters(
+        ticket=target.name, pulls=started, corrects=corrects, findings=found
+    )
 
 
 def _form(act: actcore.Act, asked: actfacts.Asked, name: str) -> actfacts.Check:
