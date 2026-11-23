@@ -55,6 +55,12 @@ def _pulls(change: Change, rest: str = "") -> str:
     return f"repos/{change.repo}/pulls/{change.number}{rest}"
 
 
+def _pinned(change: Change) -> Sequence[str]:
+    # keyword: pin: the head the verb read, which GitHub holds the merge to
+    head = change.fields.get("sha", "")
+    return ["--match-head-commit", head] if head else []
+
+
 def _merge(*flags: str) -> Words:
     return lambda change: [
         "gh",
@@ -63,6 +69,7 @@ def _merge(*flags: str) -> Words:
         str(change.number),
         "-R",
         change.repo,
+        *_pinned(change),
         *flags,
     ]
 
@@ -117,7 +124,11 @@ WRITES: Mapping[str, Words] = {
     ),
     "pr-close": lambda change: _api("PATCH", _pulls(change), "-f", "state=closed"),
     "merge": lambda change: _api(
-        "PUT", _pulls(change, "/merge"), "-f", "merge_method=merge"
+        "PUT",
+        _pulls(change, "/merge"),
+        "-f",
+        "merge_method=merge",
+        *_fields(change, "sha"),
     ),
     "arm": _merge("--auto", "--merge"),
     "disarm": _merge("--disable-auto"),

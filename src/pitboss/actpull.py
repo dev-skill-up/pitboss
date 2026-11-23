@@ -14,6 +14,8 @@ from .totaljson import text
 PRIORITIES = frozenset({"p0", "p1", "p2", "p3"})  # only the owner changes one
 LABELS = totalanswer.KNOWN_LABELS | {actcore.HOLD_LABEL}
 WORKFLOWS = ("relock.yml", "check.yml")
+RECORDED = frozenset({"arm"})  # the verbs that write their head to the timeline
+PINNED = frozenset({"merge", "arm"})  # gh has a head guard for these (not undraft)
 CLOSE_REASONS = ("completed", "not_planned", "duplicate")
 
 
@@ -35,10 +37,13 @@ def gated_write(
         What was done.
     """
     pull = pull_of(act, target)
-    if action == "arm":
-        actcore.record(act, target, f"arm head={actcore.head_of(pull)}")
-    actcore.put(act, target, action)
-    return f"{action} {target.name} at {actcore.head_of(pull)}"
+    head = actcore.head_of(pull)
+    if action in RECORDED:
+        actcore.record(act, target, f"{action} head={head}")
+    # keyword: pin: GitHub merges or arms only when the head is still the one read
+    fields = {"sha": head} if action in PINNED else {}
+    actcore.put(act, target, action, fields)
+    return f"{action} {target.name} at {head}"
 
 
 def disarm(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:

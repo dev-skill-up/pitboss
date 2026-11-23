@@ -102,6 +102,23 @@ class TestRearm(unittest.TestCase):
         assert_that(list(said[:4]), equal_to(["gh", "pr", "merge", "2"]))
         assert_that(list(said[-2:]), equal_to(["--auto", "--merge"]))
 
+    def test_c17_pin_the_merge_and_the_arm_name_the_head_they_read(self) -> None:
+        """GitHub holds a merge or an arm to the head the verb read (keyword: pin)."""
+        words = {
+            kind: acthub.WRITES[kind](
+                actcore.Change(
+                    kind=kind, repo="o/r", number=2, fields={"sha": "abc123"}
+                )
+            )
+            for kind in ("arm", "merge")
+        }
+        arm, merge = words["arm"], words["merge"]
+        assert_that(
+            list(arm[arm.index("--match-head-commit") :][:2]),
+            equal_to(["--match-head-commit", "abc123"]),
+        )
+        assert_that(list(merge[-3:-1]), equal_to(["-f", "sha=abc123"]))
+
     def test_c26_an_arm_during_a_hold_is_refused_and_changes_nothing(self) -> None:
         """A hold of merges.
 
