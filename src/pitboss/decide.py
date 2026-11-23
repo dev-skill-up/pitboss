@@ -53,6 +53,8 @@ CARRIED: Mapping[steps.Step, answer.Carried] = {  # the gated verb of each step
     steps.Step.MERGE: answer.Carried.MERGE,
     steps.Step.UNDRAFT: answer.Carried.UNDRAFT,
     steps.Step.REGULAR_REVIEW: answer.Carried.REVIEW,
+    steps.Step.WORKER: answer.Carried.PUSH,
+    steps.Step.RUN_E2E: answer.Carried.DISPATCH,
 }
 
 

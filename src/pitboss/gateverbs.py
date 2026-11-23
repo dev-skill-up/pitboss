@@ -84,6 +84,16 @@ class OwnVerb(enum.Enum):
     ACK = "ack"
 
 
+# the own verbs a PR's decision carries (``allows``; keyword: accepts)
+ON_A_PULL = frozenset(
+    {
+        OwnVerb.REVIEW,
+        OwnVerb.PUSH,
+        OwnVerb.CLOSE,
+        OwnVerb.LABEL,
+        OwnVerb.DISPATCH_WORKFLOW,
+    }
+)
 Verb = ItemVerb | OwnVerb  # an act verb, by its word: each looks its answer up
 ON_ITEMS = frozenset(ItemVerb) - {ItemVerb.DISPATCH_NEXT}  # merge, arm, undraft, ...
 # the verbs with no mode of their own (``mode.ActOn``)
@@ -98,6 +108,10 @@ CARRIED: Mapping[Verb, answer.Carried] = {  # the step each gated verb carries o
     ItemVerb.ARM: answer.Carried.MERGE,
     ItemVerb.UNDRAFT: answer.Carried.UNDRAFT,
     OwnVerb.REVIEW: answer.Carried.REVIEW,
+    OwnVerb.PUSH: answer.Carried.PUSH,
+    OwnVerb.DISPATCH_WORKFLOW: answer.Carried.DISPATCH,
+    OwnVerb.CLOSE: answer.Carried.CLOSE,
+    OwnVerb.LABEL: answer.Carried.LABEL,
 }
 
 
@@ -111,6 +125,21 @@ def verb_of(word: str) -> Verb:
         The verb (``OwnVerb``'s ``ValueError`` for a word that names none).
     """
     return ItemVerb(word) if word in ITEM_WORDS else OwnVerb(word)
+
+
+def _found(decided: answer.Decided, verb: Verb, item: str) -> Looked:
+    # the decision a verb is answered with (None for a verb with no decision)
+    match verb:
+        case ItemVerb.DISPATCH_NEXT:
+            return project.dispatch_next(decided)
+        case ItemVerb():
+            return decided.by_item.get(item) or project.dispatch_next(decided)
+        case OwnVerb() if verb in ON_A_PULL:
+            return decided.by_item.get(item)
+        case OwnVerb():
+            return None
+        case _:  # pragma: no cover
+            assert_never(verb)
 
 
 def lookup(decided: answer.Decided, verb: Verb, item: str) -> Looked:
@@ -127,15 +156,7 @@ def lookup(decided: answer.Decided, verb: Verb, item: str) -> Looked:
         has none), the head of the order for ``dispatch-next``, None for any
         other verb.
     """
-    match verb:
-        case ItemVerb.DISPATCH_NEXT:
-            found: Looked = project.dispatch_next(decided)
-        case ItemVerb() | OwnVerb.REVIEW:
-            found = decided.by_item.get(item) or project.dispatch_next(decided)
-        case OwnVerb():
-            found = None
-        case _:  # pragma: no cover
-            assert_never(verb)
+    found = _found(decided, verb, item)
     stood = decided.acting
     return stood if isinstance(stood, answer.NotDone) else found
 

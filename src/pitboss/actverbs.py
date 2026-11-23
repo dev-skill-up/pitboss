@@ -16,6 +16,7 @@ import pathlib
 from typing import Callable, Literal, Mapping, assert_never
 
 from . import (
+    actitem,
     actfacts,
     actgit,
     actpull,
@@ -38,7 +39,6 @@ GATED_ON_ITEM = frozenset(
         gateverbs.ItemVerb.MERGE,
         gateverbs.ItemVerb.ARM,
         gateverbs.ItemVerb.UNDRAFT,
-        gateverbs.OwnVerb.REVIEW,
     }
 )
 
@@ -303,13 +303,46 @@ def _said(found: gateverbs.Looked) -> str:
             return ""
 
 
-def _stands(verb: gateverbs.Verb, found: gateverbs.Looked, asked: Asked) -> bool:
-    # whether the verb's answer is another than doing it
-    item, options = asked.target.name, asked.options
+# the option that names the branch of a verb whose PR is the branch's
+BRANCH_OPTION: Mapping[gateverbs.Verb, str] = {
+    gateverbs.OwnVerb.PUSH: "branch",
+    gateverbs.OwnVerb.DISPATCH_WORKFLOW: "ref",
+}
+
+
+def item_of(act: Act, verb: gateverbs.Verb, asked: Asked) -> str:
+    """The PR whose decision carries a verb, else its target.
+
+    Args:
+        act: the verb's world.
+        verb: the verb.
+        asked: the verb, its target and its options.
+
+    Returns:
+        ``owner/name#number`` of the PR it changes; empty when it changes none (an
+        issue, a branch no open PR has, a label that is a setting).
+    """
+    target, options = asked.target, asked.options
+    pulls = act.hub.open_pulls(target.repo) if verb in gateverbs.ON_A_PULL else []
+    branch = options.get(BRANCH_OPTION.get(verb, ""), "")
+    if verb in BRANCH_OPTION:
+        return actitem.of_branch(pulls, target.repo, branch)
+    if verb is gateverbs.OwnVerb.LABEL and not actitem.foreign(options.get("name", "")):
+        return ""  # the owner's, priority and hold labels are settings (T133)
+    if verb in (gateverbs.OwnVerb.CLOSE, gateverbs.OwnVerb.LABEL):
+        return actitem.of_number(pulls, target)
+    return target.name
+
+
+def _stands(
+    verb: gateverbs.Verb, found: gateverbs.Looked, asked: Asked, item: str
+) -> bool:
+    # whether the verb's answer is another than doing it (item: the PR it changes)
+    options = asked.options
     if isinstance(found, answer.NotDone):
         return True
-    if verb in GATED_ON_ITEM:
-        return not gateverbs.allows(verb, found, item)
+    if verb in GATED_ON_ITEM | gateverbs.ON_A_PULL:
+        return bool(item) and not gateverbs.allows(verb, found, item)
     if verb is gateverbs.ItemVerb.OVERRIDE:
         return not gateverbs.overridable(found, item, options.get("stop", ""))
     return False
@@ -327,8 +360,9 @@ def run(act: Act, asked: Asked, table: Mapping[str, Verb]) -> str:
         What it did; or the ``NOT DONE`` line of what stands instead of it.
     """
     verb = gateverbs.verb_of(asked.verb)
-    found = gateverbs.lookup(act.questions.decided(asked), verb, asked.target.name)
-    if _stands(verb, found, asked):
+    item = item_of(act, verb, asked)
+    found = gateverbs.lookup(act.questions.decided(asked), verb, item)
+    if _stands(verb, found, asked, item):
         said = _said(found)
         if verb is gateverbs.ItemVerb.OVERRIDE:
             stop = asked.options.get("stop", "")[:60]

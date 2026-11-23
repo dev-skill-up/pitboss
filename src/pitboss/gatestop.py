@@ -63,6 +63,11 @@ def _kept(actor: answer.Actor, what: str, said: str) -> Handling:
     )
 
 
+def _carrying(handling: Handling, carried: answer.Carried) -> Handling:
+    # a route the ``act`` verb carries out (keyword: accepts)
+    return dataclasses.replace(handling, carried=carried)
+
+
 def _untaken(what: str) -> Handling:
     # a route no actor takes now, which no override lifts
     return Handling(
@@ -125,10 +130,13 @@ class Route(enum.Enum):
     UNDRAFT = _lifted(
         ORCHESTRATOR, "the PR is a draft", "`act undraft` once the Plan is approved"
     )
-    LABEL = _lifted(
-        ORCHESTRATOR,
-        "a label pitboss does not apply",
-        "`act label --remove` the label pitboss does not apply",
+    LABEL = _carrying(
+        _lifted(
+            ORCHESTRATOR,
+            "a label pitboss does not apply",
+            "`act label --remove` the label pitboss does not apply",
+        ),
+        answer.Carried.LABEL,
     )
     DISARM = _lifted(
         ORCHESTRATOR,
@@ -149,13 +157,13 @@ class Route(enum.Enum):
     UNDECIDED = _untaken("GitHub has not decided whether the PR merges")
     RUNNING = _untaken("a check or status of the head has not finished")
     RED = _kept(ORCHESTRATOR, "a check or status of the head failed", TRIAGE)
-    REVIEW = dataclasses.replace(
+    REVIEW = _carrying(
         _lifted(
             REVIEWER,
             "the newest review is not of the head as it is",
             "`act review` the head as it is now",
         ),
-        carried=answer.Carried.REVIEW,
+        answer.Carried.REVIEW,
     )
     BODY = _lifted(
         WORKER,
@@ -175,10 +183,13 @@ class Route(enum.Enum):
         "the body closes no ticket",
         "`act pr-edit`: the first line is `Fixes #N`",
     )
-    TICKET = _lifted(
-        ORCHESTRATOR,
-        "a ticket the body closes is not an open issue",
-        "`act close` the PR or `act pr-edit` to the open ticket",
+    TICKET = _carrying(
+        _lifted(
+            ORCHESTRATOR,
+            "a ticket the body closes is not an open issue",
+            "`act close` the PR or `act pr-edit` to the open ticket",
+        ),
+        answer.Carried.CLOSE,
     )
 
 

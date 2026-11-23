@@ -38,12 +38,20 @@ class Carried(enum.Enum):
         MERGE: ``act merge`` or ``act arm``: the PR merges.
         UNDRAFT: ``act undraft``: the PR is undrafted.
         REVIEW: ``act review``: a reviewer grades the head (keyword: accepts).
+        PUSH: ``act push``: a worker pushes to the PR's branch.
+        DISPATCH: ``act dispatch-workflow``: the workflow of the PR's branch runs.
+        CLOSE: ``act close``: the PR is closed.
+        LABEL: ``act label --remove``: a label another tool put on the PR is removed.
     """
 
     NOTHING = enum.auto()
     MERGE = enum.auto()
     UNDRAFT = enum.auto()
     REVIEW = enum.auto()
+    PUSH = enum.auto()
+    DISPATCH = enum.auto()
+    CLOSE = enum.auto()
+    LABEL = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
