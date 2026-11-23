@@ -16,11 +16,13 @@ PULL = "owner/project#3"
 LABELS = f"POST {world.PROJECT}/issues/3/labels"
 COMMENTS = f"POST {world.PROJECT}/issues/3/comments"
 READ = f"{world.PROJECT}/issues/3"
+CITES = 'Cites: "An approved Plan is never edited"\n'
 RULING = {"body": "Opus ruling\nRuling: do these steps\n"}
 URL = "https://github.example/owner/project/pull/3#c9"
 IMPOSSIBLE = (
     "Deviations: none\n- [37] impossible | command: `python -m unittest` | output:"
     " 19 of 21 tests pass on main\n"
+    'Cites: "An approved Plan is never edited"\n'
 )
 
 
@@ -79,7 +81,7 @@ class TestImpossible(unittest.TestCase):
 
     def test_the_old_form_of_an_impossibility_counts(self) -> None:
         """``Impossible: <cmd> -> <output>`` is the partial hand-back's form."""
-        text = "Not done: 37\nImpossible: unittest -> 19 pass\nDeviations: none\n"
+        text = "Not done: 37\nImpossible: unittest -> 19 pass\n" + CITES
         assert_that(run(made([RULING]), text).out, equal_to(URL + "\n"))
 
     def test_the_refusals_change_nothing(self) -> None:
