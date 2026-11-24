@@ -140,12 +140,16 @@ BANNED_ATTRIBUTES = frozenset(
 )
 # a method of that name with one positional argument renames a path (``Path.replace``;
 # ``str.replace`` takes two), unless its receiver is one of these modules
-ONE_ARGUMENT_METHODS = frozenset({"replace"})
+ONE_ARGUMENT_METHODS = frozenset({"replace", "copy", "move"})
+# a method of that name with no argument reads a path's group (``re.Match.group`` takes one)
+ZERO_ARGUMENT_METHODS = frozenset({"group"})
 # the receivers of a banned method name that are not a path (``ast.walk``)
 NOT_PATHS = frozenset({"ast", "dataclasses", "os", "test_properties"})
 # methods that read or change the world when called (a field of the same name is data)
 BANNED_METHODS = frozenset(
     {
+        "copy_into",
+        "move_into",
         "read_text",
         "read_bytes",
         "write_text",

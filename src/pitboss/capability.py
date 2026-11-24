@@ -88,11 +88,10 @@ def _banned_methods(path: str, node: ast.AST) -> Iterator[Finding]:
         pathlike = not (
             isinstance(receiver, ast.Name) and receiver.id in capabilitywords.NOT_PATHS
         )
+        arguments = (len(node.args), len(node.keywords))
         renamed = (
-            method in capabilitywords.ONE_ARGUMENT_METHODS
-            and len(node.args) == 1
-            and not node.keywords
-        )
+            method in capabilitywords.ONE_ARGUMENT_METHODS and arguments == (1, 0)
+        ) or (method in capabilitywords.ZERO_ARGUMENT_METHODS and arguments == (0, 0))
         if pathlike and (method in BANNED_METHODS or renamed):
             yield made(path, node, "E3", f"calls .{method}")
 

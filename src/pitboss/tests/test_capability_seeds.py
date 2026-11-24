@@ -183,6 +183,21 @@ SEEDS: Sequence[Seed] = (
         refused="E1 uses logging.config",
     ),
     Seed(
+        name="a path's group",
+        files=_pure("import pathlib\nx = pathlib.PurePath('a').group()\n"),
+        refused="E3 calls .group",
+    ),
+    Seed(
+        name="a path copied to another",
+        files=_pure("import pathlib\nx = pathlib.PurePath('a').copy(y)\n"),
+        refused="E3 calls .copy",
+    ),
+    Seed(
+        name="a path moved into a directory",
+        files=_pure("import pathlib\nx = pathlib.PurePath('a').move_into(y)\n"),
+        refused="E3 calls .move_into",
+    ),
+    Seed(
         name="a second read of one input",
         files={
             "src/pitboss/readworld.py": "from . import first, second\n",
