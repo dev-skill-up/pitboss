@@ -10,7 +10,7 @@ from ..proofcase import Seed
 
 ROOT = pathlib.Path(workerselect.__file__).resolve().parents[2]
 TEXTS = proofsource.read(ROOT)
-CLEAN = "src/pitboss/workerselect.py"
+OTHER = "\nOTHER = steps.Next(\n    step=steps.Step.WORKER, task=steps.Task.FIX_CI\n)\n"
 
 
 def found(seed: Seed) -> str:
@@ -72,7 +72,7 @@ class TestSelectorProof(unittest.TestCase):
             Seed(
                 path="conflicts.py",
                 old="",
-                new="\nOTHER = steps.Next(\n    step=steps.Step.WORKER, task=steps.Task.FIX_CI\n)\n",
+                new=OTHER,
             )
         )
         assert_that(said, contains_string("conflicts:"))

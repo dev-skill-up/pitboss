@@ -9,7 +9,6 @@ import dataclasses
 from typing import AbstractSet, Sequence
 
 from . import (
-    e2estep,
     checkoutcome,
     draftfacts,
     expansion,
@@ -282,15 +281,18 @@ def ruling_hold(pr: PullState) -> steps.Next | None:
 
 
 def e2e_step(pr: PullState) -> steps.Move | None:
-    """The run of a draft's e2e suite (``e2estep``).
+    """The e2e run of a draft (keyword: run-e2e, pitboss#199).
 
     Args:
         pr: the draft, whose Plan is approved.
 
     Returns:
-        ``e2estep.e2e_step`` of its diff, checks and branch.
+        None when its diff touches no path the e2e suite runs on, else
+        ``steps.e2e_dispatch`` of its checks and branch.
     """
-    return e2estep.e2e_step(pr.draft.needs_e2e, pr.checks, pr.pull.head.branch)
+    if not pr.draft.needs_e2e:
+        return None
+    return steps.e2e_dispatch(pr.checks, pr.pull.head.branch)
 
 
 def ruling_address(pr: PullState) -> str:

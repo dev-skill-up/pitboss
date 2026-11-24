@@ -99,7 +99,6 @@ module = [
     "pitboss.decide",
     "pitboss.draftfacts",
     "pitboss.earlyfound",
-    "pitboss.e2estep",
     "pitboss.enumeration",
     "pitboss.evidence",
     "pitboss.expansion",

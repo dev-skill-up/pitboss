@@ -6,7 +6,7 @@ gives one; ``describe`` says it in a line.
 
 import dataclasses
 import enum
-from typing import AbstractSet
+from typing import AbstractSet, Protocol, Sequence
 
 from . import workerselect
 
@@ -323,3 +323,33 @@ def step_of(move: Move) -> Step | None:
         The step, or None for an idle PR.
     """
     return move.step if isinstance(move, Next) else None
+
+
+class Run(Protocol):
+    """A check run, as the dispatch of the e2e suite reads it."""
+
+    @property
+    def finished(self) -> bool:
+        """Whether the run has ended."""
+        ...
+
+
+def e2e_dispatch(checks: Sequence[Run], branch: str) -> Move:
+    """The step of a draft whose changed e2e suite has run in no check run.
+
+    A draft's CI skips the e2e jobs, so an approval of it reads no e2e result. The
+    check workflow is dispatched on its branch, and its run is the check run the
+    approval waits for. A draft's own completed run does not end the step (it
+    skipped e2e); only a dispatched run of ``check.yml`` at the head that
+    completed does.
+
+    Args:
+        checks: the check runs of the head.
+        branch: the head branch.
+
+    Returns:
+        The wait for CI when a check run of the head has started and not
+        finished (it is not dispatched again); else the dispatch.
+    """
+    running = [each for each in checks if not each.finished]
+    return Idle.CI_RUN if running else run_e2e(branch)
