@@ -5,7 +5,6 @@ Never the owner's (pitboss#517): the owner is reached only by a ruling that says
 ruling is a worker's round.
 """
 
-from . import workerselect
 from . import shapes, steps
 
 
@@ -21,5 +20,5 @@ def of(review: shapes.Graded, posted: shapes.Comment) -> steps.Next:
         Execution against the ruling.
     """
     if review.plan is shapes.Verdict.CHANGES_NEEDED:
-        return workerselect.worker(steps.Task.REVISE_PLAN)
-    return workerselect.worker(steps.Task.FIX_EXECUTION, posted.url)
+        return steps.worker(steps.Task.REVISE_PLAN)
+    return steps.worker(steps.Task.FIX_EXECUTION, posted.url)

@@ -4,14 +4,15 @@ pitboss#526 (bats-lang/dom#140): a task selected by a fact its action cannot cha
 is selected for ever. ``workerselect.TABLE`` pairs each ``Task`` with the facts it is
 selected by and those its action changes; this is the proof over it, read from the
 source: P13.3 has one entry for each ``Task``, every entry reads a fact its action
-writes, an entry that reads text names the fact that ends it, and no worker step is
-built but by ``workerselect.worker``.
+writes, an entry that reads text names the fact that ends it, and no worker task is
+given but by ``steps.worker``.
 """
 
 import ast
-from typing import Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from .proofcase import Case, Seed
+from .enummembers import members
 from .proofsource import Package, called, dotted, short
 
 
@@ -29,7 +30,7 @@ def _facts(node: ast.AST, named: Mapping[str, frozenset[str]]) -> frozenset[str]
 
 
 # the ``_of(steps.Task.X, ...)`` calls of the table, with the task named
-def _entries(source: ast.Module) -> list[tuple[str, ast.Call]]:
+def _entries(source: ast.AST) -> list[tuple[str, ast.Call]]:
     return [
         (node.args[0].attr, node)
         for node in ast.walk(source)
@@ -39,34 +40,38 @@ def _entries(source: ast.Module) -> list[tuple[str, ast.Call]]:
     ]
 
 
-# the members of ``steps.Task``
-def _tasks(source: ast.Module) -> list[str]:
-    return [
-        target.id
-        for node in ast.walk(source)
-        if isinstance(node, ast.ClassDef) and node.name == "Task"
-        for each in node.body
-        if isinstance(each, ast.Assign)
-        for target in each.targets
-        if isinstance(target, ast.Name)
-    ]
-
-
 # the module's named fact sets (``PUSH``, ``EDIT``)
-def _constants(source: ast.Module) -> dict[str, frozenset[str]]:
+def _constants(source: ast.AST) -> dict[str, frozenset[str]]:
     found: dict[str, frozenset[str]] = {}
-    for node in source.body:
+    for node in ast.iter_child_nodes(source):
         if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
             found[node.targets[0].id] = _facts(node.value, found)
     return found
 
 
-def entry_findings(source: ast.Module, steps_source: ast.Module) -> Sequence[str]:
+# what one entry says wrong: reads nothing it writes, or a text and no end of it
+def _problems(
+    task: str,
+    reads: AbstractSet[str],
+    writes: AbstractSet[str],
+    text: bool,
+    ends: AbstractSet[str],
+) -> Sequence[str]:
+    return [
+        f"P13.3: Task.{task} {why}"
+        for why, bad in (
+            ("reads no fact its action writes", not reads & writes),
+            ("reads text and nothing ends it", text and not ends & writes),
+        )
+        if bad
+    ]
+
+
+def entry_findings(source: ast.AST) -> Sequence[str]:
     """What is wrong with the entries of the table.
 
     Args:
         source: the table's module.
-        steps_source: the module of ``Task``.
 
     Returns:
         A line for each task with no entry or two, each entry that reads no fact its
@@ -77,16 +82,13 @@ def entry_findings(source: ast.Module, steps_source: ast.Module) -> Sequence[str
     given = [task for task, _ in entries]
     found = [
         f"P13.3: Task.{task} has {given.count(task)} entries"
-        for task in _tasks(steps_source)
+        for task in members(source, "Task")
         if given.count(task) != 1
     ]
     for task, call in entries:
         reads, writes = (_facts(call.args[index], named) for index in (1, 2))
         ends = _facts(call.args[3], named) if len(call.args) > 3 else frozenset()
-        if not (reads - {"TEXT"}) & writes:
-            found.append(f"P13.3: Task.{task} reads no fact its action writes")
-        if "TEXT" in reads and not ends & writes:
-            found.append(f"P13.3: Task.{task} reads text and nothing ends it")
+        found += _problems(task, reads - {"TEXT"}, writes, "TEXT" in reads, ends)
     return found
 
 
@@ -97,17 +99,22 @@ def tasks_can_end_their_selection(package: Package) -> Sequence[str]:
         package: the package.
 
     Returns:
-        ``entry_findings`` of the table, and each call of ``steps.worker`` outside
-        the table's module.
+        ``entry_findings`` of the table, and each call that gives a ``task`` outside
+        ``steps.worker`` (and ``finishstep``, which gives the one that is no PR's
+        own fix).
     """
     sources = {short(name): each.syntax for name, each in package.sources.items()}
-    found = list(entry_findings(sources["workerselect"], sources["steps"]))
+    found = list(entry_findings(sources["workerselect"]))
     found += [
-        f"P13.3: {name}:{node.lineno} builds a worker step outside the table"
+        f"P13.3: {name}:{node.lineno} gives a worker task outside steps.worker"
         for name, tree in sources.items()
-        if name != "workerselect"
+        if name not in {"steps", "finishstep"}
         for node in ast.walk(tree)
-        if called(node) == "steps.worker" and isinstance(node, ast.Call)
+        if isinstance(node, ast.Call)
+        and any(
+            each.arg == "task" and ".Task." in f".{dotted(each.value)}"
+            for each in node.keywords
+        )
     ]
     return found
 
@@ -117,8 +124,8 @@ CASES: Mapping[str, Case] = {
         proof=tasks_can_end_their_selection,
         seed=Seed(
             path="workerselect.py",
-            old="_of(steps.Task.FIX_CI, {Fact.CHECKS}, PUSH)",
-            new="_of(steps.Task.FIX_CI, {Fact.CHECKS}, EDIT - {Fact.REVIEWS})",
+            old="_of(Task.FIX_CI, {Fact.CHECKS}, PUSH)",
+            new="_of(Task.FIX_CI, {Fact.CHECKS}, EDIT - {Fact.REVIEWS})",
         ),
     ),
 }

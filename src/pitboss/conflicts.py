@@ -2,7 +2,6 @@
 
 from typing import Protocol
 
-from . import workerselect
 from . import shapes, steps
 
 
@@ -59,6 +58,4 @@ def conflict_step(pr: HasPull) -> steps.Next | None:
     Returns:
         The step, or None when the PR does not conflict with its base.
     """
-    return (
-        workerselect.worker(steps.Task.RESOLVE_CONFLICT) if has_conflict(pr) else None
-    )
+    return steps.worker(steps.Task.RESOLVE_CONFLICT) if has_conflict(pr) else None

@@ -10,10 +10,9 @@ import dataclasses
 import enum
 from typing import Protocol, Sequence
 
-from . import workerselect
 from . import config, pullref, shapes, steps
 
-FIX = workerselect.worker(steps.Task.FIX_BLOCKED_BY)  # a closed blocker, or a loop
+FIX = steps.worker(steps.Task.FIX_BLOCKED_BY)  # a closed blocker, or a loop
 
 
 class AtStep(Protocol):
@@ -141,7 +140,7 @@ def verdict(pull: AtStep, found: Sequence[Blocker]) -> steps.Move | None:
     if live:
         return steps.Idle.BLOCKER_OPEN
     if _red_since(pull, when):
-        return workerselect.worker(steps.Task.AFTER_BLOCKER)
+        return steps.worker(steps.Task.AFTER_BLOCKER)
     return None
 
 

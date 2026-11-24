@@ -10,7 +10,6 @@ pitboss#471).
 import re
 from typing import AbstractSet, Callable, Protocol, Sequence, TypeVar
 
-from . import workerselect
 from . import (
     bodydigest,
     draftfacts,
@@ -279,7 +278,7 @@ def write_round(pr: Described) -> steps.Next:
         fills the Execution.
     """
     task = steps.Task.FIRST_ROUND if pr.draft.no_drafts else steps.Task.RUN_PLAN
-    return workerselect.worker(task)
+    return steps.worker(task)
 
 
 def plan_unrun(
@@ -334,5 +333,5 @@ def execution_review(pr: Described, due: steps.Next) -> steps.Next:
     if planbody.execution_unwritten(pr.pull.body):
         return write_round(pr)
     if planbody.ci_quotes_missing(pr.pull.body):
-        return workerselect.worker(steps.Task.ADD_CI_QUOTES)
+        return steps.worker(steps.Task.ADD_CI_QUOTES)
     return due

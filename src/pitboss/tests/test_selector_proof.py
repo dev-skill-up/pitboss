@@ -5,7 +5,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import proofseeds, proofsource, selectorproofs, workerselect
+from .. import proofseeds, proofsource, selectorproofs, steps, workerselect
 from ..proofcase import Seed
 
 ROOT = pathlib.Path(workerselect.__file__).resolve().parents[2]
@@ -41,8 +41,8 @@ class TestSelectorProof(unittest.TestCase):
         said = found(
             Seed(
                 path="workerselect.py",
-                old="_of(steps.Task.FIX_CI, {Fact.CHECKS}, PUSH)",
-                new="_of(steps.Task.FIX_CI, {Fact.CHECKS}, EDIT - {Fact.REVIEWS})",
+                old="_of(Task.FIX_CI, {Fact.CHECKS}, PUSH)",
+                new="_of(Task.FIX_CI, {Fact.CHECKS}, EDIT - {Fact.REVIEWS})",
             )
         )
         assert_that(said, contains_string("Task.FIX_CI reads no fact"))
@@ -59,7 +59,7 @@ class TestSelectorProof(unittest.TestCase):
         said = found(
             Seed(
                 path="workerselect.py",
-                old="        _of(steps.Task.HAND_BACK, {Fact.HANDBACK}, "
+                old="        _of(Task.HAND_BACK, {Fact.HANDBACK}, "
                 "frozenset({Fact.HANDBACK})),\n",
                 new="",
             )
@@ -72,7 +72,7 @@ class TestSelectorProof(unittest.TestCase):
             Seed(
                 path="conflicts.py",
                 old="",
-                new="\nOTHER = steps.worker(steps.Task.FIX_CI)\n",
+                new="\nOTHER = steps.Next(step=steps.Step.WORKER, task=steps.Task.FIX_CI)\n",
             )
         )
         assert_that(said, contains_string("conflicts:"))
@@ -80,7 +80,5 @@ class TestSelectorProof(unittest.TestCase):
 
     def test_the_table_builds_what_steps_builds(self) -> None:
         """A table's worker is the step of its task."""
-        assert_that(
-            workerselect.worker(workerselect.steps.Task.FIX_CI),
-            equal_to(workerselect.steps.worker(workerselect.steps.Task.FIX_CI)),
-        )
+        for task, entry in workerselect.TABLE.items():
+            assert_that(steps.worker(task).task, equal_to(entry.task))

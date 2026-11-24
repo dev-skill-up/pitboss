@@ -7,7 +7,6 @@ from what is recorded of the PR. Its second function is ``rulings.after_opus_rul
 
 from typing import Sequence
 
-from . import workerselect
 from . import (
     checkoutcome,
     conflicts,
@@ -104,7 +103,7 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
     # handed back since, or pushed for a PR no worker holds
     if flowstate.ruling_applied(pr):
         return standing.reviewed(pr, steps.Stage.RULING_STEPS)
-    return workerselect.worker(steps.Task.RULING_STEPS, flowstate.ruling_address(pr))
+    return steps.worker(steps.Task.RULING_STEPS, flowstate.ruling_address(pr))
 
 
 def unfixed_execution(pr: PullState) -> steps.Next | None:
@@ -122,7 +121,7 @@ def unfixed_execution(pr: PullState) -> steps.Next | None:
         return None
     answered = flowstate.readable_comment(pr)
     if answered and flowstate.plan_edit_ruled(pr, rejecting.when):
-        return workerselect.worker(steps.Task.FIX_EXECUTION, answered[0].url)
+        return steps.worker(steps.Task.FIX_EXECUTION, answered[0].url)
     return rejected(pr, rejecting, steps.opus_ruling())
 
 
@@ -157,7 +156,7 @@ def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
     if review.plan is Verdict.CHANGES_NEEDED:
         named = reviewfindings.named_by(pr.comments, pr.trusted, review.when)
         task = steps.Task.FIX_ROUND if named else steps.Task.REVISE_PLAN
-        first = first if get_plan_rejections(pr) >= 2 else workerselect.worker(task)
+        first = first if get_plan_rejections(pr) >= 2 else steps.worker(task)
     elif review.execution is not Verdict.CHANGES_NEEDED:
         return None
     return rejected(pr, review, first)
@@ -250,7 +249,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
     if ci is None:
         return steps.Idle.CI_RUN  # nobody works or reviews meanwhile
     if ci is Ci.RED:  # a red CI is never a rejection, and it fixes no wait
-        return waiting_step(pr, review) or workerselect.worker(steps.Task.FIX_CI)
+        return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 
     return unreviewed_step(pr) if review is None else plan_gate(pr, review)
 
@@ -340,7 +339,7 @@ def _ruling_held(pr: PullState) -> steps.Move:
 def _conflict_step(pr: PullState) -> steps.Next:
     # keyword: conflict-first (pitboss#148, #181): a fix but while UNRESOLVED holds
     wait = waiting_step(pr, newest_counting_review(pr))
-    return wait or workerselect.worker(steps.Task.RESOLVE_CONFLICT)
+    return wait or steps.worker(steps.Task.RESOLVE_CONFLICT)
 
 
 def _stale_body(pr: PullState) -> bool:
@@ -356,7 +355,7 @@ def _refreshed(pr: PullState, found: steps.Move) -> steps.Move:
         found.step in steps.REFRESHED or found.task is steps.Task.HAND_BACK
     )
     stale = owed and _stale_body(pr)
-    return workerselect.worker(steps.Task.REFRESH_BODY) if stale else found
+    return steps.worker(steps.Task.REFRESH_BODY) if stale else found
 
 
 def _no_body(pr: PullState) -> bool:
@@ -384,7 +383,7 @@ ROWS: Sequence[Row] = (
     Row(
         name="first-round",
         holds=_no_body,
-        step=lambda pr: workerselect.worker(steps.Task.FIRST_ROUND),
+        step=lambda pr: steps.worker(steps.Task.FIRST_ROUND),
     ),
     Row(
         name="gates",

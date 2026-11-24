@@ -8,7 +8,6 @@ read of its own (the one-path plan, 6.1: the settlers are rows of ``decide``).
 import dataclasses
 from typing import Sequence
 
-from . import workerselect
 from . import pullref, steps
 from .blockedstep import AtStep
 
@@ -91,7 +90,7 @@ def stepped(pull: AtStep, shared: Sequence[Shared]) -> steps.Move | None:
         return None
     first = [each for each in groups_of[0].holders if each != MAIN][0]
     if first == mine:
-        return workerselect.worker(steps.Task.SHARED_RED)
+        return steps.worker(steps.Task.SHARED_RED)
     return steps.Idle.LOWER_PR_FIXES
 
 

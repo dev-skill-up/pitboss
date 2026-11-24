@@ -8,24 +8,13 @@ checker's own seeds are in ``tests/test_capability_seeds``.
 import ast
 from typing import Mapping, Sequence
 
+from .enummembers import members
 from .proofcase import Case, Seed, added, made_only_in
 from .proofsource import Package, module, searched
 
 # what a caller of an act verb could hand it in place of the decision's own answer
 FROM_THE_CALLER = frozenset({"step", "decision", "version", "pitboss-version"})
 HAND_BACK_RECORDS = frozenset({"pitboss-hand-back", "hand-back-record"})
-
-
-def _idle_members(package: Package) -> Sequence[str]:
-    return [
-        target.id
-        for node in ast.walk(module(package, "steps"))
-        if isinstance(node, ast.ClassDef) and node.name == "Idle"
-        for member in node.body
-        if isinstance(member, ast.Assign)
-        for target in member.targets
-        if isinstance(target, ast.Name)
-    ]
 
 
 def _attributes(package: Package, name: str) -> set[str]:
@@ -48,7 +37,7 @@ def idle_has_an_event(package: Package) -> Sequence[str]:
     named = _attributes(package, "idlewait")
     return [
         f"P12.1: Idle.{each} has no event in idlewait"
-        for each in _idle_members(package)
+        for each in members(module(package, "steps"), "Idle")
         if each not in named
     ]
 
