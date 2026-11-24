@@ -10,6 +10,7 @@ from typing import Mapping
 from . import (
     actproofs,
     answerproofs,
+    gateproofs,
     pureproofs,
     readproofs,
     retryproofs,
@@ -20,6 +21,7 @@ from .proofcase import Case
 CASES: Mapping[str, Case] = {
     **answerproofs.CASES,
     **actproofs.CASES,
+    **gateproofs.CASES,
     **pureproofs.CASES,
     **readproofs.CASES,
     **retryproofs.CASES,
