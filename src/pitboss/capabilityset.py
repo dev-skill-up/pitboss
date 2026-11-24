@@ -151,6 +151,7 @@ LISTED: Mapping[str, str] = {
     "src/pitboss/tests/cleanscene.py": "harness",
     "src/pitboss/tests/cleanworld.py": "harness",
     "src/pitboss/tests/configcases.py": "harness",
+    "src/pitboss/tests/corpusreplay.py": "harness",
     "src/pitboss/tests/coverwrites.py": "harness",
     "src/pitboss/tests/diffrepo.py": "harness",
     "src/pitboss/tests/fakehub.py": "harness",
