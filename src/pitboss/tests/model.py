@@ -261,4 +261,4 @@ def ci_waits(at: Model, step: steps.Move) -> bool:
     Returns:
         True for the CI's wait.
     """
-    return isinstance(step, steps.Idle) and not at.paused
+    return isinstance(step, steps.Idle)

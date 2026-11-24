@@ -83,8 +83,8 @@ class TestImpossible(unittest.TestCase):
             flow.next_step(test_flow.state(comments=[card.impossible(who)], body=""))
             for who in ("MEMBER", "NONE")
         ]
-        assert_that(found[0], equal_to(steps.IDLE))
-        assert_that(found[1], is_not(equal_to(steps.IDLE)))
+        assert_that(found[0], equal_to(steps.IMPOSSIBLE))
+        assert_that(found[1], is_not(equal_to(steps.IMPOSSIBLE)))
 
     def test_the_old_form_of_an_impossibility_counts(self) -> None:
         """``Impossible: <cmd> -> <output>`` is the partial hand-back's form."""

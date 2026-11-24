@@ -304,8 +304,24 @@ class Idle(enum.Enum):
     IDLE = enum.auto()
 
 
-Move = Next | Idle
+class Ended(enum.Enum):
+    """The PR ended impossible: a state of its own, never an idle one.
+
+    An idle PR waits on an event that changes what is observed (a CI result, a
+    push, a comment); an ended one waits on none, so a proof that every idle PR
+    names such an event leaves this the only move without one (keyword:
+    impossible-state).
+
+    Attributes:
+        IMPOSSIBLE: the PR's card was posted; the queue moves past it.
+    """
+
+    IMPOSSIBLE = enum.auto()
+
+
+Move = Next | Idle | Ended
 IDLE = Idle.IDLE
+IMPOSSIBLE = Ended.IMPOSSIBLE
 
 
 def step_is(move: Move, wanted: AbstractSet[Step]) -> bool:

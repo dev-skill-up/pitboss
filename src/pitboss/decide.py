@@ -113,7 +113,7 @@ def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
     match step:
         case steps.Idle() if record.stuck:
             return _stuck(record)
-        case steps.Idle():
+        case steps.Idle() | steps.Ended():
             return None  # keyword: one-path: no actor takes an idle PR
         case steps.Next():
             return _at_step(record, step)

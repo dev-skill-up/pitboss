@@ -155,7 +155,7 @@ def step_of(pull: AtStep, closure: Closure) -> steps.Move | None:
         The step; None when the PR keeps its own (no blocker, a pause or hold of
         its own (no actor takes it), or an owed ruling).
     """
-    kept = isinstance(pull.step, steps.Idle)  # no actor takes it: it stays so
+    kept = not isinstance(pull.step, steps.Next)  # no actor takes it: it stays so
     if not closure.found or kept or steps.step_is(pull.step, steps.UNRESOLVED):
         return None
     if closure.looped:  # a loop is fixed, never waited on

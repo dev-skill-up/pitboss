@@ -177,7 +177,7 @@ class TestFlow(unittest.TestCase):
         ]
         want = [
             steps.worker(steps.Task.FIX_CI),
-            steps.IDLE,
+            steps.IMPOSSIBLE,
             steps.merge(),
         ]
         assert_that(found, equal_to(want))

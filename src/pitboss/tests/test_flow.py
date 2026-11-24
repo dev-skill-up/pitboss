@@ -259,7 +259,7 @@ class TestBranches(unittest.TestCase):
 
     def test_an_impossible_pr_has_no_step(self) -> None:
         """Before anything else, whatever the body is (keyword: impossible-state)."""
-        expect(steps.IDLE, state(body="", comments=[card.impossible()]))
+        expect(steps.IMPOSSIBLE, state(body="", comments=[card.impossible()]))
 
     def test_no_plan_and_execution_body_is_the_first_work(self) -> None:
         """The worker writes the body, before any review or gate."""
@@ -392,4 +392,4 @@ class TestRulingBranches(unittest.TestCase):
     def test_an_impossible_pr_with_an_unreadable_ruling_has_no_step(self) -> None:
         """The impossible row is checked first."""
         comments = [ruling(5, line="no ruling line"), card.impossible()]
-        expect(steps.IDLE, state(comments=comments))
+        expect(steps.IMPOSSIBLE, state(comments=comments))

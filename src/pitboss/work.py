@@ -48,7 +48,7 @@ def category_of(pull: pullfacts.PullFacts) -> Category | None:
         The category, or None when its step is offered for no round.
     """
     step = pull.step
-    if isinstance(step, steps.Idle):
+    if isinstance(step, steps.Idle | steps.Ended):
         return None
     if step.step is steps.Step.WORKER:
         return CATEGORY_OF_TASK[step.task]

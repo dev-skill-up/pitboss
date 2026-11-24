@@ -152,6 +152,10 @@ class TestScenarios(unittest.TestCase):
         """A PR nobody acts on is named IDLE (an impossible PR is one)."""
         assert_that(scenario.kind(steps.IDLE), equal_to("IDLE"))
 
+    def test_an_ended_step_is_named_impossible(self) -> None:
+        """An impossible PR is no idle one."""
+        assert_that(scenario.kind(steps.IMPOSSIBLE), equal_to("IMPOSSIBLE"))
+
     def test_a1_a2_a3_pitboss_465(self) -> None:
         """465: `revise the plan` then `do these steps` is executed (A1, A2)."""
         required("dev-skill-up-pitboss-465")
