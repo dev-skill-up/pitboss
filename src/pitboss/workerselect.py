@@ -31,15 +31,15 @@ class Fact(enum.Enum):
         TICKET: the ticket a shared red files.
     """
 
-    HEAD = "head"
-    CHECKS = "checks"
-    CONFLICT = "conflict"
-    REVIEWS = "reviews"
-    BODY = "body"
-    TEXT = "text"
-    APPLIED = "applied"
-    HANDBACK = "handback"
-    TICKET = "ticket"
+    HEAD = enum.auto()
+    CHECKS = enum.auto()
+    CONFLICT = enum.auto()
+    REVIEWS = enum.auto()
+    BODY = enum.auto()
+    TEXT = enum.auto()
+    APPLIED = enum.auto()
+    HANDBACK = enum.auto()
+    TICKET = enum.auto()
 
 
 # a push changes the head, and with it what the head's checks, conflict and reviews are

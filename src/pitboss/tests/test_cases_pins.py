@@ -37,5 +37,10 @@ class TestHandBackOrigin(unittest.TestCase):
 
     @staticmethod
     def set_origin(here: world.World, url: str) -> None:
-        """Point the worktree's origin at a URL."""
+        """Point the worktree's origin at a URL.
+
+        Args:
+            here: the world, whose clone is changed.
+            url: the origin's new address.
+        """
         git(here.clone, "remote", "set-url", "origin", url)

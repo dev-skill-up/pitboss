@@ -14,14 +14,9 @@ from typing import Mapping, Sequence
 from .proofcase import Case, Seed
 from .proofsource import Package, called, dotted, short
 
-MODULE = "workerselect"
-ENUM_MODULE = "steps"
-BUILDER = "steps.worker"
-TEXT = "TEXT"
-
 
 def _facts(node: ast.AST, named: Mapping[str, frozenset[str]]) -> frozenset[str]:
-    """The facts an expression of the table names."""
+
     if isinstance(node, ast.Attribute) and dotted(node.value) == "Fact":
         return frozenset({node.attr})
     if isinstance(node, ast.Name):
@@ -33,8 +28,8 @@ def _facts(node: ast.AST, named: Mapping[str, frozenset[str]]) -> frozenset[str]
     )
 
 
+# the ``_of(steps.Task.X, ...)`` calls of the table, with the task named
 def _entries(source: ast.Module) -> list[tuple[str, ast.Call]]:
-    """The ``_of(steps.Task.X, ...)`` calls of the table, with the task named."""
     return [
         (node.args[0].attr, node)
         for node in ast.walk(source)
@@ -44,8 +39,8 @@ def _entries(source: ast.Module) -> list[tuple[str, ast.Call]]:
     ]
 
 
+# the members of ``steps.Task``
 def _tasks(source: ast.Module) -> list[str]:
-    """The members of ``steps.Task``."""
     return [
         target.id
         for node in ast.walk(source)
@@ -57,12 +52,41 @@ def _tasks(source: ast.Module) -> list[str]:
     ]
 
 
+# the module's named fact sets (``PUSH``, ``EDIT``)
 def _constants(source: ast.Module) -> dict[str, frozenset[str]]:
-    """The module's named fact sets (``PUSH``, ``EDIT``)."""
     found: dict[str, frozenset[str]] = {}
     for node in source.body:
         if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
             found[node.targets[0].id] = _facts(node.value, found)
+    return found
+
+
+def entry_findings(source: ast.Module, steps_source: ast.Module) -> Sequence[str]:
+    """What is wrong with the entries of the table.
+
+    Args:
+        source: the table's module.
+        steps_source: the module of ``Task``.
+
+    Returns:
+        A line for each task with no entry or two, each entry that reads no fact its
+        action writes and each that reads text with no fact that ends it.
+    """
+    named = _constants(source)
+    entries = _entries(source)
+    given = [task for task, _ in entries]
+    found = [
+        f"P13.3: Task.{task} has {given.count(task)} entries"
+        for task in _tasks(steps_source)
+        if given.count(task) != 1
+    ]
+    for task, call in entries:
+        reads, writes = (_facts(call.args[index], named) for index in (1, 2))
+        ends = _facts(call.args[3], named) if len(call.args) > 3 else frozenset()
+        if not (reads - {"TEXT"}) & writes:
+            found.append(f"P13.3: Task.{task} reads no fact its action writes")
+        if "TEXT" in reads and not ends & writes:
+            found.append(f"P13.3: Task.{task} reads text and nothing ends it")
     return found
 
 
@@ -73,33 +97,17 @@ def tasks_can_end_their_selection(package: Package) -> Sequence[str]:
         package: the package.
 
     Returns:
-        A line for each task with no entry or two, each entry that reads no fact its
-        action writes or reads text with no fact that ends it, and each call of
-        ``steps.worker`` outside the table's module.
+        ``entry_findings`` of the table, and each call of ``steps.worker`` outside
+        the table's module.
     """
     sources = {short(name): each.syntax for name, each in package.sources.items()}
-    table = sources[MODULE]
-    named = _constants(table)
-    entries = _entries(table)
-    given = [task for task, _ in entries]
-    found = [
-        f"P13.3: Task.{task} has {given.count(task)} entries"
-        for task in _tasks(sources[ENUM_MODULE])
-        if given.count(task) != 1
-    ]
-    for task, call in entries:
-        reads, writes = (_facts(call.args[index], named) for index in (1, 2))
-        ends = _facts(call.args[3], named) if len(call.args) > 3 else frozenset()
-        if not (reads - {TEXT}) & writes:
-            found.append(f"P13.3: Task.{task} reads no fact its action writes")
-        if TEXT in reads and not ends & writes:
-            found.append(f"P13.3: Task.{task} reads text and nothing ends it")
+    found = list(entry_findings(sources["workerselect"], sources["steps"]))
     found += [
         f"P13.3: {name}:{node.lineno} builds a worker step outside the table"
         for name, tree in sources.items()
-        if name != MODULE
+        if name != "workerselect"
         for node in ast.walk(tree)
-        if called(node) == BUILDER and isinstance(node, ast.Call)
+        if called(node) == "steps.worker" and isinstance(node, ast.Call)
     ]
     return found
 
