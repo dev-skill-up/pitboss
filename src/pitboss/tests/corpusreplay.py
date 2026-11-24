@@ -15,7 +15,7 @@ from typing import Mapping, Sequence
 from .. import configfile, config, flow, pullread, pulls
 from . import fakes
 
-DIRECTORY = pathlib.Path(__file__).with_name("corpus")
+DIRECTORY = pathlib.Path(__file__).parent.joinpath("corpus")
 
 
 def names() -> Sequence[str]:
