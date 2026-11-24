@@ -9,7 +9,6 @@ import dataclasses
 import gzip
 import json
 import pathlib
-import tempfile
 from typing import Mapping, Sequence
 
 from .. import configfile, config, flow, pullread, pulls
@@ -53,7 +52,7 @@ def read(record: Mapping[str, object]) -> pulls.PullRead:
     assert isinstance(reads, dict)
     slug = str(record["repo"])
     text = (DIRECTORY / "config.toml").read_text().replace("REPO", slug)
-    here = pathlib.Path(tempfile.mkdtemp())
+    here = fakes.directory()
     (here / "config.toml").write_text(text)
     settings = configfile.load(str(here / "config.toml"), here)
     repo = config.make_repo("bats-lang", slug)
