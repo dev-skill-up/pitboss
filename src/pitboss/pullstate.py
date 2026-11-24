@@ -8,6 +8,7 @@ gate rows read typed fields and nothing past here reads JSON (keyword: one-path)
 
 from typing import AbstractSet, Callable, Mapping, Sequence
 
+from . import typedstd
 from . import gatefacts, holdparse, parsing, pullobject, totalreview, totalschema
 from . import pullrecords as records
 from .pullobject import Raw, count_at, list_at, object_at, pull_object, text_at
@@ -50,7 +51,7 @@ def _listing(key: str, value: object) -> Sequence[Raw] | Errored | Mistyped:
     # its objects (anything that is no list is an empty one)
     if isinstance(value, dict) and "_error" in value:
         return Errored(why=str(value["_error"]))
-    found = [object_at(each) for each in pullobject.typed_or(value, list, [])]
+    found = [object_at(each) for each in (typedstd.items(value) or [])]
     name, nullable = BRANCHED_ON.get(key, ("", True))
     for each in found:
         value = each.get(name)

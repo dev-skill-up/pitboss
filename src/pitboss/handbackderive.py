@@ -2,6 +2,7 @@
 
 from typing import AbstractSet, Sequence
 
+from . import typedstd
 from . import handbacks, headlinepattern, plancheckflow, shapes
 
 
@@ -21,7 +22,7 @@ def derive(
         The head the body's last ``Head:`` line names while the Plan check is clean,
         and the times of the clean checks of trusted authors.
     """
-    named = headlinepattern.HEAD_LINE.findall(pull.body)
+    named = typedstd.findall(headlinepattern.HEAD_LINE, pull.body)
     clean = not plancheckflow.needs_check(pull.body, comments, trusted)
     checked = sorted(
         each.created_at

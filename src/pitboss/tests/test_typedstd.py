@@ -1,5 +1,6 @@
 """The standard library's ``Any`` is cast away once (keyword: typed-std, #524)."""
 
+import dataclasses
 import re
 import unittest
 
@@ -61,3 +62,55 @@ class TestTypedStd(unittest.TestCase):
     def test_unique_keeps_the_first_of_each_in_order(self) -> None:
         """Unique keeps the first of each in order."""
         assert_that(typedstd.unique(["b", "a", "b"]), contains_exactly("b", "a"))
+
+    def test_ordered_and_merged_follow_the_key(self) -> None:
+        """Ordered sorts by a text or a pair; merged joins ordered streams."""
+        assert_that(
+            typedstd.ordered(["b", "a"], lambda each: each), equal_to(["a", "b"])
+        )
+        pairs = typedstd.ordered(["b", "a"], lambda each: (each, 1))
+        assert_that(pairs, equal_to(["a", "b"]))
+        joined = typedstd.merged([["a", "c"], ["b"]], lambda each: each)
+        assert_that(list(joined), equal_to(["a", "b", "c"]))
+
+    def test_fields_and_changed_follow_a_dataclass(self) -> None:
+        """Fields are the dataclass's by name; changed puts another's in."""
+        assert_that(
+            typedstd.fields(Pair(first="x", second="y")),
+            equal_to({"first": "x", "second": "y"}),
+        )
+        assert_that(
+            typedstd.changed(Pair(first="x", second="y"), Pair(first="p", second="q")),
+            equal_to(Pair(first="p", second="q")),
+        )
+
+    def test_output_is_the_two_streams_empty_when_none(self) -> None:
+        """Output is the standard output, a line, then the standard error."""
+        failure = Failed(stdout="out", stderr=None)
+        assert_that(typedstd.output(failure), equal_to("out\n"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Pair:
+    """Two texts.
+
+    Attributes:
+        first: the first.
+        second: the second.
+    """
+
+    first: str
+    second: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Failed:
+    """What a failed process left.
+
+    Attributes:
+        stdout: what it printed.
+        stderr: what it printed as errors.
+    """
+
+    stdout: object
+    stderr: object

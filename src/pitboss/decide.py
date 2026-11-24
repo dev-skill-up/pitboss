@@ -10,7 +10,8 @@ label and no item gave a decision.
 """
 
 import dataclasses
-from typing import AbstractSet, Mapping, Sequence, assert_never
+import functools
+from typing import AbstractSet, Callable, Mapping, Sequence, assert_never
 
 from . import actdecide, answer, blockedstep, carriedby, finishstep, flowstep
 from . import gate, holds, listed, pullfacts, sharedstep, slotbook, steps
@@ -87,6 +88,9 @@ def _stepped(step: steps.Next, row: listed.Listed) -> answer.Decision:
     )
 
 
+Settler = Callable[[pullfacts.PullFacts], steps.Move | None]
+
+
 def facts_of(record: world.PullRecord) -> pullfacts.PullFacts:
     """A PR's facts at the step its flow, blockers, shared red and hand-back give.
 
@@ -99,13 +103,17 @@ def facts_of(record: world.PullRecord) -> pullfacts.PullFacts:
     Returns:
         Its facts at its settled step.
     """
-    facts = flowstep.at_flow(record.facts)
-    blocked = blockedstep.step_of(facts, record.blocked_by) or facts.step
-    at = dataclasses.replace(facts, step=blocked)
-    moved = sharedstep.stepped(at, record.shared) or blocked
-    shared = dataclasses.replace(facts, step=moved)
-    finished = finishstep.step_of(shared) or shared.step
-    return dataclasses.replace(shared, step=finished)
+    settlers: Sequence[Settler] = (
+        lambda at: blockedstep.step_of(at, record.blocked_by),
+        lambda at: sharedstep.stepped(at, record.shared),
+        finishstep.step_of,
+    )
+    return functools.reduce(_settled, settlers, flowstep.at_flow(record.facts))
+
+
+def _settled(at: pullfacts.PullFacts, settle: Settler) -> pullfacts.PullFacts:
+    # a row of the decision: the step it gives, else the one the rows before gave
+    return dataclasses.replace(at, step=settle(at) or at.step)
 
 
 def _pull_decision(record: world.PullRecord) -> answer.Decision | None:

@@ -4,9 +4,9 @@ import dataclasses
 import enum
 import json
 import pathlib
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
-from . import config, slotbook
+from . import config, slotbook, totaljson, typedstd
 from .slotbook import Ledger as Ledger
 from .slotbook import Slot as Slot
 from .slotbook import empty_slot as empty_slot
@@ -43,6 +43,10 @@ class Refusal:
     reason: str
 
 
+TEXTS = ("config", "checkin", "checkin_first")
+LISTS = ("failed", "deviations")
+
+
 def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
     """Read the ledger, or start one from the configured slots.
 
@@ -57,17 +61,29 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
         return slotbook.ledger_of(
             tuple(empty_slot(spec.name, spec.model) for spec in defaults)
         )
-    data = json.loads(path.read_text())
+    data = totaljson.read(path.read_text())
+    said = {key: totaljson.text(totaljson.field(data, key)) for key in TEXTS}
+    lists = {key: _lists(totaljson.field(data, key)) for key in LISTS}
     return Ledger(
-        slots=tuple(slotbook.slot_of(item) for item in data["slots"]),
-        failed={key: tuple(value) for key, value in data["failed"].items()},
-        config=data.get("config", ""),
-        deviations={
-            key: tuple(value) for key, value in data.get("deviations", {}).items()
-        },
-        checkin=data.get("checkin", ""),
-        checkin_first=data.get("checkin_first", ""),
+        slots=_slots(totaljson.field(data, "slots")),
+        failed=lists["failed"],
+        config=said["config"],
+        deviations=lists["deviations"],
+        checkin=said["checkin"],
+        checkin_first=said["checkin_first"],
     )
+
+
+def _slots(value: object) -> tuple[Slot, ...]:
+    return tuple(slotbook.slot_of(item) for item in totaljson.records(value))
+
+
+def _lists(value: object) -> Mapping[str, tuple[str, ...]]:
+    # an object of lists of text: what another shape holds reads as empty
+    return {
+        key: tuple(totaljson.text(each) for each in totaljson.listing(item))
+        for key, item in totaljson.members(value).items()
+    }
 
 
 def configured(settings: config.Config) -> Ledger:
@@ -91,7 +107,7 @@ def recorded_config(path: pathlib.Path) -> str:
     Returns:
         The path the file records, or empty when it records none.
     """
-    return str(json.loads(path.read_text()).get("config", ""))
+    return totaljson.text(totaljson.field(totaljson.read(path.read_text()), "config"))
 
 
 def write(path: pathlib.Path, ledger: Ledger) -> None:
@@ -103,7 +119,7 @@ def write(path: pathlib.Path, ledger: Ledger) -> None:
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {
-        "slots": [dataclasses.asdict(slot) for slot in ledger.slots],
+        "slots": [typedstd.fields(slot) for slot in ledger.slots],
         "failed": {key: list(value) for key, value in sorted(ledger.failed.items())},
     }
     if ledger.config:
@@ -179,7 +195,7 @@ def take(ledger: Ledger, slot_name: str, work: Work) -> Ledger | Refusal:
             reason=f"slot {slot_name} holds {slot.agent} on {slot.task}: free it first"
         )
     blank = slotbook.empty_slot(slot.name, slot.model)
-    taken = dataclasses.replace(blank, **dataclasses.asdict(work))
+    taken = typedstd.changed(blank, work)
     return _replace(ledger, slot_name, taken)
 
 

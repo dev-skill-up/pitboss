@@ -11,6 +11,7 @@ import dataclasses
 import datetime
 from typing import AbstractSet, Mapping, Sequence
 
+from . import typedstd
 from . import (
     allowlistmiss,
     blockedby,
@@ -78,7 +79,7 @@ def _waits(
         # a ticket the PR works on never blocks it (keyword: plan-refusal)
         found += [each for each in refused if each not in waits]
         found += _allowlist(github, facts)
-    return [each for each in dict.fromkeys(found) if each != me]
+    return [each for each in typedstd.unique(found) if each != me]
 
 
 def _failures(

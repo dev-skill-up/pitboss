@@ -10,9 +10,9 @@ an item's details: the walk (``readworld``) examines an item only when it reache
 """
 
 import dataclasses
-import heapq
 from typing import Iterator, Mapping, Sequence
 
+from . import typedstd
 from . import concurrently, config, ghapi, issuelist, ledger, listed, orgsearch
 from . import shapes, ticketdata
 
@@ -127,7 +127,7 @@ def _label_stream(
         ),
         orgsearch.orgs(settings),
     )
-    return heapq.merge(*firsts, key=lambda pair: pair[1].created_at)
+    return typedstd.merged(firsts, lambda pair: pair[1].created_at)
 
 
 def issue_of(reference: str, ticket: ticketdata.Ticket) -> shapes.Issue:
@@ -167,7 +167,7 @@ def _owner_stated(
         for reference, ticket in zip(stated, found)
         if ticket is not None and not ticket.pull
     ]
-    return iter(sorted(opened, key=lambda pair: pair[1].created_at))
+    return iter(typedstd.ordered(opened, lambda pair: pair[1].created_at))
 
 
 def _labelled(
@@ -176,10 +176,12 @@ def _labelled(
     # a label's tickets: its listing and the owner's, merged by age; a ticket the
     # owner ranks by another label is in that label only
     stated = settings.slots.owner_priorities
-    merged = heapq.merge(
-        _label_stream(github, settings, label),
-        _owner_stated(github, settings, label),
-        key=lambda pair: pair[1].created_at,
+    merged = typedstd.merged(
+        [
+            _label_stream(github, settings, label),
+            _owner_stated(github, settings, label),
+        ],
+        lambda pair: pair[1].created_at,
     )
     return (pair for pair in merged if stated.get(pair[0], label) == label)
 

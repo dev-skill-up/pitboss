@@ -9,6 +9,7 @@ from typing import AbstractSet
 from hamcrest import assert_that, equal_to
 
 from .. import capability, importgraph, typedreaders
+from . import anyfeeders
 
 ROOT = pathlib.Path("pyproject.toml").resolve().parent
 SOURCES = ROOT / "src" / "pitboss"
@@ -60,6 +61,19 @@ def parsers() -> AbstractSet[str]:
     return found
 
 
+def feeding() -> AbstractSet[str]:
+    """The modules outside the closure that make a value the decision consumes.
+
+    Returns:
+        Their names, from the types the decision consumes (``anyfeeders``).
+    """
+    texts = {
+        f"pitboss.{path.stem}": path.read_text(encoding="utf-8")
+        for path in sorted(SOURCES.glob("*.py"))
+    }
+    return anyfeeders.feeders(anyfeeders.parsed(texts), decision())
+
+
 class TestAnyExpr(unittest.TestCase):
     """The override and the decision name the same modules."""
 
@@ -67,20 +81,17 @@ class TestAnyExpr(unittest.TestCase):
         """What the override holds is what the decision imports and the readers."""
         assert_that(declared(), equal_to(decision() | typedreaders.READERS))
 
+    def test_every_feeder_of_the_decision_is_held(self) -> None:
+        """A module that makes a value the decision consumes is held to the flag."""
+        missing = feeding() - typedreaders.READERS
+        assert_that(sorted(missing), equal_to([]))
+
     def test_every_parser_of_a_record_is_a_listed_reader(self) -> None:
         """A module that parses a response into a record is held to the flag."""
         missing = parsers() - typedreaders.READERS - decision()
         assert_that(sorted(missing), equal_to([]))
 
-    def test_each_listed_reader_still_parses_a_response(self) -> None:
-        """A reader that parses nothing any more is a stale line."""
-        stale = [
-            each
-            for each in sorted(typedreaders.READERS)
-            if not READING.search(
-                (SOURCES / f"{each.removeprefix('pitboss.')}.py").read_text(
-                    encoding="utf-8"
-                )
-            )
-        ]
-        assert_that(stale, equal_to([]))
+    def test_each_listed_reader_still_feeds_the_decision(self) -> None:
+        """A reader that feeds nothing and parses nothing is a stale line."""
+        stale = typedreaders.READERS - feeding() - parsers()
+        assert_that(sorted(stale), equal_to([]))
