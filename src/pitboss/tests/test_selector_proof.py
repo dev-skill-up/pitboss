@@ -2,6 +2,7 @@
 
 import pathlib
 import unittest
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
@@ -26,15 +27,25 @@ def found(seed: Seed) -> str:
     return "\n".join(selectorproofs.tasks_can_end_their_selection(package))
 
 
+def says(texts: Mapping[str, str]) -> Sequence[str]:
+    """What P13.3 says of a package's texts.
+
+    Args:
+        texts: the sources, by path.
+
+    Returns:
+        Its findings.
+    """
+    package = proofsource.of_texts(texts)
+    return selectorproofs.tasks_can_end_their_selection(package)
+
+
 class TestSelectorProof(unittest.TestCase):
     """What the table, as written, may not say."""
 
     def test_the_table_as_written_has_no_finding(self) -> None:
         """Every task has one entry that requires an effect."""
-        package = proofsource.of_texts(TEXTS)
-        assert_that(
-            selectorproofs.tasks_can_end_their_selection(package), has_length(0)
-        )
+        assert_that(says(TEXTS), has_length(0))
 
     def test_a_task_that_requires_no_effect_is_refused(self) -> None:
         """A task whose worker may do nothing that ends it."""
@@ -82,12 +93,8 @@ class TestSelectorProof(unittest.TestCase):
 
     def test_a_package_with_no_brief_has_no_brief_finding(self) -> None:
         """Only a brief that is there is read."""
-        package = proofsource.of_texts(
-            {k: v for k, v in TEXTS.items() if not k.endswith("brief.py")}
-        )
-        assert_that(
-            selectorproofs.tasks_can_end_their_selection(package), has_length(0)
-        )
+        without = {k: v for k, v in TEXTS.items() if not k.endswith("brief.py")}
+        assert_that(says(without), has_length(0))
 
     def test_a_missing_table_is_a_finding(self) -> None:
         """A package with no workerselect."""
