@@ -1,9 +1,13 @@
 """The e2e run of a draft whose changed e2e suite ran in no check run (run-e2e)."""
 
-from . import flowstate, steps
+from typing import Sequence
+
+from . import shapes, steps
 
 
-def e2e_step(pr: flowstate.PullState) -> steps.Move | None:
+def e2e_step(
+    needs: bool, checks: Sequence[shapes.CheckRun], branch: str
+) -> steps.Move | None:
     """The step of a draft whose changed e2e suite has run in no check run.
 
     A draft's CI skips the e2e jobs, so an approval of it reads no e2e result
@@ -13,7 +17,9 @@ def e2e_step(pr: flowstate.PullState) -> steps.Move | None:
     ticket); only a dispatched run of ``check.yml`` at the head that completed does.
 
     Args:
-        pr: the draft, whose Plan is approved.
+        needs: whether the draft's diff touches a path the e2e suite runs on.
+        checks: the check runs of its head.
+        branch: its head branch.
 
     Returns:
         None when its diff touches no path the e2e suite runs on or a
@@ -21,7 +27,7 @@ def e2e_step(pr: flowstate.PullState) -> steps.Move | None:
         of the head has started and not finished (it is not dispatched again);
         else the dispatch.
     """
-    if not pr.draft.needs_e2e:
+    if not needs:
         return None
-    running = [each for each in pr.checks if not each.finished]
-    return steps.Idle.CI_RUN if running else steps.run_e2e(pr.pull.head.branch)
+    running = [each for each in checks if not each.finished]
+    return steps.Idle.CI_RUN if running else steps.run_e2e(branch)

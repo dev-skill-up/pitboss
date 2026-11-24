@@ -15,6 +15,8 @@ from .proofcase import Case, Seed
 from .enummembers import members
 from .proofsource import Package, called, dotted, short
 
+BUILDERS = frozenset({"steps", "finishstep"})
+
 
 def _facts(node: ast.AST, named: Mapping[str, frozenset[str]]) -> frozenset[str]:
 
@@ -51,17 +53,13 @@ def _constants(source: ast.AST) -> dict[str, frozenset[str]]:
 
 # what one entry says wrong: reads nothing it writes, or a text and no end of it
 def _problems(
-    task: str,
-    reads: AbstractSet[str],
-    writes: AbstractSet[str],
-    text: bool,
-    ends: AbstractSet[str],
+    task: str, reads: AbstractSet[str], writes: AbstractSet[str], ends: AbstractSet[str]
 ) -> Sequence[str]:
     return [
         f"P13.3: Task.{task} {why}"
         for why, bad in (
-            ("reads no fact its action writes", not reads & writes),
-            ("reads text and nothing ends it", text and not ends & writes),
+            ("reads no fact its action writes", not reads - {"TEXT"} & writes),
+            ("reads text and nothing ends it", "TEXT" in reads and not ends & writes),
         )
         if bad
     ]
@@ -88,7 +86,7 @@ def entry_findings(source: ast.AST) -> Sequence[str]:
     for task, call in entries:
         reads, writes = (_facts(call.args[index], named) for index in (1, 2))
         ends = _facts(call.args[3], named) if len(call.args) > 3 else frozenset()
-        found += _problems(task, reads - {"TEXT"}, writes, "TEXT" in reads, ends)
+        found += _problems(task, reads, writes, ends)
     return found
 
 
@@ -108,7 +106,7 @@ def tasks_can_end_their_selection(package: Package) -> Sequence[str]:
     found += [
         f"P13.3: {name}:{node.lineno} gives a worker task outside steps.worker"
         for name, tree in sources.items()
-        if name not in {"steps", "finishstep"}
+        if name not in BUILDERS
         for node in ast.walk(tree)
         if isinstance(node, ast.Call)
         and any(

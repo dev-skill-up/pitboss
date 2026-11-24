@@ -9,6 +9,7 @@ import dataclasses
 from typing import AbstractSet, Sequence
 
 from . import (
+    e2estep,
     checkoutcome,
     draftfacts,
     expansion,
@@ -278,6 +279,18 @@ def ruling_hold(pr: PullState) -> steps.Next | None:
     stood = newest_ruling(pr) is not None and ruling_applied(pr)  # quire#1130
     restore = steps.worker(steps.Task.RESTORE_PLAN)  # keyword: restore-plan
     return restore if stood else steps.plan_edited()
+
+
+def e2e_step(pr: PullState) -> steps.Move | None:
+    """The run of a draft's e2e suite (``e2estep``).
+
+    Args:
+        pr: the draft, whose Plan is approved.
+
+    Returns:
+        ``e2estep.e2e_step`` of its diff, checks and branch.
+    """
+    return e2estep.e2e_step(pr.draft.needs_e2e, pr.checks, pr.pull.head.branch)
 
 
 def ruling_address(pr: PullState) -> str:

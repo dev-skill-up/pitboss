@@ -5,8 +5,8 @@ able to change that fact, else the PR is chosen for the same task forever (bats-
 /dom#140). Each ``Selector`` says which facts its task is decided from (``reads``)
 and which its action changes (``writes``); a text the task reads is judged by the
 body's words, so it also names the fact that ends it when no edit makes the words
-show (``ends_by``). Every worker step is built by ``steps.worker`` from this table, and P13.3
-(``selectorproofs``) proves the table.
+show (``ends_by``). Every worker step is built by ``steps.worker`` from this
+table, and P13.3 (``selectorproofs``) proves the table.
 """
 
 import dataclasses

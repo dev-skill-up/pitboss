@@ -72,7 +72,7 @@ class TestSelectorProof(unittest.TestCase):
             Seed(
                 path="conflicts.py",
                 old="",
-                new="\nOTHER = steps.Next(step=steps.Step.WORKER, task=steps.Task.FIX_CI)\n",
+                new="\nOTHER = steps.Next(\n    step=steps.Step.WORKER, task=steps.Task.FIX_CI\n)\n",
             )
         )
         assert_that(said, contains_string("conflicts:"))
