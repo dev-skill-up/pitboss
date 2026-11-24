@@ -72,7 +72,11 @@ class TestSelectorProof(unittest.TestCase):
     def test_a_brief_that_ignores_the_table_is_refused(self) -> None:
         """The table is the source of the sentences."""
         said = found(
-            Seed(path="brief.py", old="in workerselect.TABLE.items()", new="in {}.items()")
+            Seed(
+                path="brief.py",
+                old="in workerselect.TABLE.items()",
+                new="in {}.items()",
+            )
         )
         assert_that(said, contains_string("brief does not read workerselect.TABLE"))
 
