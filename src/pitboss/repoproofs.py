@@ -9,7 +9,7 @@ mean the project's own repository; a module that reads a PR's inputs is not one.
 import ast
 from typing import Mapping, Sequence
 
-from .proofcase import Case, Seed, added
+from .proofcase import Case, Seed
 from .proofsource import Package
 
 # the modules whose use of the project's own slug is the project's own

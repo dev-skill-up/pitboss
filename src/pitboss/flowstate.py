@@ -314,24 +314,22 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     # keyword: ruling-typed: a body edit shows itself, and the body carries it
     edited = _followed(pr, posted) or rulingtyped.edits_body(posted.body)
     seen = handbacks.covers(pr.handed, pr.pull.head.sha) and edited
-    # keyword: ruling-progress (pitboss#526): the steps show in the body, or a review
-    # of the handed-back head after the ruling says they hold (the worker may have
-    # carried them in other words, which no step of its own can change)
+    # keyword: ruling-progress (pitboss#526): the body shows the steps, or a review
+    # of the handed-back head after the ruling says they hold
     held = rulingtyped.carried(posted.body, pr.pull.body) or _reviewed(pr, posted)
     return None if seen and held else ruled
 
 
+def _followed(pr: PullState, posted: shapes.Comment) -> bool:
+    return _reviewed(pr, posted) or pushed_since(pr, posted)
+
+
 def _reviewed(pr: PullState, posted: shapes.Comment) -> bool:
-    # a review of a handed-back state after the comment
     return any(
         each.when > posted.created_at and handbacks.covers_review(pr.handed, each)
         for each in pr.graded
         if each.comment
     )
-
-
-def _followed(pr: PullState, posted: shapes.Comment) -> bool:
-    return _reviewed(pr, posted) or pushed_since(pr, posted)
 
 
 def pushed_since(pr: PullState, posted: shapes.Comment) -> bool:
@@ -367,30 +365,6 @@ def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
     if due and not checkoutcome.all_passed(draftfacts.of_name(pr.checks, name)):
         return steps.Idle.CI_RUN
     return step
-
-
-def e2e_step(pr: PullState) -> steps.Move | None:
-    """The step of a draft whose changed e2e suite has run in no check run.
-
-    A draft's CI skips the e2e jobs, so an approval of it reads no e2e result
-    (keyword: run-e2e, pitboss#199). The check workflow is dispatched on its
-    branch, and its run is the check run the approval waits for. A draft's own
-    completed run does not end the step (it skipped e2e, the case of the
-    ticket); only a dispatched run of ``check.yml`` at the head that completed does.
-
-    Args:
-        pr: the draft, whose Plan is approved.
-
-    Returns:
-        None when its diff touches no path the e2e suite runs on or a
-        dispatched run of the head completed; the wait for CI when a check run
-        of the head has started and not finished (it is not dispatched again);
-        else the dispatch.
-    """
-    if not pr.draft.needs_e2e:
-        return None
-    running = [each for each in pr.checks if not each.finished]
-    return steps.Idle.CI_RUN if running else steps.run_e2e(pr.pull.head.branch)
 
 
 def ruling_applied(pr: PullState) -> bool:

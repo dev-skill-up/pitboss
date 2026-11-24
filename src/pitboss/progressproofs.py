@@ -1,4 +1,4 @@
-"""A decided step has an action that can make its own selecting fact false (keyword: ruling-progress).
+"""A ruling step has a way out other than text (keyword: ruling-progress).
 
 pitboss#526 (bats-lang/dom#140): ``RULING_STEPS`` was selected while a ruling's body
 edits did not show *literally* in the body, and no edit could make them show (the

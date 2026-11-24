@@ -10,6 +10,7 @@ from typing import Sequence
 from . import (
     checkoutcome,
     conflicts,
+    e2estep,
     expansion,
     evidence,
     floworder,
@@ -219,7 +220,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
             return rejection or flowstate.draft_plan_review(pr, alone)
         unrun = plan_unrun(pr, review)  # keyword: plan-alone
         # keyword: run-e2e (pitboss#199); else the CI gate on the undrafted head
-        return unrun or flowstate.e2e_step(pr) or ready
+        return unrun or e2estep.e2e_step(pr) or ready
 
     return ci_gate(pr, review)
 
