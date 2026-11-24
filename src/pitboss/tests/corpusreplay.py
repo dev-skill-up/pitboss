@@ -12,10 +12,10 @@ import pathlib
 import tempfile
 from typing import Mapping, Sequence
 
-from .. import configfile, config, flow, pullread, pulls, shapes
+from .. import configfile, config, flow, pullread, pulls
 from . import fakes
 
-DIRECTORY = pathlib.Path(__file__).parent / "corpus"
+DIRECTORY = pathlib.Path(__file__).with_name("corpus")
 
 
 def names() -> Sequence[str]:

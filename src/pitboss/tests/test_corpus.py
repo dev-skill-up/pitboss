@@ -1,8 +1,8 @@
 """The recorded PRs of the queue: each gets a step whose own work ends it (pitboss#526).
 
 ``corpus/`` holds what ``pitboss next`` read of every open PR of bats-lang on
-2026-11-24 (and of dom#140 and quire#1128, whose old steps were dead
-ends: ``was`` is the step the decider of 8a36af1 gave them).
+2026-11-24. For dom#140 and quire#1128 the record also holds ``was``, the task
+the decider of 8a36af1 gave them, a dead end.
 """
 
 import unittest
