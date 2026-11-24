@@ -6,7 +6,7 @@ import pathlib
 from typing import Mapping, Sequence
 
 from . import repositories, world
-from .test_plan_check_step import check_comment
+from .plancheckcomment import check_comment
 
 NUMBER = 7
 BASE = "repos/owner/project"
