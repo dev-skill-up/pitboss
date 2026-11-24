@@ -180,7 +180,8 @@ def _reviewed(model: Model, step: steps.Next) -> Model:
 
 def _worked(model: Model, step: steps.Next) -> Model:
     # pitboss#526: the worker does the effects its task requires, from the table
-    required = workerselect.TABLE[step.task].required
+    table = workerselect.TABLE.items()
+    required = next(each.required for task, each in table if task is step.task)
     pushes = workerselect.Effect.PUSH in required
     at = _pushed(model, "worker") if pushes else _then(model, "worker")
     handed = workerselect.Effect.HAND_BACK in required
