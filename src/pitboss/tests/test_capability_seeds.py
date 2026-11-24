@@ -6,14 +6,12 @@ finding, and the clean control passes. A rule that stops seeing its seed fails h
 so the checker is not trusted on its own word.
 """
 
-import contextlib
 import dataclasses
 import unittest
 from typing import AbstractSet, Iterator, Mapping, Sequence
 
 from hamcrest import assert_that, contains_exactly, equal_to
 
-from .. import capabilityinputs
 from .test_capability import capability_of, refusals
 
 PURE = "src/pitboss/pure.py"
@@ -29,14 +27,12 @@ class Seed:
         files: the files of the tree, by path.
         refused: the finding, ``rule what``.
         listed: the modules the list holds while it runs.
-        inputs: the input each module reads while it runs.
     """
 
     name: str
     files: Mapping[str, str]
     refused: str
     listed: AbstractSet[str] = frozenset()
-    inputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
 
 
 def _pure(text: str) -> Mapping[str, str]:
@@ -137,11 +133,16 @@ SEEDS: Sequence[Seed] = (
     Seed(
         name="a log file the logging module opens",
         files=_pure("import logging\nlogging.basicConfig(filename=x)\n"),
-        refused="E3 uses .basicConfig",
+        refused="E1 uses logging.basicConfig",
     ),
     Seed(
         name="a Step named by a string read at run time",
         files=_pure("import enum\nclass Step(enum.Enum):\n    A = 1\nx = Step[word]\n"),
+        refused="E14 names a Step by a value",
+    ),
+    Seed(
+        name="a Step looked up by a value through an alias of its class",
+        files=_pure("from .steps import Step as Kind\nx = Kind[word]\n"),
         refused="E14 names a Step by a value",
     ),
     Seed(
@@ -156,30 +157,30 @@ SEEDS: Sequence[Seed] = (
         refused="E15 Reader is a Protocol with a method",
     ),
     Seed(
+        name="a path renamed by replace",
+        files=_pure("source.replace(target)\n"),
+        refused="E3 calls .replace",
+    ),
+    Seed(
+        name="a tree walked",
+        files=_pure("root.walk()\n"),
+        refused="E3 calls .walk",
+    ),
+    Seed(
+        name="a log configured from a file",
+        files=_pure("import logging\nlogging.config.fileConfig(x)\n"),
+        refused="E1 uses logging.config",
+    ),
+    Seed(
         name="a second read of one input",
-        files={},
-        inputs={"src/pitboss/first.py": "pulls", "src/pitboss/second.py": "pulls"},
-        refused="E13 reads pulls, which src/pitboss/first.py reads",
+        files={
+            "src/pitboss/readworld.py": "from . import first, second\n",
+            "src/pitboss/first.py": "PATH = f'repos/{slug}/pulls?state=open'\n",
+            "src/pitboss/second.py": "PATH = f'repos/{slug}/pulls?state=open'\n",
+        },
+        refused="E13 reads repos/{}/pulls?state=open, which src/pitboss/first.py reads",
     ),
 )
-
-
-@contextlib.contextmanager
-def inputs_of(names: Mapping[str, str]) -> Iterator[None]:
-    """Name the input each module reads while the block runs.
-
-    Args:
-        names: the input of each module, by its path.
-
-    Yields:
-        Nothing; the names are put back on leaving.
-    """
-    before = capabilityinputs.INPUTS
-    capabilityinputs.INPUTS = names
-    try:
-        yield
-    finally:
-        capabilityinputs.INPUTS = before
 
 
 class TestSeeds(unittest.TestCase):
@@ -193,9 +194,5 @@ class TestSeeds(unittest.TestCase):
     def test_each_seed_is_refused_by_exactly_the_one_rule_named_for_it(self) -> None:
         """No other finding; a rule that stops seeing its seed fails here."""
         for seed in SEEDS:
-            with (
-                self.subTest(seed.name),
-                capability_of(seed.listed),
-                inputs_of(seed.inputs),
-            ):
+            with self.subTest(seed.name), capability_of(seed.listed):
                 assert_that(refusals(seed.files), contains_exactly(seed.refused))

@@ -37,9 +37,8 @@ ALLOWED = frozenset(
         "heapq",
         "itertools",
         "json",
-        "logging",
-        "math",
         "pathlib",
+        "math",
         "re",
         "shlex",
         "stat",
@@ -67,6 +66,22 @@ WORLD_MODULES: Mapping[str, AbstractSet[str]] = {
     "yaml": frozenset({"safe_load", "YAMLError"}),
     "gather.commands": frozenset({"add_argument", "set_parser", "ProcessRunner"}),
     "gather.api": frozenset({"Wrapper", "unique"}),
+    "logging": frozenset(
+        {
+            "CRITICAL",
+            "DEBUG",
+            "ERROR",
+            "INFO",
+            "WARNING",
+            "Formatter",
+            "Handler",
+            "LogRecord",
+            "Logger",
+            "NullHandler",
+            "StreamHandler",
+            "getLogger",
+        }
+    ),
     "time": frozenset(),
     "tempfile": frozenset(),
     "shutil": frozenset(),
@@ -81,17 +96,9 @@ WORLD_MODULES: Mapping[str, AbstractSet[str]] = {
     "gather": frozenset(),
     "commander_data": frozenset(),
 }
-# what opens a file by an argument or a setting, in modules that are otherwise values
-FILE_OPENERS = frozenset(
-    {
-        "FileType",
-        "basicConfig",
-        "FileHandler",
-        "WatchedFileHandler",
-        "RotatingFileHandler",
-        "TimedRotatingFileHandler",
-    }
-)
+# what opens a file by an argument, in a module that is otherwise values (logging's
+# openers are refused by E1: its allowlist names none of them)
+FILE_OPENERS = frozenset({"FileType"})
 BANNED_CALLS = frozenset(
     {
         *FILE_OPENERS,
@@ -131,6 +138,11 @@ BANNED_ATTRIBUTES = frozenset(
         "parse_intermixed_args",
     }
 )
+# a method of that name with one positional argument renames a path (``Path.replace``;
+# ``str.replace`` takes two), unless its receiver is one of these modules
+ONE_ARGUMENT_METHODS = frozenset({"replace"})
+# the receivers of a banned method name that are not a path (``ast.walk``)
+NOT_PATHS = frozenset({"ast", "dataclasses", "os", "test_properties"})
 # methods that read or change the world when called (a field of the same name is data)
 BANNED_METHODS = frozenset(
     {
@@ -167,6 +179,16 @@ BANNED_METHODS = frozenset(
         "isfile",
         "isdir",
         "islink",
+        "walk",
+        "absolute",
+        "owner",
+        "is_mount",
+        "is_socket",
+        "is_fifo",
+        "is_block_device",
+        "is_char_device",
+        "hardlink_to",
+        "link_to",
         "getsize",
         "getmtime",
         "realpath",

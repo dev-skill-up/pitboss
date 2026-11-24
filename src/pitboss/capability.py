@@ -12,12 +12,12 @@ finding is one line, ``path:line rule: what``; the exit status is the count's tr
 """
 
 import ast
-import dataclasses
 import pathlib
 import sys
 from typing import AbstractSet, Callable, Iterator, Mapping, Sequence
 
-from . import capabilityinputs, capabilitypure, capabilityset, importgraph
+from . import capabilitypure, capabilityreads, capabilityset, importgraph
+from .capabilitybase import Finding, made, reach
 from .capabilitywords import (
     ALLOWED,
     BANNED_ATTRIBUTES,
@@ -25,6 +25,8 @@ from .capabilitywords import (
     BANNED_METHODS,
     FRAMEWORK,
     MODULE_FILE,
+    NOT_PATHS,
+    ONE_ARGUMENT_METHODS,
     WORLD_MODULES,
 )
 
@@ -44,30 +46,6 @@ DECISION_ROOTS = (
 READS_FOR_THE_DECISION = frozenset(
     {"pitboss.phrases", "pitboss.enumeration", "pitboss"}
 )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Finding:
-    """One place a module could reach the world.
-
-    Attributes:
-        path: the file.
-        line: the line.
-        rule: the rule's name.
-        what: what was found.
-    """
-
-    path: str
-    line: int
-    rule: str
-    what: str
-
-    def __str__(self) -> str:
-        return f"{self.path}:{self.line} {self.rule}: {self.what}"
-
-
-def _made(path: str, node: ast.AST, rule: str, what: str) -> Finding:
-    return Finding(path=path, line=getattr(node, "lineno", 0), rule=rule, what=what)
 
 
 # the key of WORLD_MODULES that is the name or a package of it, longest first
@@ -92,19 +70,24 @@ def _imports(path: str, node: ast.AST) -> Iterator[Finding]:
         key = _world_key(module)
         if _allowed(module) or (key and (not name or name in WORLD_MODULES[key])):
             continue
-        yield _made(path, node, "E1", f"imports {name or module} from {module}")
+        yield made(path, node, "E1", f"imports {name or module} from {module}")
 
 
 def _banned_names(path: str, node: ast.AST) -> Iterator[Finding]:
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
         if node.func.id in BANNED_CALLS:
-            yield _made(path, node, "E3", f"calls {node.func.id}")
+            yield made(path, node, "E3", f"calls {node.func.id}")
 
 
 def _banned_methods(path: str, node: ast.AST) -> Iterator[Finding]:
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-        if node.func.attr in BANNED_METHODS:
-            yield _made(path, node, "E3", f"calls .{node.func.attr}")
+        method, receiver = node.func.attr, node.func.value
+        pathlike = not (isinstance(receiver, ast.Name) and receiver.id in NOT_PATHS)
+        renamed = (
+            method in ONE_ARGUMENT_METHODS and len(node.args) == 1 and not node.keywords
+        )
+        if pathlike and (method in BANNED_METHODS or renamed):
+            yield made(path, node, "E3", f"calls .{method}")
 
 
 def _attributes(path: str, node: ast.AST) -> Iterator[Finding]:
@@ -117,14 +100,14 @@ def _attributes(path: str, node: ast.AST) -> Iterator[Finding]:
     )
     for found, rule, what in said:
         if found:
-            yield _made(path, node, rule, what)
+            yield made(path, node, rule, what)
 
 
 def _dunder_strings(path: str, node: ast.AST) -> Iterator[Finding]:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         named = not MODULE_FILE.match(node.value)  # a path to a package's own file
         if named and "__" in node.value and node.value.strip("_") != "":
-            yield _made(path, node, "E3", "a string names a dunder")
+            yield made(path, node, "E3", "a string names a dunder")
 
 
 # whether a node is the name ``word``, or an attribute of that name
@@ -135,15 +118,36 @@ def _says(node: ast.AST, word: str) -> bool:
 def _type_checking(path: str, node: ast.AST) -> Iterator[Finding]:
     branched = isinstance(node, ast.If) and bool(node.orelse)
     if branched and _says(getattr(node, "test", node), "TYPE_CHECKING"):
-        yield _made(path, node, "E3", "runtime code under TYPE_CHECKING")
+        yield made(path, node, "E3", "runtime code under TYPE_CHECKING")
+
+
+# the names a file calls the class Step by: its own name, an import ``as`` and an alias
+def _step_names(tree: ast.AST) -> AbstractSet[str]:
+    names = {"Step"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            names |= {
+                each.asname
+                for each in node.names
+                if each.name == "Step" and each.asname
+            }
+        if isinstance(node, ast.Assign) and _says(node.value, "Step"):
+            names |= {each.id for each in node.targets if isinstance(each, ast.Name)}
+    return names
 
 
 # E14: a Step is named by its member, never made from a string that is read at run time
-def _step_by_text(path: str, node: ast.AST) -> Iterator[Finding]:
-    looked = isinstance(node, ast.Subscript) and _says(node.value, "Step")
-    made = isinstance(node, ast.Call) and _says(node.func, "Step") and bool(node.args)
-    if looked or made:
-        yield _made(path, node, "E14", "names a Step by a value")
+def _step_by_text(path: str, tree: ast.AST) -> Iterator[Finding]:
+    names = _step_names(tree)
+    for node in ast.walk(tree):
+        looked = isinstance(node, ast.Subscript) and _says_any(node.value, names)
+        built = isinstance(node, ast.Call) and _says_any(node.func, names)
+        if looked or (built and bool(getattr(node, "args", ()))):
+            yield made(path, node, "E14", "names a Step by a value")
+
+
+def _says_any(node: ast.AST, words: AbstractSet[str]) -> bool:
+    return any(_says(node, each) for each in words)
 
 
 RULES: Sequence[Callable[[str, ast.AST], Iterator[Finding]]] = (
@@ -153,7 +157,6 @@ RULES: Sequence[Callable[[str, ast.AST], Iterator[Finding]]] = (
     _attributes,
     _dunder_strings,
     _type_checking,
-    _step_by_text,
 )
 
 
@@ -211,7 +214,7 @@ def _uses(path: str, tree: ast.AST) -> Iterator[Finding]:
             and id(node) not in inner
         )
         if allowed is not None and (node.attr not in allowed or bare):
-            yield _made(path, node, "E1", f"uses {key}.{node.attr}")
+            yield made(path, node, "E1", f"uses {key}.{node.attr}")
 
 
 # each use of a banned builtin that is not a call (``reader = open``: an alias)
@@ -224,7 +227,7 @@ def _aliases_of_banned(path: str, tree: ast.AST) -> Iterator[Finding]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
             if node.id in BANNED_CALLS and id(node) not in called:
-                yield _made(path, node, "E3", f"names {node.id}")
+                yield made(path, node, "E3", f"names {node.id}")
 
 
 # E8: the owner is no actor (a ruling of the owner, 2026-11-23: nothing waits on them)
@@ -237,13 +240,14 @@ def _owner(path: str, tree: ast.AST) -> Iterator[Finding]:
                     for each in member.targets
                 )
                 if named:
-                    yield _made(path, member, "E8", "Actor has an OWNER")
+                    yield made(path, member, "E8", "Actor has an OWNER")
 
 
 def _walk(path: str, tree: ast.AST) -> Iterator[Finding]:
     yield from _uses(path, tree)
     yield from _aliases_of_banned(path, tree)
     yield from _owner(path, tree)
+    yield from _step_by_text(path, tree)
     for node in ast.walk(tree):
         for rule in RULES:
             yield from rule(path, node)
@@ -258,14 +262,7 @@ def closure(edges: Mapping[str, AbstractSet[str]]) -> AbstractSet[str]:
     Returns:
         The roots that exist and every module they reach.
     """
-    seen: set[str] = set()
-    todo = [each for each in DECISION_ROOTS if each in edges]
-    while todo:
-        module = todo.pop()
-        if module not in seen:
-            seen.add(module)
-            todo.extend(edges.get(module, ()))
-    return seen
+    return reach(edges, DECISION_ROOTS)
 
 
 def _decision(texts: Mapping[str, str]) -> Iterator[Finding]:
@@ -283,16 +280,6 @@ def _decision(texts: Mapping[str, str]) -> Iterator[Finding]:
             yield from _injected(path, ast.parse(texts[path], filename=path))
 
 
-def _second_reads() -> Iterator[Finding]:
-    # E13: one input is read by one module (``capabilityinputs``)
-    owners: dict[str, str] = {}
-    for path, reading in sorted(capabilityinputs.INPUTS.items()):
-        if reading in owners:
-            what = f"reads {reading}, which {owners[reading]} reads"
-            yield Finding(path=path, line=1, rule="E13", what=what)
-        owners.setdefault(reading, path)
-
-
 def _is_protocol(node: ast.ClassDef) -> bool:
     return any(_says(each, "Protocol") for each in node.bases)
 
@@ -308,7 +295,7 @@ def _injected(path: str, tree: ast.AST) -> Iterator[Finding]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and _is_protocol(node):
             if any(_is_method(each) for each in node.body):
-                yield _made(
+                yield made(
                     path, node, "E15", f"{node.name} is a Protocol with a method"
                 )
 
@@ -335,7 +322,7 @@ def check(texts: Mapping[str, str]) -> Sequence[Finding]:
         found.extend([] if listed else mine)
         found.extend([_stale(path)] if listed and not mine else [])
     found.extend(_decision(texts))
-    found.extend(_second_reads())
+    found.extend(capabilityreads.second_reads(texts))
     return found
 
 
