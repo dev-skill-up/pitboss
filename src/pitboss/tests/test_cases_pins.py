@@ -32,3 +32,13 @@ class TestHandBackOrigin(unittest.TestCase):
             "https://github.com/other/lib.git",
         )
         assert_that(hand_back(here, no_jobs()).out, equal_to("ok\n"))
+
+    def test_an_origin_with_no_github_repository_is_refused(
+        self,
+    ) -> None:
+        """pitboss#526: the configuration's repository is never the PR's."""
+        here = ready(world.make_world())
+        git(here.clone, "remote", "set-url", "origin", "http://127.0.0.1:9/git/x")
+        out = hand_back(here, no_jobs()).out
+        assert_that("names no GitHub repository" in out, equal_to(True))
+        assert_that(out == "ok\n", equal_to(False))

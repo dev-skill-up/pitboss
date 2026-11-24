@@ -23,6 +23,7 @@ PROOFS = frozenset(
         "pitboss.pathproofs",
         "pitboss.proofseeds",
         "pitboss.doneproofs",
+        "pitboss.repoproofs",
     }
 )
 Top = TypeVar("Top", ast.FunctionDef, ast.ClassDef)
