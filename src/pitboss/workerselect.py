@@ -108,25 +108,25 @@ PUSHES = frozenset({Effect.PUSH, Effect.EDIT_BODY, Effect.HAND_BACK})
 BODY_ONLY = frozenset({Effect.EDIT_BODY, Effect.HAND_BACK})
 BACK = frozenset({Effect.HAND_BACK})
 TICKET = frozenset({Effect.FILE_TICKET})
-PUSHED = frozenset({Effect.PUSH, Effect.HAND_BACK})
+PUSH_THEN_BACK = frozenset({Effect.PUSH, Effect.HAND_BACK})
 
 TABLE: Mapping[Task, Selector] = dict(
     [
         _of(Task.FIRST_ROUND, BODY_ONLY, PUSHES),
-        _of(Task.FIX_CI, PUSHED, PUSHES),
+        _of(Task.FIX_CI, PUSH_THEN_BACK, PUSHES),
         _of(Task.REVISE_PLAN, BODY_ONLY, BODY_ONLY),
         _of(Task.RESTORE_PLAN, BODY_ONLY, BODY_ONLY),
-        _of(Task.RESOLVE_CONFLICT, PUSHED, PUSHES),
-        _of(Task.FIX_EXECUTION, PUSHED, PUSHES),
+        _of(Task.RESOLVE_CONFLICT, PUSH_THEN_BACK, PUSHES),
+        _of(Task.FIX_EXECUTION, PUSH_THEN_BACK, PUSHES),
         _of(Task.RULING_STEPS, BACK, PUSHES),
         _of(Task.RULING_AS_GIVEN, BACK, PUSHES | TICKET),
         _of(Task.RUN_PLAN, BODY_ONLY, PUSHES),
         _of(Task.ADD_CI_QUOTES, BODY_ONLY, PUSHES),
-        _of(Task.FIX_ROUND, PUSHED, PUSHES),
+        _of(Task.FIX_ROUND, PUSH_THEN_BACK, PUSHES),
         _of(Task.REFRESH_BODY, BODY_ONLY, BODY_ONLY),
         _of(Task.SHARED_RED, TICKET, TICKET),
         _of(Task.FIX_BLOCKED_BY, BODY_ONLY, BODY_ONLY),
-        _of(Task.AFTER_BLOCKER, PUSHED, PUSHES),
+        _of(Task.AFTER_BLOCKER, PUSH_THEN_BACK, PUSHES),
         _of(Task.FINISH_PARTIAL, BACK, PUSHES),
         _of(Task.HAND_BACK, BACK, BACK),
     ]
