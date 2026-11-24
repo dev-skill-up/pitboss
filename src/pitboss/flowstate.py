@@ -8,6 +8,7 @@ ruling. ``flow`` re-exports them under their names.
 import dataclasses
 from typing import AbstractSet, Sequence
 
+from . import workerselect
 from . import (
     checkoutcome,
     draftfacts,
@@ -276,7 +277,7 @@ def ruling_hold(pr: PullState) -> steps.Next | None:
     if not plan_edited_without_ruling(pr):
         return None
     stood = newest_ruling(pr) is not None and ruling_applied(pr)  # quire#1130
-    restore = steps.worker(steps.Task.RESTORE_PLAN)  # keyword: restore-plan
+    restore = workerselect.worker(steps.Task.RESTORE_PLAN)  # keyword: restore-plan
     return restore if stood else steps.plan_edited()
 
 

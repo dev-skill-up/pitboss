@@ -13,6 +13,7 @@ ruling. A ruling written after the approval is the Execution's, and
 
 from typing import Sequence
 
+from . import workerselect
 from . import handbacks, shapes, steps
 
 Verdict = shapes.Verdict
@@ -71,7 +72,11 @@ def execution_step(
     ):
         return None
     later = _rejections(reviews, (ruling.created_at, newest.when), handed)
-    return steps.opus_ruling() if later > 1 else steps.worker(steps.Task.FIX_EXECUTION)
+    return (
+        steps.opus_ruling()
+        if later > 1
+        else workerselect.worker(steps.Task.FIX_EXECUTION)
+    )
 
 
 def _rejections(

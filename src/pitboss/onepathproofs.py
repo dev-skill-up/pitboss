@@ -16,6 +16,7 @@ from . import (
     pureproofs,
     readproofs,
     repoproofs,
+    selectorproofs,
     retryproofs,
     rulingproofs,
 )
@@ -30,6 +31,7 @@ CASES: Mapping[str, Case] = {
     **pureproofs.CASES,
     **readproofs.CASES,
     **repoproofs.CASES,
+    **selectorproofs.CASES,
     **retryproofs.CASES,
     **rulingproofs.CASES,
 }

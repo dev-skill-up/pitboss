@@ -6,6 +6,7 @@ A PR held at PLAN EDITED is given the step of a ruling no review follows
 
 from typing import Mapping, Sequence
 
+from . import workerselect
 from . import rulingwords, steps
 
 # What follows each ruling but ``EXECUTION_IS_APPROVED``: the worker's round. The
@@ -17,10 +18,10 @@ AS_RULED = (
     rulingwords.Ruling.ABANDON,
 )
 AFTER: Mapping[rulingwords.Ruling, Sequence[steps.Next]] = {
-    rulingwords.Ruling.DO_THESE_STEPS: (steps.worker(steps.Task.RULING_STEPS),),
-    rulingwords.Ruling.REVISE_THE_PLAN: (steps.worker(steps.Task.REVISE_PLAN),),
+    rulingwords.Ruling.DO_THESE_STEPS: (workerselect.worker(steps.Task.RULING_STEPS),),
+    rulingwords.Ruling.REVISE_THE_PLAN: (workerselect.worker(steps.Task.REVISE_PLAN),),
     rulingwords.Ruling.ESCALATE: (steps.ruling_escalates(),),
-    **dict.fromkeys(AS_RULED, (steps.worker(steps.Task.RULING_AS_GIVEN),)),
+    **dict.fromkeys(AS_RULED, (workerselect.worker(steps.Task.RULING_AS_GIVEN),)),
 }
 
 

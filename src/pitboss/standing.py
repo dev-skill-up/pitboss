@@ -10,6 +10,7 @@ review already graded, has no review step, whatever its comments say (quire#1122
 
 from typing import AbstractSet, Protocol, Sequence
 
+from . import workerselect
 from . import bodydigest, expansion, handbacks, sessionurl, shapes, steps, typedstd
 
 
@@ -125,5 +126,5 @@ def reviewed(pr: Held, stage: steps.Stage) -> steps.Next:
     """
     granted = of(pr, stage)
     if granted is None:
-        return steps.worker(steps.Task.HAND_BACK)
+        return workerselect.worker(steps.Task.HAND_BACK)
     return steps.regular_review(granted)
