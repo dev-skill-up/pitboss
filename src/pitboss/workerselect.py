@@ -1,12 +1,12 @@
-"""The one table of what selects a worker task (keyword: worker-select).
+"""What each worker task may do and must do, as one typed table (worker-select).
 
-pitboss#526: a task is selected by a fact of the PR, and the worker's action must be
-able to change that fact, else the PR is chosen for the same task forever (bats-lang
-/dom#140). Each ``Selector`` says which facts its task is decided from (``reads``)
-and which its action changes (``writes``); a text the task reads is judged by the
-body's words, so it also names the fact that ends it when no edit makes the words
-show (``ends_by``). Every worker step is built by ``steps.worker`` from this
-table, and P13.3 (``selectorproofs``) proves the table.
+pitboss#526 (bats-lang/dom#140): a task chosen again after its worker did what it
+was told is a dead end. Each ``Selector`` says which ``Effect`` a worker of the task
+may have on the PR (``allowed``) and which it must have to be done (``required``).
+The brief's push sentences are made from ``allowed`` (``brief``), and the progress
+property (``tests.test_properties``) applies ``required`` to every state the flow
+gives the task and wants the flow to give another step. Every worker step is built
+by ``steps.worker`` from this table, and P13.3 (``selectorproofs``) proves it.
 """
 
 import dataclasses
@@ -66,90 +66,68 @@ class Task(enum.Enum):
     )
 
 
-class Fact(enum.Enum):
-    """What a PR shows that a step is decided from.
+class Effect(enum.Enum):
+    """What a worker does to a PR.
 
     Attributes:
-        HEAD: the head commit.
-        CHECKS: the check runs of the head.
-        CONFLICT: whether the head conflicts with the base.
-        REVIEWS: the reviews that count for the head and the body.
-        BODY: the PR body.
-        TEXT: the literal words of the body, judged against a ruling.
-        APPLIED: whether a ruling is applied.
-        HANDBACK: the worker's hand-back of the head and body.
-        TICKET: the ticket a shared red files.
+        PUSH: pushes commits to the head branch.
+        EDIT_BODY: edits the PR body.
+        HAND_BACK: names the head in the body's ``Head:`` line and has a clean Plan
+            check posted for it.
+        FILE_TICKET: files or extends a ticket.
     """
 
-    HEAD = enum.auto()
-    CHECKS = enum.auto()
-    CONFLICT = enum.auto()
-    REVIEWS = enum.auto()
-    BODY = enum.auto()
-    TEXT = enum.auto()
-    APPLIED = enum.auto()
-    HANDBACK = enum.auto()
-    TICKET = enum.auto()
-
-
-# a push changes the head, and with it what the head's checks, conflict and reviews are
-PUSH = frozenset({Fact.HEAD, Fact.CHECKS, Fact.CONFLICT, Fact.REVIEWS})
-# a body edit changes what a review of the body was of
-EDIT = frozenset({Fact.BODY, Fact.REVIEWS})
+    PUSH = enum.auto()
+    EDIT_BODY = enum.auto()
+    HAND_BACK = enum.auto()
+    FILE_TICKET = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Selector:
-    """One task: what selects it and what its action changes.
+    """One task: what its worker may do and must do.
 
     Attributes:
         task: the task.
-        reads: the facts it is selected by.
-        writes: the facts its action changes.
-        ends_by: the fact that ends it when the text it reads cannot be made to
-            show, None when it reads no text.
+        allowed: the effects its brief allows.
+        required: the effects that make it done.
     """
 
     task: Task
-    reads: AbstractSet[Fact]
-    writes: AbstractSet[Fact]
-    ends_by: Fact | None = None
+    allowed: AbstractSet[Effect]
+    required: AbstractSet[Effect]
 
 
 def _of(
-    task: Task,
-    reads: AbstractSet[Fact],
-    writes: AbstractSet[Fact],
-    ends_by: Fact | None = None,
+    task: Task, required: AbstractSet[Effect], allowed: AbstractSet[Effect]
 ) -> tuple[Task, Selector]:
-    return task, Selector(
-        task=task, reads=frozenset(reads), writes=writes, ends_by=ends_by
-    )
+    return task, Selector(task=task, allowed=allowed | required, required=required)
 
+
+PUSHES = frozenset({Effect.PUSH, Effect.EDIT_BODY, Effect.HAND_BACK})
+BODY_ONLY = frozenset({Effect.EDIT_BODY, Effect.HAND_BACK})
+BACK = frozenset({Effect.HAND_BACK})
+TICKET = frozenset({Effect.FILE_TICKET})
+PUSHED = frozenset({Effect.PUSH, Effect.HAND_BACK})
 
 TABLE: Mapping[Task, Selector] = dict(
     [
-        _of(Task.FIRST_ROUND, {Fact.BODY}, EDIT | PUSH),
-        _of(Task.FIX_CI, {Fact.CHECKS}, PUSH),
-        _of(Task.REVISE_PLAN, {Fact.REVIEWS}, EDIT),
-        _of(Task.RESTORE_PLAN, {Fact.BODY}, EDIT),
-        _of(Task.RESOLVE_CONFLICT, {Fact.CONFLICT}, PUSH),
-        _of(Task.FIX_EXECUTION, {Fact.REVIEWS}, PUSH),
-        _of(
-            Task.RULING_STEPS,
-            {Fact.APPLIED, Fact.TEXT},
-            PUSH | EDIT | {Fact.HANDBACK, Fact.APPLIED},
-            Fact.REVIEWS,
-        ),
-        _of(Task.RULING_AS_GIVEN, {Fact.APPLIED}, PUSH | EDIT | {Fact.APPLIED}),
-        _of(Task.RUN_PLAN, {Fact.BODY}, EDIT),
-        _of(Task.ADD_CI_QUOTES, {Fact.BODY}, EDIT),
-        _of(Task.FIX_ROUND, {Fact.REVIEWS}, PUSH),
-        _of(Task.REFRESH_BODY, {Fact.BODY, Fact.HEAD}, EDIT),
-        _of(Task.SHARED_RED, {Fact.CHECKS, Fact.TICKET}, frozenset({Fact.TICKET})),
-        _of(Task.FIX_BLOCKED_BY, {Fact.BODY}, EDIT),
-        _of(Task.AFTER_BLOCKER, {Fact.CHECKS}, PUSH),
-        _of(Task.FINISH_PARTIAL, {Fact.HANDBACK}, frozenset({Fact.HANDBACK})),
-        _of(Task.HAND_BACK, {Fact.HANDBACK}, frozenset({Fact.HANDBACK})),
+        _of(Task.FIRST_ROUND, BODY_ONLY, PUSHES),
+        _of(Task.FIX_CI, PUSHED, PUSHES),
+        _of(Task.REVISE_PLAN, BODY_ONLY, BODY_ONLY),
+        _of(Task.RESTORE_PLAN, BODY_ONLY, BODY_ONLY),
+        _of(Task.RESOLVE_CONFLICT, PUSHED, PUSHES),
+        _of(Task.FIX_EXECUTION, PUSHED, PUSHES),
+        _of(Task.RULING_STEPS, BACK, PUSHES),
+        _of(Task.RULING_AS_GIVEN, BACK, PUSHES | TICKET),
+        _of(Task.RUN_PLAN, BODY_ONLY, PUSHES),
+        _of(Task.ADD_CI_QUOTES, BODY_ONLY, PUSHES),
+        _of(Task.FIX_ROUND, PUSHED, PUSHES),
+        _of(Task.REFRESH_BODY, BODY_ONLY, BODY_ONLY),
+        _of(Task.SHARED_RED, TICKET, TICKET),
+        _of(Task.FIX_BLOCKED_BY, BODY_ONLY, BODY_ONLY),
+        _of(Task.AFTER_BLOCKER, PUSHED, PUSHES),
+        _of(Task.FINISH_PARTIAL, BACK, PUSHES),
+        _of(Task.HAND_BACK, BACK, BACK),
     ]
 )

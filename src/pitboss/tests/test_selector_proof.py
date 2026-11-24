@@ -30,41 +30,61 @@ class TestSelectorProof(unittest.TestCase):
     """What the table, as written, may not say."""
 
     def test_the_table_as_written_has_no_finding(self) -> None:
-        """Every task reads a fact its action writes."""
+        """Every task has one entry that requires an effect."""
         package = proofsource.of_texts(TEXTS)
         assert_that(
             selectorproofs.tasks_can_end_their_selection(package), has_length(0)
         )
 
-    def test_a_task_that_reads_nothing_it_writes_is_refused(self) -> None:
-        """A task selected by CI whose action changes the body."""
+    def test_a_task_that_requires_no_effect_is_refused(self) -> None:
+        """A task whose worker may do nothing that ends it."""
         said = found(
             Seed(
                 path="workerselect.py",
-                old="_of(Task.FIX_CI, {Fact.CHECKS}, PUSH)",
-                new="_of(Task.FIX_CI, {Fact.CHECKS}, EDIT - {Fact.REVIEWS})",
+                old="_of(Task.REFRESH_BODY, BODY_ONLY, BODY_ONLY)",
+                new="_of(Task.REFRESH_BODY, frozenset(), BODY_ONLY)",
             )
         )
-        assert_that(said, contains_string("Task.FIX_CI reads no fact"))
-
-    def test_a_text_with_nothing_to_end_it_is_refused(self) -> None:
-        """dom#140: the ruling's words, and no review that ends them."""
-        said = found(
-            Seed(path="workerselect.py", old="            Fact.REVIEWS,\n", new="")
-        )
-        assert_that(said, contains_string("Task.RULING_STEPS reads text"))
+        assert_that(said, contains_string("Task.REFRESH_BODY requires no effect"))
 
     def test_a_task_with_no_entry_is_refused(self) -> None:
         """Dropping the entry of HAND_BACK."""
         said = found(
             Seed(
                 path="workerselect.py",
-                old="        _of(Task.HAND_BACK, {Fact.HANDBACK}, "
-                "frozenset({Fact.HANDBACK})),\n",
+                old="        _of(Task.HAND_BACK, BACK, BACK),\n",
                 new="",
             )
         )
         assert_that(said, contains_string("Task.HAND_BACK has 0 entries"))
+
+    def test_a_brief_with_a_list_of_its_own_is_refused(self) -> None:
+        """The push-less list the table replaced."""
+        said = found(
+            Seed(
+                path="brief.py",
+                old="def _push_lines",
+                new="PUSHLESS = {}\n\n\ndef _push_lines",
+            )
+        )
+        assert_that(said, contains_string("brief keeps its own push-less list"))
+
+    def test_a_brief_that_ignores_the_table_is_refused(self) -> None:
+        """The table is the source of the sentences."""
+        said = found(
+            Seed(path="brief.py", old="workerselect.TABLE.get", new="dict().get")
+        )
+        assert_that(said, contains_string("brief does not read workerselect.TABLE"))
+
+    def test_a_missing_table_is_a_finding(self) -> None:
+        """A package with no workerselect."""
+        package = proofsource.of_texts(
+            {k: v for k, v in TEXTS.items() if "workerselect" not in k}
+        )
+        assert_that(
+            selectorproofs.tasks_can_end_their_selection(package),
+            equal_to(["P13.3: the table of worker tasks is missing"]),
+        )
 
     def test_a_worker_built_outside_the_table_is_refused(self) -> None:
         """A site that calls steps.worker itself."""
