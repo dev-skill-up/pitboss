@@ -28,6 +28,14 @@ def _idle_members(package: Package) -> Sequence[str]:
     ]
 
 
+def _attributes(package: Package, name: str) -> set[str]:
+    return {
+        node.attr
+        for node in ast.walk(module(package, name))
+        if isinstance(node, ast.Attribute)
+    }
+
+
 def idle_has_an_event(package: Package) -> Sequence[str]:
     """P12.1: each member of ``Idle`` has an arm in ``idlewait.source_of``.
 
@@ -37,11 +45,7 @@ def idle_has_an_event(package: Package) -> Sequence[str]:
     Returns:
         Each member of ``Idle`` that no arm of ``source_of`` names.
     """
-    named = {
-        node.attr
-        for node in ast.walk(module(package, "idlewait"))
-        if isinstance(node, ast.Attribute)
-    }
+    named = _attributes(package, "idlewait")
     return [
         f"P12.1: Idle.{each} has no event in idlewait"
         for each in _idle_members(package)
@@ -97,11 +101,7 @@ def restore_plan_is_reached(package: Package) -> Sequence[str]:
     Returns:
         A line when ``flowstate`` never names the task.
     """
-    named = {
-        node.attr
-        for node in ast.walk(module(package, "flowstate"))
-        if isinstance(node, ast.Attribute)
-    }
+    named = _attributes(package, "flowstate")
     return [] if "RESTORE_PLAN" in named else ["P12.5: flowstate never restores a Plan"]
 
 

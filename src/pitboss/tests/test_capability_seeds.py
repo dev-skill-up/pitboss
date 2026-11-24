@@ -13,10 +13,6 @@ from typing import AbstractSet, Mapping, Sequence
 from hamcrest import assert_that, contains_exactly, equal_to
 
 from .test_capability import capability_of, refusals
-from .test_done_when_seeds import TestDoneWhenSeeds
-
-# the seeds of the Done-when are run here too: its command names this module
-TESTS = (TestDoneWhenSeeds,)
 
 PURE = "src/pitboss/pure.py"
 DUNDER = "_" * 2
@@ -217,3 +213,20 @@ class TestSeeds(unittest.TestCase):
             "an owner-written wait",
         }
         assert_that(named <= {each.name for each in SEEDS}, equal_to(True))
+
+
+def load_tests(
+    loader: unittest.TestLoader, tests: unittest.TestSuite, pattern: str | None
+) -> unittest.TestSuite:
+    """Run the Done-when's proof seeds with this module: its command names only it.
+
+    Args:
+        loader: the loader.
+        tests: this module's tests.
+        pattern: unused.
+
+    Returns:
+        The tests of this module and of ``test_done_when_seeds``.
+    """
+    tests.addTests(loader.loadTestsFromName("pitboss.tests.test_done_when_seeds"))
+    return tests

@@ -243,7 +243,7 @@ def _aliases_of_banned(path: str, tree: ast.AST) -> Iterator[Finding]:
 OWNER_FREE = frozenset({"Actor", "Idle", "Task"})
 
 
-# E8: the owner is no actor and no wait is theirs (a ruling of the owner, 2026-11-23: nothing waits on them)
+# E8: the owner is no actor and no wait is theirs (owner, 2026-11-23: nothing waits)
 def _owner(path: str, tree: ast.AST) -> Iterator[Finding]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and node.name in OWNER_FREE:
