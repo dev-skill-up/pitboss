@@ -1,6 +1,6 @@
 """The check runs and commit statuses of a PR's head (keyword: red-status)."""
 
-from typing import AbstractSet, NamedTuple, Sequence
+from typing import AbstractSet, NamedTuple, Protocol, Sequence
 
 from . import (
     basefix,
@@ -262,3 +262,27 @@ def gate(
         What ``pending_gate`` says, or empty when the repository is not gated.
     """
     return pending_gate(posted) if slug in gated else ""
+
+
+class Headed(Protocol):
+    """What a PR has of its head: its check runs and signals."""
+
+    @property
+    def checks(self) -> Sequence[shapes.CheckRun]:
+        """Returns the head's check runs."""
+
+    @property
+    def signals(self) -> HeadSignals:
+        """Returns what else is known of the head."""
+
+
+def unanswered_of(pull: Headed) -> Sequence[shapes.CheckRun]:
+    """The failed checks of a PR's head that the base has not passed since.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        The failed checks, none when the base answered every one.
+    """
+    return unanswered(pull.checks, pull.signals)

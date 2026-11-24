@@ -7,7 +7,7 @@ failed step, the output and the annotations stand in for it.
 import subprocess
 from typing import Callable, Mapping, Sequence, TypeVar
 
-from . import concurrently, config, ghapi, headchecks, parsing, pullfacts, shapes
+from . import concurrently, config, ghapi, parsing, shapes
 
 _Found = TypeVar("_Found")
 NONE: Sequence[str] = ()
@@ -57,21 +57,21 @@ def read(
 
 
 def read_all(
-    github: ghapi.GitHub, pull: pullfacts.PullFacts
+    github: ghapi.GitHub,
+    repo: config.Repo,
+    failed: Sequence[shapes.CheckRun],
 ) -> Mapping[int, shapes.Failure]:
     """Read, for each failed check of a PR, what api.github.com gives of it.
 
     Args:
         github: the API.
-        pull: the PR.
+        repo: the PR's repository.
+        failed: the failed checks nothing answered (``headchecks.unanswered``).
 
     Returns:
         Each failed check's id and what was read of it.
     """
-    return {
-        check.id: read(github, pull.repo, check)
-        for check in headchecks.unanswered(pull.checks, pull.signals)
-    }
+    return {check.id: read(github, repo, check) for check in failed}
 
 
 def describe(failure: shapes.Failure, limit: int = 300) -> str:
@@ -92,3 +92,24 @@ def describe(failure: shapes.Failure, limit: int = 300) -> str:
     ]
     text = " | ".join(" ".join(part.split()) for part in parts if part.strip())
     return text if len(text) <= limit else text[: limit - 3] + "..."
+
+
+def lines(
+    github: ghapi.GitHub, repo: config.Repo, failed: Sequence[shapes.CheckRun]
+) -> Sequence[str]:
+    """Say each failed check of a PR for a brief (keyword: failure-text, #524).
+
+    Args:
+        github: the API.
+        repo: the PR's repository.
+        failed: the failed checks nothing answered.
+
+    Returns:
+        One line for each: its name, then its failed steps, title, summary and
+        annotations, so the worker starts from what failed.
+    """
+    names = {check.id: check.name for check in failed}
+    return [
+        f"Failed check {names[number]!r}: {describe(failure, 600)}"
+        for number, failure in read_all(github, repo, failed).items()
+    ]

@@ -9,7 +9,7 @@ reads).
 
 import dataclasses
 import datetime
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from . import (
     allowlistmiss,
@@ -22,11 +22,13 @@ from . import (
     flowstep,
     gatefacts,
     ghapi,
+    headchecks,
     listed,
     pullfacts,
     pullnames,
     pullrecords,
     pulls,
+    shapes,
     sharedstep,
     steps,
     stuckci,
@@ -79,6 +81,12 @@ def _waits(
     return [each for each in dict.fromkeys(found) if each != me]
 
 
+def _failures(
+    github: ghapi.GitHub, facts: pulls.PullFacts
+) -> Mapping[int, shapes.Failure]:
+    return failures.read_all(github, facts.repo, headchecks.unanswered_of(facts))
+
+
 def _fixing(facts: pulls.PullFacts) -> bool:
     # whether the pull request's step is a fix of its CI
     step = facts.step
@@ -122,7 +130,7 @@ def examine_pull(
         waits=waits,
         stuck=stuckci.runs_of(github, [facts], reading.now),  # keyword: stuck-ci
         gated=_gated(reading, read, facts, holds),
-        failures=failures.read_all(github, facts) if fixing else {},
+        failures=_failures(github, facts) if fixing else {},
     )
 
 

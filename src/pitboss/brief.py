@@ -175,6 +175,8 @@ class Spec:
         conflict: the lines of a rule conflict a RULING brief adds (keyword:
             rule-conflicts, quire#1115).
         paths: the files the PR changes, None when not read (keyword: brief-when).
+        failed: what each failed check said, a FIX_CI brief names it (keyword:
+            failure-text, #524).
     """
 
     kind: Kind
@@ -185,6 +187,7 @@ class Spec:
     e2e: bool = False
     conflict: Sequence[str] = ()
     paths: Sequence[str] | None = None
+    failed: Sequence[str] = ()
 
 
 def fields(spec: Spec) -> Mapping[str, str]:
@@ -295,7 +298,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.FINISH,
         text.HAND_BACK,
     ]
-    return [*_filled(sentences, values), *project.worker_lines]
+    return [*_filled(sentences, values), *spec.failed, *project.worker_lines]
 
 
 def _e2e(spec: Spec) -> Sequence[str]:
