@@ -23,6 +23,7 @@ import unicodedata
 from typing import AbstractSet, Sequence
 
 from . import expansion
+from . import typedstd
 
 FENCE = re.compile(r"^ {0,3}(?P<ticks>`{3,}|~{3,})(?P<info>.*)$")
 CLOSING = re.compile(r"^ {0,3}(?P<ticks>`+|~+)[ \t]*$")
@@ -107,7 +108,7 @@ def _closes(fence: str, line: str) -> bool:
     closing = CLOSING.match(line.rstrip("\r\n"))
     if closing is None:
         return False
-    ticks = closing.group("ticks")
+    ticks = typedstd.group(closing, "ticks")
     return ticks[0] == fence[0] and len(ticks) >= len(fence)
 
 
@@ -115,8 +116,8 @@ def _heading(reading: Reading, line: str) -> Reading:
     title_line = HEADING.match(line.rstrip("\r\n"))
     if title_line is None:
         return reading
-    level = len(title_line.group("hashes"))
-    if EVIDENCE.match(title_line.group("title") or ""):
+    level = len(typedstd.group(title_line, "hashes"))
+    if EVIDENCE.match(typedstd.group(title_line, "title")):
         return dataclasses.replace(reading, evidence_level=level, headed=True)
     ended = level <= reading.evidence_level
     return dataclasses.replace(
@@ -147,8 +148,8 @@ def _step(reading: Reading, number: int, line: str) -> tuple[Reading, Sequence[B
         return (
             dataclasses.replace(
                 reading,
-                fence=opening.group("ticks"),
-                info=opening.group("info").strip(),
+                fence=typedstd.group(opening, "ticks"),
+                info=typedstd.group(opening, "info").strip(),
                 opened=number,
             ),
             [],

@@ -8,8 +8,8 @@ success saying ``exempt`` for a relock branch and for a bot's pull request.
 """
 
 import dataclasses
-import json
 from typing import Callable, Mapping, Sequence
+from . import typedstd
 
 CONTEXT = "text-lint"
 RED = frozenset({"failure", "error"})  # keyword: finish-partial
@@ -74,7 +74,7 @@ def parse(document: str) -> PullRequest:
         EventError: the text is not JSON or is no pull request event.
     """
     try:
-        event = json.loads(document)
+        event = typedstd.loads(document)
     except ValueError as error:
         raise EventError(f"the event is not JSON: {error}") from error
     pull = _member(event, "pull_request")

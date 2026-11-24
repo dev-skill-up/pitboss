@@ -61,7 +61,10 @@ def parts(ruling: str) -> Sequence[tuple[str, str, str]]:
     """
     found = []
     for each in STEP.finditer(ruling):
-        target, operation, text = each.group(1).lower(), each.group(2), each.group(3)
+        named, operation, text = (
+            each.string[each.start(n) : each.end(n)] for n in (1, 2, 3)
+        )
+        target = named.lower()
         old, _, new = (
             text.partition(ARROW) if operation.lower() == "replace" else (text, "", "")
         )
@@ -87,7 +90,7 @@ def steps_of(text: str) -> Sequence[str]:
         elif inside and NEXT_SECTION.match(line):
             inside = False
         elif inside and (item := ITEM.match(line)):
-            found.append(item.group(1))
+            found.append(item.string[item.start(1) : item.end(1)])
     return found
 
 

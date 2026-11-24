@@ -127,6 +127,6 @@ def lines_of(out: str) -> Sequence[object]:
     found: list[object] = []
     for line in out.splitlines():
         if line.strip():
-            value = json.loads(line)
+            value: object = json.loads(line)
             found.extend(value if isinstance(value, list) else [value])
     return found

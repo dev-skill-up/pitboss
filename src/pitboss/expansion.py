@@ -8,7 +8,6 @@ person typed or edited is told from one ``pitboss expand`` produced.
 
 import dataclasses
 import enum
-import functools
 import hashlib
 import re
 from typing import Callable, Mapping, Sequence
@@ -162,7 +161,7 @@ def block(command: str, outcome: Outcome, head: str = "") -> str:
         The block, its fence longer than any run of backticks inside it.
     """
     inside = contents(command, outcome)
-    longest = max((len(each) for each in TICKS.findall(inside)), default=0)
+    longest = max((m.end() - m.start() for m in re.finditer("`+", inside)), default=0)
     fence = "`" * max(MIN_FENCE, longest + 1)
     return f"{fence}{info(inside, head)}\n{inside}{fence}\n"
 
@@ -176,11 +175,15 @@ PRODUCED = re.compile(
 )
 
 
+def _group(found: re.Match[str], name: str) -> str:
+    return found.string[found.start(name) : found.end(name)]
+
+
 def _collapsed_block(found: re.Match[str]) -> str:
-    inside = found["inside"]
-    if inside.startswith(PROMPT) and digest(inside) == found["digest"]:
+    inside = _group(found, "inside")
+    if inside.startswith(PROMPT) and digest(inside) == _group(found, "digest"):
         return inside.split("\n", 1)[0]
-    return found[0]
+    return found.string[found.start() : found.end()]
 
 
 def collapsed(text: str) -> str:
@@ -237,7 +240,9 @@ def run_urls_dropped(text: str) -> str:
     return RUN_ADDRESS.sub(r"\1/actions/runs", text)
 
 
-@functools.cache
+_ACCEPTED: dict[str, Sequence[str]] = {}  # the digests of each section, made once
+
+
 def accepted_digests(text: str) -> Sequence[str]:
     """The digests a record of a Plan section may carry to be of this section.
 
@@ -257,10 +262,12 @@ def accepted_digests(text: str) -> Sequence[str]:
     """
     if not text:
         return []
-    return [
-        text_digest(run_urls_dropped(collapsed(text))),
-        text_digest(collapsed(text)),
-    ]
+    if text not in _ACCEPTED:
+        _ACCEPTED[text] = [
+            text_digest(run_urls_dropped(collapsed(text))),
+            text_digest(collapsed(text)),
+        ]
+    return _ACCEPTED[text]
 
 
 def section_digest(text: str) -> str:

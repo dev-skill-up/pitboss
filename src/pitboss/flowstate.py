@@ -19,6 +19,7 @@ from . import (
     sessionurl,
     shapes,
     steps,
+    typedstd,
 )
 
 
@@ -140,7 +141,7 @@ def newest_ruling(pr: PullState) -> shapes.Comment | None:
         for each in pr.comments
         if is_ruling(each.body) and each.author_association in pr.trusted
     ]
-    return max(found, key=lambda each: each.created_at, default=None)
+    return typedstd.newest(found, lambda each: each.created_at)
 
 
 def readable_comment(
@@ -240,8 +241,7 @@ def newest_plan_digest(pr: PullState) -> shapes.Graded | None:
     Returns:
         The review, or None when no review does.
     """
-    approving = (each for each in pr.graded if _approves(each))
-    return max(approving, key=lambda each: each.when, default=None)
+    return typedstd.newest(filter(_approves, pr.graded), lambda each: each.when)
 
 
 def plan_edit_ruled(pr: PullState, after: str) -> bool:

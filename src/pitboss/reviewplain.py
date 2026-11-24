@@ -4,6 +4,7 @@ import re
 from typing import Sequence
 
 from . import sessionurl
+from . import typedstd
 
 _HTML = re.compile(r"<[A-Za-z/!]")
 _LINK_DEFINITION = re.compile(r"^\s*\[[^\]]+\]:\s", re.MULTILINE)
@@ -37,7 +38,7 @@ def literal_prefix(template: str) -> str:
     Returns:
         The text before the first ``{sha}`` or ``{verdict}``, stripped.
     """
-    return re.split(r"\{(?:sha|verdict)\}", template)[0].strip()
+    return typedstd.split(r"\{(?:sha|verdict)\}", template)[0].strip()
 
 
 def matches_strictly(lines: Sequence[str], template: str, count: int) -> bool:

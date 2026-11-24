@@ -10,7 +10,7 @@ review already graded, has no review step, whatever its comments say (quire#1122
 
 from typing import AbstractSet, Protocol, Sequence
 
-from . import bodydigest, expansion, handbacks, sessionurl, shapes, steps
+from . import bodydigest, expansion, handbacks, sessionurl, shapes, steps, typedstd
 
 
 class Held(Protocol):
@@ -66,7 +66,7 @@ def _newest_ruling(
         if sessionurl.first_line_is(each.body, steps.RULING_FIRST_LINE)
         and each.author_association in trusted
     ]
-    return max(found, key=lambda each: each.created_at, default=None)
+    return typedstd.newest(found, lambda each: each.created_at)
 
 
 def _alone(stage: steps.Stage) -> bool:

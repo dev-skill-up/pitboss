@@ -203,8 +203,15 @@ def _walk(path: str, tree: ast.AST) -> Iterator[Finding]:
             yield from rule(path, node)
 
 
-def _closure(edges: Mapping[str, AbstractSet[str]]) -> AbstractSet[str]:
-    # the modules of the decision and everything they import, directly or not
+def closure(edges: Mapping[str, AbstractSet[str]]) -> AbstractSet[str]:
+    """The modules of the decision and everything they import, directly or not.
+
+    Args:
+        edges: the modules each module imports.
+
+    Returns:
+        The roots that exist and every module they reach.
+    """
     seen: set[str] = set()
     todo = [each for each in DECISION_ROOTS if each in edges]
     while todo:
@@ -218,7 +225,7 @@ def _closure(edges: Mapping[str, AbstractSet[str]]) -> AbstractSet[str]:
 def _decision(texts: Mapping[str, str]) -> Iterator[Finding]:
     # E12: a module the decision imports may not be one that reaches the world
     graph = importgraph.build_graph(texts)
-    inside = _closure(graph.edges)
+    inside = closure(graph.edges)
     for path in sorted(capabilityset.LISTED):
         module = importgraph.module_of(path)
         if module in inside and module not in READS_FOR_THE_DECISION:

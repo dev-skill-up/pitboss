@@ -25,6 +25,10 @@ class Answer:
     passed: shapes.CheckRun
 
 
+def _started(each: shapes.CheckRun) -> tuple[str, int]:
+    return each.started_at, each.id
+
+
 def answers(
     failed: Sequence[shapes.CheckRun], base: Sequence[shapes.CheckRun]
 ) -> Sequence[Answer]:
@@ -39,7 +43,7 @@ def answers(
         has one (a head red from a check the base has not passed since is red).
     """
     # the tip's runs: a re-run, or a run that cancelled another, is the later start
-    ordered = sorted(base, key=lambda each: (each.started_at, each.id))
+    ordered = sorted(base, key=_started)
     newest = {each.name: each for each in ordered}
     found = [
         Answer(failed=each, passed=newest[each.name])

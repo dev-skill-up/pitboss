@@ -20,6 +20,7 @@ from . import (
     shapes,
     steps,
 )
+from . import typedstd
 
 QUOTED = 600
 
@@ -98,7 +99,7 @@ def newest_check(
         if each.author_association in trusted
         and any(records_check(each.body, digest) for digest in digests)
     ]
-    return max(found, key=lambda each: each.created_at, default=None)
+    return typedstd.newest(found, lambda each: each.created_at)
 
 
 def findings(check: shapes.Comment) -> str:

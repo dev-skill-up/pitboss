@@ -12,6 +12,7 @@ from typing import AbstractSet, Callable, Mapping, Sequence, assert_never
 
 from . import actfacts, blockedstep, gatefacts, holdconfig, holdparse, listed
 from . import pullfacts, pullrecords, shapes, sharedstep, slotbook, stuckwords
+from . import typedstd
 
 # keyword: gate: a PR's gate, with its repository's holds
 GateRead = Callable[[pullfacts.PullRead, Sequence[pullrecords.Hold]], gatefacts.Gate]
@@ -191,7 +192,7 @@ def blockers_of(record: Record) -> Sequence[str]:
         case PullRecord():
             named = [*blockedstep.open_named(record.blocked_by), *record.waits]
             me = record.row.reference
-            return [each for each in dict.fromkeys(named) if each != me]
+            return [each for each in typedstd.unique(named) if each != me]
         case TicketRecord():
             return record.blockers
         case Occupied():

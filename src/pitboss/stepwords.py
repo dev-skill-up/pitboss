@@ -3,7 +3,6 @@
 ``describe`` is the verb of a decision; an idle PR has no words (one-path).
 """
 
-import dataclasses
 from typing import Mapping
 
 from .steps import (
@@ -73,4 +72,6 @@ def describe(step: Next) -> str:
         return f"{REQUEST_REVIEW}: {step.stage.value}"
     if step.stage is not None:
         return step.stage.value
-    return TEXTS[step.step].format_map(dataclasses.asdict(step))
+    return TEXTS[step.step].format(
+        comment=step.comment, findings=step.findings, branch=step.branch
+    )

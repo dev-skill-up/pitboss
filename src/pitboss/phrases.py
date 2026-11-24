@@ -53,6 +53,11 @@ TOKEN = re.compile(r"\[[^\]]*\]|\\.?|.", re.DOTALL)
 PIECE = re.compile(r"\\.?|.", re.DOTALL)
 
 
+def _text(found: re.Match[str]) -> str:
+    start, end = found.span()
+    return found.string[start:end]
+
+
 def _class_piece(piece: str) -> str:
     if len(piece) == 2:
         return piece if piece[1] in CLASS_ESCAPES else re.escape(piece[1])
@@ -66,7 +71,7 @@ def _class(token: str) -> str:
         body = body[1:]
     if not body:
         raise PhraseError(f"{token}: a class holds no character")
-    pieces = "".join(_class_piece(each) for each in PIECE.findall(body))
+    pieces = "".join(_class_piece(_text(each)) for each in PIECE.finditer(body))
     return f"[{'^' if negated else ''}{pieces}]"
 
 
@@ -103,7 +108,7 @@ def compile_pattern(pattern: str) -> re.Pattern[str]:
         raise PhraseError("a pattern is empty")
     parts: list[str] = []
     repeatable = False
-    for token in TOKEN.findall(pattern):
+    for token in map(_text, TOKEN.finditer(pattern)):
         if token in QUANTIFIERS and parts and repeatable:
             parts[-1] += token
             repeatable = False

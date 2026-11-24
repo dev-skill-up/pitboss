@@ -7,11 +7,11 @@ Plan part: 6.1 (the gate rows are rows of ``decide``) and P5.
 """
 
 import dataclasses
-import functools
 from typing import AbstractSet, Mapping
 
 from . import totalbody, totalreview, totalschema
 from .gatestop import Body, Plan, Review, Route
+from . import typedstd
 
 BENIGN_EVENTS = frozenset(
     {
@@ -62,7 +62,7 @@ class Policy:
     kept: AbstractSet[Route] = KEPT
 
 
-@functools.cache
+@typedstd.memo
 def shipped() -> Policy:
     """The readings as pitboss ships them.
 

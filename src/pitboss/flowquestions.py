@@ -7,7 +7,7 @@ recorded of the PR.
 from typing import AbstractSet, Protocol, Sequence
 
 from . import bodydigest, checkoutcome, draftfacts, expansion, handbacks
-from . import plandigest, shapes
+from . import plandigest, shapes, typedstd
 
 current_for = expansion.current_for
 Subject = expansion.Subject
@@ -68,7 +68,7 @@ def newest_counting_review(pr: PullState) -> Graded | None:
         the newest one read another body.
     """
     found = _of_head(pr, regular_reviews(pr))
-    newest = max(found, key=lambda each: each.when, default=None)
+    newest = typedstd.newest(found, _when)
     now = bodydigest.digest(pr.pull.body)
     if newest and not current_for(Subject.BODY, newest.body, now):
         return None
@@ -186,6 +186,10 @@ def asked_rejection(pr: PullState) -> shapes.Graded | None:
     return rejecting if moved else None
 
 
+def _when(each: shapes.Graded) -> str:
+    return each.when
+
+
 def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
     """The regular reviews of a PR, oldest first (no GitHub review).
 
@@ -196,7 +200,7 @@ def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
         The reviews.
     """
     regular = [each for each in pr.graded if each.comment]
-    return sorted(regular, key=lambda each: each.when)
+    return sorted(regular, key=_when)
 
 
 def used_again(pr: PullState, review: shapes.Graded, posted: shapes.Comment) -> bool:
