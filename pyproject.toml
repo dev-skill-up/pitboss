@@ -182,6 +182,7 @@ module = [
     "pitboss.usedstep",
     "pitboss.work",
     "pitboss.workitem",
+    "pitboss.workerselect",
     "pitboss.world",
     "pitboss.actread",
     "pitboss.blockedby",
