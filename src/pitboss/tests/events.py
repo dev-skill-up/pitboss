@@ -7,7 +7,7 @@ event the rules allow, ``simulated`` does the step the flow printed as it says.
 import dataclasses
 from typing import Callable, Mapping, Sequence, TypedDict, Unpack
 
-from .. import rulingguard, steps
+from .. import flowstate, rulingguard, steps, workerselect
 from . import model as modeled
 from .model import Allowed, History, Model, Review, Ruling, Verdict, pull_state
 
@@ -179,16 +179,23 @@ def _reviewed(model: Model, step: steps.Next) -> Model:
 
 
 def _worked(model: Model, step: steps.Next) -> Model:
-    task = step.task
-    if task is steps.Task.RESOLVE_CONFLICT:
-        return dataclasses.replace(_pushed(model, "worker"), conflict=False, ci="green")
-    if task is steps.Task.FIX_CI:
-        return dataclasses.replace(_pushed(model, "worker"), ci="green")
-    done = dataclasses.replace(_push_checked(model, "worker"), ci="green")
-    if task is not steps.Task.REVISE_PLAN:
+    # pitboss#526: the worker does the effects its task requires, from the table
+    required = workerselect.TABLE[step.task].required
+    pushes = workerselect.Effect.PUSH in required
+    at = _pushed(model, "worker") if pushes else _then(model, "worker")
+    handed = workerselect.Effect.HAND_BACK in required
+    made = _checked(at, model.plan, at.head) if handed else at.history
+    # the ruling a worker answers is the one the shipped flow reads as unapplied
+    ruling = flowstate.ruling_unapplied(pull_state(model))
+    newest = max((each[0] for each in model.history.rulings), default=-1)
+    applied = newest if ruling else model.applied
+    done = dataclasses.replace(
+        at, ci="green", conflict=False, history=made, applied=applied
+    )
+    if step.task is not steps.Task.REVISE_PLAN:
         return done
-    made = _checked(model, model.plan + 1, done.head)
-    return dataclasses.replace(done, plan=model.plan + 1, history=made)
+    revised = _checked(at, model.plan + 1, done.head)
+    return dataclasses.replace(done, plan=model.plan + 1, history=revised)
 
 
 def simulated(model: Model, step: steps.Move, allowed: Allowed) -> Model | None:

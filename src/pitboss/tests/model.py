@@ -10,7 +10,16 @@ shipped ``flow.next_step``.
 import dataclasses
 from typing import Callable, Sequence
 
-from .. import bodydigest, expansion, flow, plandigest, rulingwords, shapes, steps
+from .. import (
+    bodydigest,
+    expansion,
+    flow,
+    handbackderive,
+    plandigest,
+    rulingwords,
+    shapes,
+    steps,
+)
 from . import blank, checkcomment, flowbody, headed, pullstates
 
 Verdict = shapes.Verdict
@@ -19,6 +28,7 @@ Review = tuple[int, Verdict | None, Verdict | None, int, int]
 Allowed = Callable[["Model"], bool]
 FIRST = 3
 DO_STEPS = "ruling do these steps"
+WORK = "the work"
 STATES = {"green": (True, False), "red": (True, True), "running": (False, False)}
 
 
@@ -52,6 +62,7 @@ class Model:
         since_pause: how many rulings were posted since the last pause.
         last: the name of the last event.
         clock: the number of events so far, as seconds.
+        applied: when the ruling whose steps the body carries was posted, -1 none.
     """
 
     head: int = 0
@@ -64,6 +75,7 @@ class Model:
     since_pause: int = 0
     last: str = "start"
     clock: int = FIRST
+    applied: int = -1
 
 
 def _times(model: Model) -> Sequence[int]:
@@ -94,6 +106,7 @@ def key(model: Model) -> Sequence[object]:
     return [
         (model.head, model.ci, model.conflict, model.paused, model.plan),
         (model.since_pause, model.last == DO_STEPS, rank[model.pushed]),
+        rank.get(model.applied, -1),
         [(rank[a], b, c, d, e) for a, b, c, d, e in made.reviews],
         [(rank[a], b) for a, b in made.rulings],
         [(rank[a], b, c) for a, b, c in made.checks],
@@ -112,7 +125,7 @@ def stamp(second: int) -> str:
     return f"2026-10-30T00:00:{second:02d}Z"
 
 
-def body_of(plan: int, head: int = 0) -> str:
+def body_of(plan: int, head: int = 0, applied: int = -1) -> str:
     """The PR body with a version of the Plan, as it reads at a head.
 
     The Plan's CI pointer names the run of the head, so the body of another head
@@ -121,12 +134,14 @@ def body_of(plan: int, head: int = 0) -> str:
     Args:
         plan: the version.
         head: the head's number.
+        applied: when the ruling whose body edit the body carries was posted.
 
     Returns:
         The body.
     """
     url = f"https://github.com/o/r/actions/runs/{head + 100}/job/{head + 200}"
-    return flowbody.BODY.replace("the plan", f"the plan v{plan} {url}")
+    body = flowbody.BODY.replace("the plan", f"the plan v{plan} {url}")
+    return body if applied < 0 else body.replace(WORK, f"{WORK} (ruled {applied})")
 
 
 def sha_of(head: int) -> str:
@@ -151,10 +166,17 @@ def _plan_check(plan: int, head: int, second: int) -> shapes.Comment:
     )
 
 
+def _steps_of(word: Ruling, second: int) -> str:
+    # pitboss#526: a ruling that orders work types its body edit when it is posted
+    edits = {Ruling.DO_THESE_STEPS, Ruling.REVISE_THE_PLAN}
+    step = f"1. body replace: {WORK} => {WORK} (ruled {second})"
+    return f"\n## Steps\n\n{step}\n" if word in edits else ""
+
+
 def _ruling(second: int, word: Ruling) -> shapes.Comment:
     return dataclasses.replace(
         blank.COMMENT,
-        body=f"Opus ruling\nRuling: {word.value}\n",
+        body=f"Opus ruling\nRuling: {word.value}\n{_steps_of(word, second)}",
         author_association="MEMBER",
         created_at=stamp(second),
         url=f"https://example.org/ruling/{second}",
@@ -212,14 +234,20 @@ def pull_state(model: Model) -> flow.PullState:
     head = {"sha": sha_of(model.head), "ref": "work"}
     dirty = "dirty" if model.conflict else "clean"
     pull = flowbody.pull_of(
-        body=body_of(model.plan, model.head), head=head, mergeable_state=dirty
+        body=body_of(model.plan, model.head, model.applied),
+        head=head,
+        mergeable_state=dirty,
     )
     made = model.history
     comments = [_plan_check(plan, at, second) for second, plan, at in made.checks]
     comments += [_ruling(second, word) for second, word in made.rulings]
     comments += [_impossible(model.clock)] if model.paused else []
+    bare = pullstates.bare(pull)
+    # pitboss#526: the hand-back is read from the body and comments, as the shipped
+    # command writes it (``handbackderive``), never declared
+    handed = handbackderive.derive(pull, comments, bare.trusted)
     return dataclasses.replace(
-        pullstates.bare(pull),
+        pullstates.with_recorded(bare, handed=handed),
         checks=_check_runs(model),
         graded=[_graded(each) for each in made.reviews],
         comments=comments,
