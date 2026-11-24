@@ -182,42 +182,50 @@ def naming(
     return dataclasses.replace(graded(plan, execution, 1), body=BODY_DIGEST)
 
 
+def answer(
+    review: shapes.Graded, stage: steps.Stage, record: handbacks.HandedBack
+) -> steps.Next:
+    """The step of a PR whose state a review already grades.
+
+    Args:
+        review: the review.
+        stage: what the next review would grade.
+        record: what the PR shows of its hand-back.
+
+    Returns:
+        ``standing.reviewed`` of the PR.
+    """
+    return standing.reviewed(worked(state(review), record), stage)
+
+
 class TestAnsweredByTheReview(unittest.TestCase):
     """pitboss#526: a review that stands answers a second review of its state."""
 
     def test_a_rejection_of_the_state_is_fixed_not_handed_back_again(self) -> None:
         """The worker's task follows the stage the rejection graded."""
         both = steps.Stage.EXECUTION_AGAINST_PLAN
-        rejected = state(naming(test_flow.APPROVED, test_flow.CHANGES))
-        alone = state(naming(test_flow.CHANGES, None))
+        rejected = naming(test_flow.APPROVED, test_flow.CHANGES)
+        alone = naming(test_flow.CHANGES, None)
         found = [
-            standing.reviewed(rejected, both),
-            standing.reviewed(alone, steps.Stage.PLAN_ONLY),
+            answer(rejected, both, held(HEAD)),
+            answer(alone, steps.Stage.PLAN_ONLY, held(HEAD)),
         ]
-        assert_that(
-            found,
-            equal_to(
-                [
-                    steps.worker(steps.Task.FIX_EXECUTION),
-                    steps.worker(steps.Task.REVISE_PLAN),
-                ]
-            ),
-        )
+        fix, revise = steps.Task.FIX_EXECUTION, steps.Task.REVISE_PLAN
+        assert_that(found, equal_to([steps.worker(fix), steps.worker(revise)]))
 
     def test_an_approval_of_the_state_is_merged(self) -> None:
         """Both grades approve the head and body that stand."""
-        approved = state(naming(test_flow.APPROVED, test_flow.APPROVED))
-        found = standing.reviewed(approved, steps.Stage.EXECUTION_AGAINST_PLAN)
+        approved = naming(test_flow.APPROVED, test_flow.APPROVED)
+        found = answer(approved, steps.Stage.EXECUTION_AGAINST_PLAN, held(HEAD))
         assert_that(found, equal_to(steps.merge()))
 
     def test_a_head_not_handed_back_is_handed_back_first(self) -> None:
         """The review stands, and the worker has still to hand the head back."""
-        rejected = worked(state(naming(None, test_flow.CHANGES)), held())
-        found = standing.reviewed(rejected, steps.Stage.EXECUTION_AGAINST_PLAN)
+        rejected = naming(None, test_flow.CHANGES)
+        found = answer(rejected, steps.Stage.EXECUTION_AGAINST_PLAN, held())
         assert_that(found, equal_to(HAND_BACK))
 
     def test_a_review_with_no_grade_to_answer_leaves_the_hand_back(self) -> None:
         """A named review that rejects nothing and approves nothing."""
-        silent = state(naming(None, None))
-        found = standing.reviewed(silent, steps.Stage.PLAN_ONLY)
+        found = answer(naming(None, None), steps.Stage.PLAN_ONLY, held(HEAD))
         assert_that(found, equal_to(HAND_BACK))

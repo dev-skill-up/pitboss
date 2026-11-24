@@ -188,13 +188,12 @@ def _worked(model: Model, step: steps.Next) -> Model:
     # the ruling a worker answers is the one the shipped flow reads as unapplied
     ruling = flowstate.ruling_unapplied(pull_state(model))
     newest = max((each[0] for each in model.history.rulings), default=-1)
-    applied = newest if ruling else model.applied
-    done = dataclasses.replace(
-        at, ci="green", conflict=False, history=made, applied=applied
-    )
+    applied = newest if ruling else model.history.applied
+    carried = dataclasses.replace(made, applied=applied)
+    done = dataclasses.replace(at, ci="green", conflict=False, history=carried)
     if step.task is not steps.Task.REVISE_PLAN:
         return done
-    revised = _checked(at, model.plan + 1, done.head)
+    revised = _checked(done, model.plan + 1, done.head)
     return dataclasses.replace(done, plan=model.plan + 1, history=revised)
 
 

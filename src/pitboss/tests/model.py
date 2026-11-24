@@ -40,11 +40,13 @@ class History:
         reviews: ``(when, plan, execution, head, plan version)`` of each review.
         rulings: ``(when, word)`` of each ruling.
         checks: ``(when, plan version, head)`` of each clean Plan check.
+        applied: when the ruling whose steps the body carries was posted, -1 none.
     """
 
     reviews: Sequence[Review] = ()
     rulings: Sequence[tuple[int, Ruling]] = ()
     checks: Sequence[tuple[int, int, int]] = ((2, 0, 0),)
+    applied: int = -1
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -62,7 +64,6 @@ class Model:
         since_pause: how many rulings were posted since the last pause.
         last: the name of the last event.
         clock: the number of events so far, as seconds.
-        applied: when the ruling whose steps the body carries was posted, -1 none.
     """
 
     head: int = 0
@@ -75,7 +76,6 @@ class Model:
     since_pause: int = 0
     last: str = "start"
     clock: int = FIRST
-    applied: int = -1
 
 
 def _times(model: Model) -> Sequence[int]:
@@ -106,7 +106,7 @@ def key(model: Model) -> Sequence[object]:
     return [
         (model.head, model.ci, model.conflict, model.paused, model.plan),
         (model.since_pause, model.last == DO_STEPS, rank[model.pushed]),
-        rank.get(model.applied, -1),
+        rank.get(made.applied, -1),
         [(rank[a], b, c, d, e) for a, b, c, d, e in made.reviews],
         [(rank[a], b) for a, b in made.rulings],
         [(rank[a], b, c) for a, b, c in made.checks],
@@ -234,7 +234,7 @@ def pull_state(model: Model) -> flow.PullState:
     head = {"sha": sha_of(model.head), "ref": "work"}
     dirty = "dirty" if model.conflict else "clean"
     pull = flowbody.pull_of(
-        body=body_of(model.plan, model.head, model.applied),
+        body=body_of(model.plan, model.head, model.history.applied),
         head=head,
         mergeable_state=dirty,
     )

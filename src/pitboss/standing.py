@@ -119,26 +119,15 @@ def of(pr: Held, stage: steps.Stage) -> steps.Standing | None:
 def _answered(pr: Held, stage: steps.Stage) -> steps.Next | None:
     # pitboss#526: a review already grades this state: approved, it is merged; rejected,
     # the worker fixes what it found; no hand-back changes a review that stands
-    handed = handbacks.covers(pr.handed, pr.pull.head.sha)
-    rejecting = [
-        each
-        for each in _naming(pr, stage)
-        if handed
-        if shapes.Verdict.CHANGES_NEEDED in (each.plan, each.execution)
-    ]
-    approving = [
-        each
-        for each in _naming(pr, stage)
-        if handed
-        and each.plan is shapes.Verdict.APPROVED
-        and each.execution is shapes.Verdict.APPROVED
-    ]
-    if approving:
-        return steps.merge()
-    if not rejecting:
+    if not handbacks.covers(pr.handed, pr.pull.head.sha):
         return None
+    grades = [(each.plan, each.execution) for each in _naming(pr, stage)]
+    approved = shapes.Verdict.APPROVED
+    if (approved, approved) in grades:
+        return steps.merge()
+    rejects = any(shapes.Verdict.CHANGES_NEEDED in each for each in grades)
     task = steps.Task.REVISE_PLAN if _alone(stage) else steps.Task.FIX_EXECUTION
-    return steps.worker(task)
+    return steps.worker(task) if rejects else None
 
 
 def reviewed(pr: Held, stage: steps.Stage) -> steps.Next:
