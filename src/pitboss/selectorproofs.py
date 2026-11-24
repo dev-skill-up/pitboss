@@ -102,7 +102,10 @@ def tasks_can_end_their_selection(package: Package) -> Sequence[str]:
         own fix).
     """
     sources = {short(name): each.syntax for name, each in package.sources.items()}
-    found = list(entry_findings(sources["workerselect"]))
+    table = sources.get("workerselect")
+    if table is None:
+        return ["P13.3: the table of worker tasks is missing"]
+    found = list(entry_findings(table))
     found += [
         f"P13.3: {name}:{node.lineno} gives a worker task outside steps.worker"
         for name, tree in sources.items()
