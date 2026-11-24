@@ -22,7 +22,7 @@ class Changes(TypedDict, total=False):
         pushed: when it was pushed.
         ci: the CI state.
         conflict: whether the PR conflicts.
-        paused: whether it carries the pause label.
+        paused: whether it ended impossible (its card is posted).
         plan: the Plan's version.
         history: what was posted.
         since_pause: rulings since the last pause.
@@ -93,12 +93,11 @@ def guard_allows(model: Model) -> bool:
         model: the PR.
 
     Returns:
-        True when the guard has no reason to refuse: no ruling is on the PR, or
-        it carries the pause label.
+        True when the guard has no reason to refuse: no ruling is on the PR.
     """
     state = pull_state(model)
     texts = [each.body for each in state.comments]
-    return rulingguard.refusal(texts, sorted(state.labels)) == ""
+    return rulingguard.refusal(texts) == ""
 
 
 def ruled(model: Model, word: Ruling, allowed: Allowed) -> Model | None:
@@ -120,13 +119,13 @@ def ruled(model: Model, word: Ruling, allowed: Allowed) -> Model | None:
 
 
 def paused(model: Model) -> Model:
-    """The PR labelled for the owner.
+    """The PR that ended impossible: its card is posted.
 
     Args:
         model: the PR.
 
     Returns:
-        The model with the label, and the count of rulings since the pause 0.
+        The model with the card, and the count of rulings since the pause 0.
     """
     return _then(model, "label", paused=True, since_pause=0)
 
@@ -210,7 +209,6 @@ def simulated(model: Model, step: steps.Move, allowed: Allowed) -> Model | None:
     made = _checked(model, model.plan, model.head)
     done: Mapping[steps.Step, Callable[[], Model | None]] = {
         steps.Step.OPUS_RULING: lambda: ruled(model, Ruling.DO_THESE_STEPS, allowed),
-        steps.Step.PAUSE_FOR_OWNER: lambda: paused(model),
         steps.Step.PLAN_CHECK: lambda: _then(model, "plan check", history=made),
         steps.Step.SEND_BACK_PLAN_CHECK: lambda: _push_checked(model, "send back"),
         steps.Step.REGULAR_REVIEW: lambda: _reviewed(model, step),

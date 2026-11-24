@@ -17,7 +17,7 @@ def _step(read: pullfacts.PullRead) -> steps.Move:
     state, signals = read.state, read.signals
     step = pinsask.unreviewed(flow.next_step(state), signals.pins)
     match step:
-        case steps.Idle():
+        case steps.Idle() | steps.Ended():
             return step
         case steps.Next():
             ruled = rulingreason.times(state.comments, state.trusted, step)

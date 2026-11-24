@@ -3,7 +3,6 @@
 The keyword is generated-markup, T433.
 """
 
-import argparse
 import pathlib
 import unittest
 from typing import Mapping, Sequence
@@ -11,6 +10,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import generatedfiles, plancheck_commands
+from . import fakeargs
 from . import fakes
 
 STAT = "1\t1\treports/r.md\x002\t0\tdocs/a.md\x003\t3\tsrc/x.py\x00"
@@ -66,6 +66,6 @@ class TestGenerated(unittest.TestCase):
     def test_t433_the_head_tree_is_grepped_for_the_path(self) -> None:
         """The runner's ``git grep`` output lists the files that name it."""
         listed = fakes.Output(stdout="tools/gen.py\n")
-        args = argparse.Namespace(safe_run=lambda words: listed)
+        args = fakeargs.args(safe_run=lambda words: listed)
         scripted = plancheck_commands.scripted_in(args, pathlib.Path("."))
         assert_that(scripted("reports/r.md"), equal_to(True))

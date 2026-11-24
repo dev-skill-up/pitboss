@@ -1,6 +1,6 @@
 """The form of an Opus ruling file that ``ruling post`` posts (pitboss#466)."""
 
-from . import analysis, flowstate, rulingwords, sessionurl
+from . import analysis, flowstate, rulingtyped, rulingwords, sessionurl
 
 NO_WORD = "the second line is not `Ruling: <word>` with a word of: "
 
@@ -18,9 +18,12 @@ def refusal(text: str) -> str:
     """
     if not flowstate.is_ruling(text):
         return "the first line is not exactly `Opus ruling`"
-    if flowstate.read_ruling(text) is None:
+    word = flowstate.read_ruling(text)
+    if word is None:
         second = "".join(sessionurl.lines(text)[1:2]).rstrip()
         return f"{NO_WORD}{rulingwords.WORDS} (it is {second!r})"
     if not analysis.has_section(text):
         return f"no `{analysis.SECTION}` section with the analysis in it"
+    if word is rulingwords.Ruling.REVISE_THE_PLAN:
+        return rulingtyped.refusal(text)
     return ""

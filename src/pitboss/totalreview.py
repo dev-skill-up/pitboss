@@ -18,6 +18,7 @@ from . import bodydigest, expansion, plandigest
 from .reviewattempt import LOOSE_GRADE, is_attempt
 from .plansection import plan_section
 from .pullrecords import Errored, Event, Ticket
+from . import typedstd
 
 GRADES = ("approved", "changes needed")
 GRADE_LINE = re.compile(r"(Plan|Execution): (approved|changes needed)( \([^()\n]*\))?")
@@ -71,7 +72,9 @@ def ticket_lines(tickets: TicketReads) -> Sequence[str]:
 
 
 def _head_finding(lines: Sequence[str], head: str) -> str:
-    named = [match.group(2) for line in lines if (match := HEAD_LINE.search(line))]
+    named = [
+        typedstd.group(match, 2) for line in lines if (match := HEAD_LINE.search(line))
+    ]
     if len(named) != 1:
         return (
             f"the newest review has {len(named)} head lines"

@@ -135,11 +135,11 @@ class TestDecideItem(unittest.TestCase):
         found = decide.decide_in(grounds, pull_record([STUCK]))
         assert_that(found, none())
 
-    def test_a_stuck_run_is_the_owners(self) -> None:
-        """A run stuck past its limit is the owner's verb on the PR."""
+    def test_a_stuck_run_is_the_orchestrators(self) -> None:
+        """A run stuck past its limit is the orchestrator's re-run of the PR."""
         found = decide.decide_item(pull_record([STUCK]))
         said = answer.Decision(
-            actor=answer.Actor.OWNER,
+            actor=answer.Actor.ORCHESTRATOR,
             verb=stuckwords.warning(STUCK),
             item="owner/project#3",
             title="PR 3",
@@ -237,7 +237,7 @@ class TestReads(unittest.TestCase):
 
     def test_an_idle_pr_is_in_no_category(self) -> None:
         """A PR no actor takes is offered for no round."""
-        idle = steps.IDLE
+        idle = steps.Idle.CI_RUN
         facts = test_work.stepped(test_work.facts(3, test_work.NONE), idle)
         assert_that(work.category_of(facts), none())
 

@@ -43,7 +43,7 @@ def run_in(
     Returns:
         The exit status and the output.
     """
-    done = args.safe_run(
+    done = args.world.safe_run(
         ["sh", "-c", command],
         cwd=directory,
         check=False,
@@ -70,7 +70,7 @@ def head_of(args: argparse.Namespace) -> str:
         The 40 hex digits of its HEAD; empty when git cannot say.
     """
     try:
-        done = args.safe_run(
+        done = args.world.safe_run(
             ["git", "-C", args.cwd, "rev-parse", "HEAD"],
             check=True,
             capture_output=True,
@@ -105,7 +105,7 @@ MERGE_NOTICE = (
 def _merge_notice(args: argparse.Namespace) -> str:
     # a merge commit at the head: the lines the Plan cites may have moved
     try:
-        done = args.safe_run(
+        done = args.world.safe_run(
             ["git", "-C", args.cwd, "rev-list", "--parents", "-n", "1", "HEAD"],
             check=True,
             capture_output=True,
@@ -124,7 +124,7 @@ def _body(args: argparse.Namespace) -> str:
     found = PULL.match(args.pr)
     if not found:
         raise _fail(f"{args.pr}: not OWNER/NAME#NUMBER")
-    runners = (args.safe_run, args.run)
+    runners = (args.world.safe_run, args.world.run)
     store = ghstore.store_of(runners, found.group(1), int(found.group(2)))
     try:
         done = evidencesplit.place(store, text, args.limit)

@@ -47,8 +47,19 @@ class NotInForm:
 Read = Items | NotInForm  # what the reader makes of a body
 
 
+BLANK = re.compile(r"\n\s*\n")
+
+
+def _cut(pattern: re.Pattern[str], text: str) -> Sequence[str]:
+    edges = [0]
+    for found in pattern.finditer(text):
+        edges += [found.start(), found.end()]
+    edges.append(len(text))
+    return [text[edges[each] : edges[each + 1]] for each in range(0, len(edges), 2)]
+
+
 def _section(body: str | None) -> Sequence[str] | NotInForm:
-    parts = HEADING.split(body or "")
+    parts = _cut(HEADING, body or "")
     if len(parts) != 2:
         return NotInForm(
             problem=f"the ticket has {len(parts) - 1} `## Done when` headings, not one"
@@ -83,7 +94,7 @@ def _listed(section: Sequence[str]) -> Read:
 
 
 def _paragraphs(lines: Sequence[str]) -> Read:
-    paragraphs = re.split(r"\n\s*\n", "\n".join(lines))
+    paragraphs = _cut(BLANK, "\n".join(lines))
     return Items(
         found=[
             " ".join(each.split())

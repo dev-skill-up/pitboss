@@ -14,7 +14,6 @@ alternative is a line of its own.
 
 import dataclasses
 import importlib.resources
-import pathlib
 import re
 from typing import Callable, Sequence, TypeVar
 
@@ -54,6 +53,11 @@ TOKEN = re.compile(r"\[[^\]]*\]|\\.?|.", re.DOTALL)
 PIECE = re.compile(r"\\.?|.", re.DOTALL)
 
 
+def _text(found: re.Match[str]) -> str:
+    start, end = found.span()
+    return found.string[start:end]
+
+
 def _class_piece(piece: str) -> str:
     if len(piece) == 2:
         return piece if piece[1] in CLASS_ESCAPES else re.escape(piece[1])
@@ -67,7 +71,7 @@ def _class(token: str) -> str:
         body = body[1:]
     if not body:
         raise PhraseError(f"{token}: a class holds no character")
-    pieces = "".join(_class_piece(each) for each in PIECE.findall(body))
+    pieces = "".join(_class_piece(_text(each)) for each in PIECE.finditer(body))
     return f"[{'^' if negated else ''}{pieces}]"
 
 
@@ -104,7 +108,7 @@ def compile_pattern(pattern: str) -> re.Pattern[str]:
         raise PhraseError("a pattern is empty")
     parts: list[str] = []
     repeatable = False
-    for token in TOKEN.findall(pattern):
+    for token in map(_text, TOKEN.finditer(pattern)):
         if token in QUANTIFIERS and parts and repeatable:
             parts[-1] += token
             repeatable = False
@@ -191,39 +195,6 @@ def default_text() -> str:
         The text.
     """
     return shipped_text("phrases.tsv")
-
-
-def read_text(path: pathlib.Path) -> str:
-    """Read a UTF-8 file.
-
-    Args:
-        path: the file.
-
-    Returns:
-        Its text.
-
-    Raises:
-        PhraseError: when the file cannot be read or is not valid UTF-8.
-    """
-    try:
-        return path.read_text(encoding="utf-8")
-    except OSError as error:
-        raise PhraseError(f"{path}: {error.strerror}") from error
-    except UnicodeDecodeError as error:
-        raise PhraseError(f"{path}: not valid UTF-8 ({error.reason})") from error
-
-
-def load(path: pathlib.Path) -> Sequence[Phrase]:
-    """Read a project's phrase file.
-
-    Args:
-        path: the file.
-
-    Returns:
-        The phrases; a file that cannot be read or is not well formed is a
-        ``PhraseError``.
-    """
-    return parse(read_text(path), str(path))
 
 
 def _shown(line: str) -> str:

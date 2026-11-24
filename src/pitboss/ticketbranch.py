@@ -144,11 +144,11 @@ def require(args: argparse.Namespace, env: Mapping[str, str]) -> None:
     if not ticket:
         return
     try:
-        done = args.safe_run(["git", "branch", "--show-current"])
+        done = args.world.safe_run(["git", "branch", "--show-current"])
         branch = str(done.stdout).strip()
     except (OSError, subprocess.CalledProcessError):
         branch = ""
-    heads = pull_branches(running.read_only(args.safe_run), ticket)
+    heads = pull_branches(running.read_only(args.world.safe_run), ticket)
     said = refusal(ticket, branch, heads)
     if said:
         print(said)

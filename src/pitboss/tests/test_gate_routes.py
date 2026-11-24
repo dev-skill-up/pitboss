@@ -51,11 +51,25 @@ class TestRoutes(unittest.TestCase):
     def test_p8_a_verb_runs_only_on_the_step_it_carries(self) -> None:
         """``allows`` reads the decision's ``carried``, not its words."""
         merging = stopped("", answer.Carried.MERGE)
+        reviewing = stopped("", answer.Carried.REVIEW)  # keyword: accepts
+        carried = {
+            gateverbs.OwnVerb.PUSH: answer.Carried.PUSH,
+            gateverbs.OwnVerb.DISPATCH_WORKFLOW: answer.Carried.DISPATCH,
+            gateverbs.OwnVerb.CLOSE: answer.Carried.CLOSE,
+            gateverbs.OwnVerb.LABEL: answer.Carried.LABEL,
+        }
+        own = [
+            (gateverbs.allows(verb, stopped("", wanted), "o/r#1"), verb in carried)
+            for verb, wanted in carried.items()
+        ]
+        assert_that(own, equal_to([(True, True)] * len(carried)))
         said = [
+            gateverbs.allows(gateverbs.OwnVerb.REVIEW, reviewing, "o/r#1"),
+            gateverbs.allows(gateverbs.OwnVerb.REVIEW, merging, "o/r#1"),
             gateverbs.allows(gateverbs.ItemVerb.MERGE, merging, "o/r#1"),
             gateverbs.allows(gateverbs.ItemVerb.ARM, merging, "o/r#1"),
             gateverbs.allows(gateverbs.ItemVerb.UNDRAFT, merging, "o/r#1"),
             gateverbs.allows(gateverbs.ItemVerb.MERGE, worker("o/r#1"), "o/r#1"),
             gateverbs.allows(gateverbs.ItemVerb.OVERRIDE, merging, "o/r#1"),
         ]
-        assert_that(said, equal_to([True, True, False, False, False]))
+        assert_that(said, equal_to([True, False, True, True, False, False, False]))

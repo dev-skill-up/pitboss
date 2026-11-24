@@ -7,7 +7,16 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import steps, stepwords
-from . import actreviewed, decisionline, fakes, quietworld, test_flow_sweep, world
+from . import (
+    actreviewed,
+    card,
+    decisionline,
+    fakes,
+    headed,
+    quietworld,
+    test_flow_sweep,
+    world,
+)
 from .says import read_failed
 
 BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -52,6 +61,7 @@ def third(here: world.World, **changes: object) -> None:
         **changes: changes to its JSON.
     """
     changes = {"body": BODY, "head": {"sha": "3" * 40, "ref": "branch-3"}, **changes}
+    changes = dict(headed.headed(changes, "3" * 40))
     here.bodies[THIRD] = fakes.pull_body(3, **changes)
     fakes.listed_row(here.bodies, world.PROJECT, 3, **changes)
 
@@ -186,10 +196,12 @@ class TestNext(unittest.TestCase):
         words = stepwords.describe(steps.worker(steps.Task.FIRST_ROUND))
         decides(next_for(here, "#3"), WORKER.format(3, words))
 
-    def test_a_paused_pr_has_no_decision(self) -> None:
-        """The pause label is read from the PR: it waits, so the list is printed."""
+    def test_an_impossible_pr_has_no_decision(self) -> None:
+        """The card is read from the PR: it has no step, so the list is printed."""
         here = world.make_world()
-        third(here, labels=[{"name": "paused-owner"}])
+        third(here)
+        path = fakes.page("repos/owner/project/issues/3/comments")
+        here.bodies[path] = [world.comment_json(card.impossible())]
         listed(next_for(here, "#3"), "owner/project#3")
 
     def test_a_draft_at_its_undraft_is_gated(self) -> None:

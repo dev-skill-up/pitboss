@@ -8,7 +8,7 @@ session runs at a check-in or before a push make it (keyword: tracefs).
 import subprocess
 import sys
 
-from typing import Sequence
+from typing import Protocol, Sequence
 
 from .running import Run
 
@@ -56,6 +56,23 @@ def ensure(run: Run) -> str:
     if code == 0:
         return "tracefs: mounted"
     return f"tracefs: NOT MOUNTED (mount exit status {code})"
+
+
+class WithRunner(Protocol):
+    """Something that has a runner, as the world a command is given has."""
+
+    @property
+    def safe_run(self) -> Run:
+        """Return the runner (one that runs in a dry run too)."""
+
+
+def said(world: WithRunner) -> None:
+    """Make the mount and print its line on stderr, with a world's runner.
+
+    Args:
+        world: what the command is given.
+    """
+    say(world.safe_run)
 
 
 def say(run: Run) -> None:

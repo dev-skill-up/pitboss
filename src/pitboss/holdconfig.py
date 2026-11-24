@@ -2,6 +2,7 @@
 
 import dataclasses
 from typing import AbstractSet, Mapping
+from . import typedstd
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -37,11 +38,11 @@ def from_document(document: Mapping[str, object], owner: str) -> Holds:
         ValueError: when the table is not a table, ``new_pull_requests`` is not
             a list or ``max_open`` is not a whole number of at least 0.
     """
-    table = document.get("holds", {})
-    if not isinstance(table, dict):
+    table = typedstd.members(document.get("holds", {}))
+    if table is None:
         raise ValueError(f"[holds] must be a table, not {table!r}")
-    named = table.get("new_pull_requests", [])
-    if not isinstance(named, list):
+    named = typedstd.items(table.get("new_pull_requests", []))
+    if named is None:
         raise ValueError(f"[holds] new_pull_requests must be a list, not {named!r}")
     most = table.get("max_open", 0)
     if isinstance(most, bool) or not isinstance(most, int) or most < 0:

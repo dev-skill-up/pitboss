@@ -33,15 +33,16 @@ class Handling:
         said: what the actor does, empty when no actor takes it.
         lifted: whether ``act override`` may lift it (never a red, an unread
             input, or a route no actor takes).
+        carried: the ``act`` verb that carries the route out (keyword: accepts).
     """
 
     what: str
     actor: answer.Actor | None
     said: str
     lifted: bool
+    carried: answer.Carried
 
 
-OWNER = answer.Actor.OWNER
 ORCHESTRATOR = answer.Actor.ORCHESTRATOR
 WORKER = answer.Actor.WORKER
 REVIEWER = answer.Actor.REVIEWER
@@ -49,17 +50,28 @@ REVIEWER = answer.Actor.REVIEWER
 
 def _lifted(actor: answer.Actor, what: str, said: str) -> Handling:
     # a route an actor takes, which ``act override`` may lift
-    return Handling(what=what, actor=actor, said=said, lifted=True)
+    return Handling(
+        what=what, actor=actor, said=said, lifted=True, carried=answer.Carried.NOTHING
+    )
 
 
 def _kept(actor: answer.Actor, what: str, said: str) -> Handling:
     # a route an actor takes, which no override lifts (a red, an unread input)
-    return Handling(what=what, actor=actor, said=said, lifted=False)
+    return Handling(
+        what=what, actor=actor, said=said, lifted=False, carried=answer.Carried.NOTHING
+    )
+
+
+def _carrying(handling: Handling, carried: answer.Carried) -> Handling:
+    # a route the ``act`` verb carries out (keyword: accepts)
+    return dataclasses.replace(handling, carried=carried)
 
 
 def _untaken(what: str) -> Handling:
     # a route no actor takes now, which no override lifts
-    return Handling(what=what, actor=None, said="", lifted=False)
+    return Handling(
+        what=what, actor=None, said="", lifted=False, carried=answer.Carried.NOTHING
+    )
 
 
 class Route(enum.Enum):
@@ -70,7 +82,6 @@ class Route(enum.Enum):
 
     Attributes:
         HOLD: a hold covers the action.
-        PAUSED: the owner paused the PR.
         LOCK: the conversation is locked.
         REVIEWERS: a human review was requested.
         CHANGES_REQUESTED: a human's formal request for changes stands.
@@ -95,15 +106,16 @@ class Route(enum.Enum):
     """
 
     HOLD = _untaken("a hold covers the action")
-    PAUSED = _lifted(OWNER, "the owner paused the PR", "remove paused-owner")
-    LOCK = _lifted(OWNER, "the conversation is locked", "unlock the conversation")
+    LOCK = _lifted(
+        ORCHESTRATOR, "the conversation is locked", "unlock the conversation"
+    )
     REVIEWERS = _lifted(
-        OWNER,
+        ORCHESTRATOR,
         "a human review was requested",
-        "give or withdraw the requested human review",
+        "withdraw the requested human review",
     )
     CHANGES_REQUESTED = _lifted(
-        OWNER,
+        ORCHESTRATOR,
         "a human's formal request for changes stands",
         "dismiss the formal request for changes",
     )
@@ -117,10 +129,13 @@ class Route(enum.Enum):
     UNDRAFT = _lifted(
         ORCHESTRATOR, "the PR is a draft", "`act undraft` once the Plan is approved"
     )
-    LABEL = _lifted(
-        ORCHESTRATOR,
-        "a label pitboss does not apply",
-        "`act label --remove` the label pitboss does not apply",
+    LABEL = _carrying(
+        _lifted(
+            ORCHESTRATOR,
+            "a label pitboss does not apply",
+            "`act label --remove` the label pitboss does not apply",
+        ),
+        answer.Carried.LABEL,
     )
     DISARM = _lifted(
         ORCHESTRATOR,
@@ -141,10 +156,13 @@ class Route(enum.Enum):
     UNDECIDED = _untaken("GitHub has not decided whether the PR merges")
     RUNNING = _untaken("a check or status of the head has not finished")
     RED = _kept(ORCHESTRATOR, "a check or status of the head failed", TRIAGE)
-    REVIEW = _lifted(
-        REVIEWER,
-        "the newest review is not of the head as it is",
-        "`act review` the head as it is now",
+    REVIEW = _carrying(
+        _lifted(
+            REVIEWER,
+            "the newest review is not of the head as it is",
+            "`act review` the head as it is now",
+        ),
+        answer.Carried.REVIEW,
     )
     BODY = _lifted(
         WORKER,
@@ -164,10 +182,13 @@ class Route(enum.Enum):
         "the body closes no ticket",
         "`act pr-edit`: the first line is `Fixes #N`",
     )
-    TICKET = _lifted(
-        ORCHESTRATOR,
-        "a ticket the body closes is not an open issue",
-        "`act close` the PR or `act pr-edit` to the open ticket",
+    TICKET = _carrying(
+        _lifted(
+            ORCHESTRATOR,
+            "a ticket the body closes is not an open issue",
+            "`act close` the PR or `act pr-edit` to the open ticket",
+        ),
+        answer.Carried.CLOSE,
     )
 
 

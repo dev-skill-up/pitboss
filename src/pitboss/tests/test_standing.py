@@ -10,27 +10,15 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import bodydigest, flow, flowquestions, handbacks, standing, steps
-from . import pullstates, reviewsteps, test_flow
+from . import headed, pullstates, reviewsteps, test_flow
+from .derivedhand import held
+from . import usedrounds
 from .test_flow import CHANGES, HEAD, OLDER, expect, graded, state
 
-BODY_DIGEST = bodydigest.digest(test_flow.BODY)
+BODY_DIGEST = bodydigest.digest(headed.with_head_line(test_flow.BODY, HEAD))
 RULING = "https://example.org/ruling/3"
 STAGE = steps.Stage.PLAN_ONLY
 HAND_BACK = reviewsteps.HAND_BACK
-ANYTHING = (HEAD, handbacks.ANY, handbacks.ANY)
-NONE = handbacks.NO_RULING
-
-
-def held(*states: tuple[str, str, str]) -> handbacks.HandedBack:
-    """What a worktree recorded.
-
-    Args:
-        *states: each ``(head, body digest, ruling)``.
-
-    Returns:
-        The record of a PR a worker holds.
-    """
-    return handbacks.HandedBack(required=True, states=frozenset(states))
 
 
 def worked(pr: flow.PullState, record: handbacks.HandedBack) -> flow.PullState:
@@ -66,29 +54,15 @@ def has_standing(
 class TestStanding(unittest.TestCase):
     """``standing.of`` for a head and body."""
 
-    def test_the_record_must_name_the_head_the_body_and_the_ruling(self) -> None:
-        """Each of the three is the one recorded, or there is no standing."""
-        records = [
-            held((HEAD, BODY_DIGEST, NONE)),
-            held(ANYTHING),
-            held((OLDER, BODY_DIGEST, NONE)),
-            held((HEAD, "0" * 16, NONE)),
-            held((HEAD, BODY_DIGEST, RULING)),
-            held(),
-        ]
+    def test_the_body_must_name_the_head_under_a_clean_check(self) -> None:
+        """The head named, another head, and none."""
+        records = [held(HEAD), held(OLDER), held()]
         found = [has_standing(worked(state(), each)) for each in records]
-        assert_that(found, equal_to([True, True, False, False, False, False]))
+        assert_that(found, equal_to([True, False, False]))
 
     def test_a_pr_no_worker_holds_needs_no_hand_back(self) -> None:
         """No worktree: the relock PRs and the PRs of other hands."""
         assert_that(has_standing(state()), equal_to(True))
-
-    def test_the_newest_ruling_is_the_one_a_hand_back_must_have_seen(self) -> None:
-        """A ruling is on the PR: the record names it, or the head has no standing."""
-        pr = state(comments=[test_flow.ruling(3)])
-        seen = has_standing(worked(pr, held((HEAD, BODY_DIGEST, RULING))))
-        unseen = has_standing(worked(pr, held((HEAD, BODY_DIGEST, NONE))))
-        assert_that([seen, unseen], equal_to([True, False]))
 
     def test_a_review_names_a_state_and_a_stage_once(self) -> None:
         """No second review of one state for a stage; another stage or state is fine."""
@@ -121,7 +95,7 @@ class TestAfterARuling(unittest.TestCase):
         after = dataclasses.replace(
             graded(test_flow.APPROVED, CHANGES, 5), body=BODY_DIGEST
         )
-        record = held((HEAD, BODY_DIGEST, RULING))
+        record = held(HEAD)
         ruled = [test_flow.ruling(3)]
         waiting = worked(state(before, comments=ruled), record)
         answered = worked(state(before, after, comments=ruled), record)
@@ -141,7 +115,7 @@ class TestWithoutAHandBack(unittest.TestCase):
     def test_the_review_is_offered_once_the_head_is_handed_back(self) -> None:
         """The record names the head and the body."""
         both = steps.Stage.PLAN_AND_EXECUTION
-        record = held((HEAD, BODY_DIGEST, NONE))
+        record = held(HEAD)
         expect(reviewsteps.review(both), worked(state(), record))
 
 
@@ -169,12 +143,13 @@ class TestRounds(unittest.TestCase):
         """quire#1122, #1125: the ruling's steps go to the worker again."""
         expect(
             test_flow.ruling_steps(3),
-            rejected_after_ruling(held((OLDER, handbacks.ANY, handbacks.ANY))),
+            rejected_after_ruling(held(HEAD)),
         )
 
     def test_a_rejection_of_a_handed_back_head_is_a_round(self) -> None:
-        """The second rejection after the ruling pauses for the owner."""
-        expect(steps.pause_for_owner(), rejected_after_ruling(held(ANYTHING)))
+        """The second rejection after the ruling is a worker's, never the owner's."""
+        pr = rejected_after_ruling(held(HEAD, "0"))
+        expect(usedrounds.PLAN_ROUND, pr)
 
     def test_plan_rejections_count_distinct_handed_back_states(self) -> None:
         """quire#1120: one state graded twice is one; an unhanded one is none."""
@@ -184,7 +159,7 @@ class TestRounds(unittest.TestCase):
         )
         distinct = state(graded(CHANGES, None, 1, sha=OLDER), graded(CHANGES, None, 2))
         rejected = (test_flow.FIRST_REJECTION, test_flow.SECOND_REJECTION)
-        unhanded = worked(state(*rejected), held(ANYTHING))
+        unhanded = worked(state(*rejected), held(HEAD, "2026-10-30T00:00:02Z"))
         found = [
             flowquestions.get_plan_rejections(each)
             for each in (twice, distinct, unhanded)

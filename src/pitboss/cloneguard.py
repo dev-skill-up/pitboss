@@ -43,7 +43,7 @@ def clones_of(settings: config.Config) -> Sequence[pathlib.Path]:
 
 def _git(args: argparse.Namespace, clone: pathlib.Path, *words: str) -> str:
     try:
-        done = args.safe_run(
+        done = args.world.safe_run(
             ["git", "-C", str(clone), *words],
             check=True,
             capture_output=True,
@@ -161,7 +161,7 @@ def inside_dirty_clone(
         True when the checkout's top-level directory is one of the clones and
         it has an uncommitted change.
     """
-    root = configsearch.git_root(start.resolve(), configsearch.ceilings(args.env))
+    root = configsearch.git_root(start.resolve(), configsearch.ceilings(args.world.env))
     if root is None:
         return False
     clones = {each.resolve() for each in clones_of(settings)}

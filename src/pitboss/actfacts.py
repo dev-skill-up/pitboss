@@ -103,12 +103,17 @@ class ActRead:
         repos: the repositories it covers (its target's, or every one for all).
         pending: the owner's messages that have no disposition, in order.
         checks: the facts its own decision turns on, in the order they are read.
+        pressured: the runner-pressure line when the verb costs runs and the runners
+            are held, else empty (keyword: act-pressure).
     """
 
     verb: str
     repos: Sequence[str]
     pending: Sequence[str]
     checks: Sequence[Check]
+    pressured: str
 
 
-NO_ACT = ActRead(verb="", repos=(), pending=(), checks=())  # no verb was asked
+NO_ACT = ActRead(
+    verb="", repos=(), pending=(), checks=(), pressured=""
+)  # no verb was asked

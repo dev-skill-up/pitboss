@@ -46,7 +46,7 @@ def hook(args: argparse.Namespace) -> None:
     configsettle.find_or_say(args)
     settings = commands.load_settings(args)
     lines = prepush.hook_failure(
-        args.safe_run, settings.project.pre_push, commands.working_directory(args)
+        args.world.safe_run, settings.project.pre_push, commands.working_directory(args)
     )
     for each in lines:
         print(each)

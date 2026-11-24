@@ -18,6 +18,10 @@ from . import pulls, pullstate, reviews, shapes, world
 from .totaljson import name_at
 
 
+def _when(each: tuple[str, pullrecords.Event]) -> str:
+    return each[0]
+
+
 def _events(sources: reviews.Sources) -> Sequence[pullrecords.Event]:
     # the PR's comments and reviews as the gate's events, oldest first: the
     # PR's own read of them, not its timeline read again
@@ -28,7 +32,7 @@ def _events(sources: reviews.Sources) -> Sequence[pullrecords.Event]:
         (each.submitted_at, _as_event("reviewed", each.state, each))
         for each in sources.reviews
     ]
-    return [event for _, event in sorted(said, key=lambda each: each[0])]
+    return [event for _, event in sorted(said, key=_when)]
 
 
 def _as_event(
@@ -91,4 +95,5 @@ def identity_of(github: ghapi.GitHub) -> str:
     Returns:
         The login.
     """
-    return name_at(json.loads(github.run(["gh", "api", "user"]).stdout), "login")
+    user: object = json.loads(github.run(["gh", "api", "user"]).stdout)
+    return name_at(user, "login")

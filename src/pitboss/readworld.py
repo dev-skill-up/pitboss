@@ -42,6 +42,7 @@ from . import (
     readextent,
     ticketdata,
     workorder,
+    typedstd,
     world,
 )
 
@@ -143,11 +144,10 @@ def _grounds(walking: _Walking) -> world.Grounds:
     # what is known before an item is read, with every row read so far
     reading = walking.reading
     rank = pullsearch.ranked(reading.settings)
-    rows = sorted(
-        _rows(walking).values(), key=lambda row: (row.created_at, rank[row.repo.slug])
-    )
     return world.Grounds(
-        listing=rows,
+        listing=typedstd.ordered(
+            _rows(walking).values(), lambda row: (row.created_at, rank[row.repo.slug])
+        ),
         book=reading.book,
         holds=reading.holds,
         held=walking.held,
@@ -397,4 +397,4 @@ def _asked_for(reading: Reading, extent: modequestion.Extent) -> Sequence[str]:
         *readextent.pushed(reading.github, extent),
         *reading.settings.slots.owner_priorities,
     ]
-    return list(dict.fromkeys(named))
+    return typedstd.unique(named)

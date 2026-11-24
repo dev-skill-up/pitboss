@@ -6,7 +6,6 @@ The rules are read from ``standing.tsv`` and not retyped here: each row's needle
 be in the printed brief of every worker kind, for each kind of repository.
 """
 
-import argparse
 import pathlib
 import unittest
 from typing import Sequence
@@ -14,6 +13,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_
 
 from .. import brief, envcheck, envrules, gaterun
+from . import fakeargs
 from . import fakes, world
 from .briefmake import text as brief_text
 from .test_gate_run import answering
@@ -102,7 +102,7 @@ def verdicts(runner: gaterun.Runner, slug: str) -> Sequence[str]:
     Returns:
         The lines.
     """
-    args = argparse.Namespace(safe_run=runner, repo=fakes.directory())
+    args = fakeargs.args(safe_run=runner, repo=fakes.directory())
     return list(envcheck.verdicts(args, envrules.NEEDS, envrules.kinds_of(slug)))
 
 

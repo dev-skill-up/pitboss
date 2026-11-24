@@ -15,7 +15,7 @@ import pathlib
 import re
 from typing import Sequence
 
-from . import phrases
+from . import phrasefile, phrases
 
 FIELDS = 5
 CODE_SPAN = re.compile(r"`[^`]*`")
@@ -115,7 +115,7 @@ def load(path: pathlib.Path) -> Sequence[Pair]:
         The pairs; a file that cannot be read or is not well formed is a
         ``PhraseError``.
     """
-    return parse(phrases.read_text(path), str(path))
+    return parse(phrasefile.read_text(path), str(path))
 
 
 def _first_line(

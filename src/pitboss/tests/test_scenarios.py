@@ -19,6 +19,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_inanyorder, contains_string, equal_to
 
 from .. import capture, capture_commands, expansion, ghapi, plandigest, steps
+from . import fakeargs
 from . import fakes, scenario
 from .scenario import Mark
 
@@ -45,7 +46,10 @@ def revised_then_ruled(times: Sequence[str]) -> Sequence[Mark]:
         The marks (A1, A2, A4).
     """
     rules = ("A2", "A1", "A1", "A1", "A4")
-    wants = (RULING_STEPS, "PLAN_EDITED", RULING_STEPS, RULING_STEPS, "IDLE")
+    # the retired paused-owner label of the capture holds nothing back now (A4)
+    # quire#1130: a ruling stands, so the edited Plan is restored by a worker
+    restored = "WORKER:RESTORE_PLAN"
+    wants = (RULING_STEPS, restored, RULING_STEPS, RULING_STEPS, RULING_STEPS)
     return [Mark(*each) for each in zip(times, rules, wants)]
 
 
@@ -145,6 +149,14 @@ def digest_kept(name: str) -> None:
 
 class TestScenarios(unittest.TestCase):
     """The scenarios of the captured PRs."""
+
+    def test_an_idle_step_is_named_idle(self) -> None:
+        """A PR nobody acts on is named IDLE (an impossible PR is one)."""
+        assert_that(scenario.kind(steps.Idle.CI_RUN), equal_to("IDLE"))
+
+    def test_an_ended_step_is_named_impossible(self) -> None:
+        """An impossible PR is no idle one."""
+        assert_that(scenario.kind(steps.IMPOSSIBLE), equal_to("IMPOSSIBLE"))
 
     def test_a1_a2_a3_pitboss_465(self) -> None:
         """465: `revise the plan` then `do these steps` is executed (A1, A2)."""
@@ -256,7 +268,7 @@ def arguments(to: str | None, edits: str | None = None) -> argparse.Namespace:
         The namespace.
     """
     run = fakes.FakeProcesses(bodies=dict(github_bodies()))
-    return argparse.Namespace(pull="o/r#7", to=to, edits=edits, safe_run=run)
+    return fakeargs.args(pull="o/r#7", to=to, edits=edits, safe_run=run)
 
 
 class TestCaptureTimeline(unittest.TestCase):
@@ -302,8 +314,7 @@ class TestCaptureTimeline(unittest.TestCase):
             sorted(scenario.labels_at(data, when))
             for when in ("2026-11-11T22:40:00Z", "2026-11-11T23:00:00Z")
         ]
-        assert_that(labels, equal_to([[steps.PAUSED_LABEL], []]))
-        assert_that(steps.PAUSED_LABEL, equal_to("paused-owner"))
+        assert_that(labels, equal_to([["paused-owner"], []]))
         assert_that(ghapi.PAGE_SIZE, equal_to(100))
 
     def test_capture_timeline_command_writes_the_file(self) -> None:
@@ -322,7 +333,7 @@ class TestCaptureTimeline(unittest.TestCase):
 
     def test_capture_timeline_command_refuses_a_bad_pull(self) -> None:
         """An argument that is not OWNER/NAME#N exits with the reason."""
-        args = argparse.Namespace(pull="nope", to=None, edits=None, safe_run=None)
+        args = fakeargs.args(pull="nope", to=None, edits=None, safe_run=None)
         with self.assertRaises(SystemExit) as raised:
             capture_commands.capture_timeline(args)
         assert_that(str(raised.exception), contains_string("not OWNER/NAME#NUMBER"))

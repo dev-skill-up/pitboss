@@ -53,7 +53,7 @@ def capture_timeline(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
-    text = _timeline(args.pull, ghclient.read_only(args.safe_run), args.edits)
+    text = _timeline(args.pull, ghclient.read_only(args.world.safe_run), args.edits)
     if args.to:
         pathlib.Path(args.to).write_text(text, encoding="utf-8")
     else:

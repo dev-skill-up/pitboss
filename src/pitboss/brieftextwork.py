@@ -121,12 +121,18 @@ TASK_FINISH_PARTIAL = (
     " prints ok, push the unpushed commits), change nothing else, then stop with the"
     " hand-back."
 )
+TASK_HAND_BACK = (
+    "Task: PR {reference}: its head and body were not handed back. Change nothing:"
+    " run `uvx pitboss hand-back-check` on the current head and body, fix what a"
+    " check names until all pass, then stop with the hand-back."
+)
 
 Kind = briefkind.Kind
 TASKS: Mapping[Kind, str] = {
     Kind.NEW_PR: text.TASK_NEW_PR,
     Kind.FIRST_ROUND: text.TASK_FIRST_ROUND,
     Kind.REVISE_PLAN: text.TASK_REVISE_PLAN,
+    Kind.RESTORE_PLAN: text.TASK_RESTORE_PLAN,
     Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
     Kind.FIX_ROUND: brieftextfix.TASK_FIX_ROUND,
     Kind.FIX_CI: text.TASK_FIX_CI,
@@ -140,4 +146,5 @@ TASKS: Mapping[Kind, str] = {
     Kind.FIX_BLOCKED_BY: TASK_FIX_BLOCKED_BY,
     Kind.AFTER_BLOCKER: TASK_AFTER_BLOCKER,
     Kind.FINISH_PARTIAL: TASK_FINISH_PARTIAL,
+    Kind.HAND_BACK: TASK_HAND_BACK,
 }

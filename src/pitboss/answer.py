@@ -20,14 +20,12 @@ class Actor(enum.Enum):
         REVIEWER: a reviewer in a slot, never the author.
         RULING: an Opus agent, no slot.
         ORCHESTRATOR: the orchestrator itself.
-        OWNER: the owner.
     """
 
     WORKER = enum.auto()
     REVIEWER = enum.auto()
     RULING = enum.auto()
     ORCHESTRATOR = enum.auto()
-    OWNER = enum.auto()
 
 
 class Carried(enum.Enum):
@@ -37,11 +35,21 @@ class Carried(enum.Enum):
         NOTHING: no gated verb (a ticket, a review, a fix, a stop's route).
         MERGE: ``act merge`` or ``act arm``: the PR merges.
         UNDRAFT: ``act undraft``: the PR is undrafted.
+        REVIEW: ``act review``: a reviewer grades the head (keyword: accepts).
+        PUSH: ``act push``: a worker pushes to the PR's branch.
+        DISPATCH: ``act dispatch-workflow``: the workflow of the PR's branch runs.
+        CLOSE: ``act close``: the PR is closed.
+        LABEL: ``act label --remove``: a label another tool put on the PR is removed.
     """
 
     NOTHING = enum.auto()
     MERGE = enum.auto()
     UNDRAFT = enum.auto()
+    REVIEW = enum.auto()
+    PUSH = enum.auto()
+    DISPATCH = enum.auto()
+    CLOSE = enum.auto()
+    LABEL = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -113,6 +121,7 @@ class Why(enum.Enum):
     Attributes:
         OWNER_MESSAGE: an owner message has no disposition.
         HOLD: a hold covers the verb.
+        PRESSURE: the runners are held and the verb costs runs (keyword: act-pressure).
         STARTED: a PR closes the ticket, so a worker started it.
         NOT_OURS: the comment is not one ``pitboss act`` posted.
         TICKET_FORM: the ticket body is not in the form the ticket reader takes.
@@ -126,6 +135,7 @@ class Why(enum.Enum):
 
     OWNER_MESSAGE = enum.auto()
     HOLD = enum.auto()
+    PRESSURE = enum.auto()
     STARTED = enum.auto()
     NOT_OURS = enum.auto()
     TICKET_FORM = enum.auto()

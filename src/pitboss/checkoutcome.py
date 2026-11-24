@@ -98,6 +98,18 @@ def passed(run: Outcome) -> bool:
     return run.finished and not run.failed
 
 
+def all_passed(runs: Sequence[Outcome]) -> bool:
+    """Whether there is a run and each completed without failing (quire#1134).
+
+    Args:
+        runs: the runs.
+
+    Returns:
+        True when none is left running or failed, and there is one.
+    """
+    return bool(runs) and all(passed(each) for each in runs)
+
+
 def any_finished(runs: Sequence[Done]) -> bool:
     """Whether some run completed (none has: the head waits for its CI).
 

@@ -5,10 +5,10 @@ request"), with the two fields every real response has that the extraction lost,
 and ``auto_merge`` as the docs give it: a nullable object.
 """
 
-import functools
 from typing import Mapping
 
 from . import enumeration, schematypes
+from . import typedstd
 
 AUTO_MERGE = "required, object or null (docs: Auto merge, nullable)"
 EXTRA = {
@@ -17,7 +17,7 @@ EXTRA = {
 }
 
 
-@functools.cache
+@typedstd.memo
 def schema() -> Mapping[str, str]:
     """Every documented field of a PR, with its declaration.
 

@@ -5,6 +5,7 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import bodydigest, expansion, flowquestions, flowstate, stagerounds, steps
+from . import usedrounds
 from .test_flow import (
     EXECUTION_REJECTED,
     OLDER,
@@ -54,7 +55,7 @@ class TestPerStage(unittest.TestCase):
         )
         expect(steps.opus_ruling(), state(*reviews, comments=[RULED]))
 
-    def test_t222_a_rejection_after_an_execution_stage_ruling_is_the_owners(
+    def test_t222_a_rejection_after_an_execution_stage_ruling_is_a_worker_round(
         self,
     ) -> None:
         """The ruling written after the approval is the Execution's."""
@@ -66,7 +67,7 @@ class TestPerStage(unittest.TestCase):
             graded(None, EXECUTION_REJECTED[1], 7),
         )
         pr = state(*reviews, comments=[RULED, ruling(6)])
-        expect(steps.pause_for_owner(), pr)
+        usedrounds.expect_execution_round(pr)
 
     def test_t222_the_ruling_is_the_plan_stages_until_the_plan_is_approved(
         self,

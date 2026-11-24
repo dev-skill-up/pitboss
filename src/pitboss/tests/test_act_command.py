@@ -19,6 +19,7 @@ from .says import errs, exits, outs
 from .fakes import calls_with
 from ..actledger import Done
 
+HOLD = actcore.HOLD_LABEL
 PULL = "owner/project#3"
 
 
@@ -28,7 +29,7 @@ LABEL_CALL = [
     "-X",
     "POST",
     "-f",
-    "labels[]=p1",
+    f"labels[]={actcore.HOLD_LABEL}",
     "repos/owner/project/issues/3/labels",
 ]
 FIELDS = {
@@ -145,11 +146,12 @@ class TestCommand(unittest.TestCase):
         Records it and keeps the owner file.
         """
         here = _here()
-        _shown(here, "p1")
+        _shown(here, HOLD)
         assert_that(
-            _act(here, "label", PULL, "name=p1").out, equal_to(f"label p1 on {PULL}\n")
+            _act(here, "label", PULL, f"name={HOLD}").out,
+            equal_to(f"label {HOLD} on {PULL}\n"),
         )
-        done = _act(here, "label", PULL, "name=p1", "--no-dry-run")
+        done = _act(here, "label", PULL, f"name={HOLD}", "--no-dry-run")
         exits(done, 0)
         assert_that(LABEL_CALL in here.calls, equal_to(True))
         events = _events(here)
@@ -161,13 +163,23 @@ class TestCommand(unittest.TestCase):
     def test_c29_a_live_action_whose_pr_did_not_change_is_refused(self) -> None:
         """The fake GitHub applies no label: the write is made, then refused."""
         here = _here()
-        done = _act(here, "label", PULL, "name=p0", "--no-dry-run")
+        done = _act(here, "label", PULL, f"name={HOLD}", "--no-dry-run")
         errs(done, 2, "act NOT LANDED")
-        _shown(here, "p0")
-        exits(_act(here, "label", PULL, "name=p0", "--no-dry-run"), 0)
-        here.bodies["DELETE repos/owner/project/issues/3/labels/p1"] = []
-        removed = _act(here, "label", PULL, "name=p1", "remove=yes", "--no-dry-run")
+        _shown(here, HOLD)
+        exits(_act(here, "label", PULL, f"name={HOLD}", "--no-dry-run"), 0)
+        here.bodies[f"DELETE repos/owner/project/issues/3/labels/{HOLD}"] = []
+        removed = _act(
+            here, "label", PULL, f"name={HOLD}", "remove=yes", "--no-dry-run"
+        )
         exits(removed, 0)
+
+    def test_c17_a_priority_or_a_paused_owner_label_is_refused(self) -> None:
+        """Only the owner changes a priority; paused-owner is not added."""
+        here = _here()
+        for name in ("p0", "p1", "p2", "p3", "paused-owner"):
+            done = _act(here, "label", PULL, f"name={name}", "--no-dry-run")
+            errs(done, 2, name)
+        assert_that(LABEL_CALL in here.calls, equal_to(False))
 
     def test_c17_refusals_exit_2(self) -> None:
         """No verb, a word that is no option.

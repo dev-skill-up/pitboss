@@ -77,19 +77,6 @@ def named(run: Run, name: str) -> bool:
     return run.name == name or run.name.endswith(f" / {name}")
 
 
-def besides(checks: Sequence[Run], name: str) -> Sequence[Run]:
-    """The check runs of other names than the Plan review's (keyword: draft-red-ci).
-
-    Args:
-        checks: the current check runs of the head.
-        name: the Plan review's check, empty when there is none.
-
-    Returns:
-        The runs of another name (``checkoutcome`` says whether one failed).
-    """
-    return [each for each in checks if not named(each, name)]
-
-
 def of_name(checks: Sequence[Run], name: str) -> Sequence[Run]:
     """The check runs of a name (keyword: plan-review-check).
 

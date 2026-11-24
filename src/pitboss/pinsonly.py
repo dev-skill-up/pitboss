@@ -16,6 +16,7 @@ import subprocess
 import threading
 from typing import Callable, Iterator, Sequence
 
+from . import typedstd
 from . import (
     config,
     ghapi,
@@ -62,7 +63,7 @@ def command_line(template: str, base: str, head: str) -> Sequence[str]:
 
 
 def _said(error: subprocess.CalledProcessError) -> str:
-    lines = pinsreading.printed_lines(f"{error.stdout or ''}\n{error.stderr or ''}")
+    lines = pinsreading.printed_lines(typedstd.output(error))
     wrong = starting(lines, "NOT OK")
     return (wrong or lines or [f"exit status {error.returncode}"])[0]
 

@@ -1,9 +1,9 @@
 """The open PRs of the project and its libraries, and what each needs."""
 
 import concurrent.futures
+import contextlib
 import dataclasses
-import json
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, Iterator, Sequence
 
 from . import (
     basefix,
@@ -18,8 +18,8 @@ from . import (
     flowquestions,
     flowstate,
     folds,
+    handbackderive,
     handbacks,
-    handedread,
     headchecks,
     ghapi,
     mergesonly,
@@ -40,6 +40,7 @@ from . import (
     totalschema,
     unreadableform,
 )
+from . import totaljson
 from .pullfacts import PullFacts as PullFacts
 from .pullfacts import PullRead as PullRead
 from .pullfacts import Read as Read
@@ -115,12 +116,33 @@ class Fetched:
     fixed: Sequence[basefix.Answer]
 
 
-def _base_ahead(source: Source, repo: config.Repo, base: str) -> None:
+@contextlib.contextmanager
+def _base_ahead(
+    source: Source, repo: config.Repo, behind: Sequence[str]
+) -> Iterator[None]:
     # start the base's read (what a failed check asks for next) and go on: its
-    # answer is kept by the read memo, and a failure of it is said where it is needed
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    pool.submit(_base_runs, source, repo, base)
-    pool.shutdown(wait=False)
+    # answer is kept by the read memo, a failure of it is said where it is needed,
+    # and the read is finished when the block ends (keyword: reads-joined, #524)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        for ref in behind:
+            pool.submit(_base_runs, source, repo, ref)
+        yield
+
+
+def _asked_next(source: Source, repo: config.Repo, pull: shapes.Pull) -> Sequence[str]:
+    # the base's runs, which a failed check of a queued repository asks for next
+    return [pull.base] if repo.slug in source.merge_queue else []
+
+
+def _together(
+    source: Source, repo: config.Repo, pull: shapes.Pull, number: int
+) -> tuple[headchecks.Read, reviews.Sources]:
+    # the head's reads and the PR's, together, and the base's beside them
+    with _base_ahead(source, repo, _asked_next(source, repo, pull)):
+        return concurrently.pair(
+            lambda: headchecks.read_head(source.github, repo, pull.head.sha),
+            lambda: _sources(source, repo, number),
+        )
 
 
 def _base_runs(source: Source, repo: config.Repo, base: str) -> None:
@@ -130,15 +152,12 @@ def _base_runs(source: Source, repo: config.Repo, base: str) -> None:
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
     pull = parsing.pull(text)
-    gated = pullobject.pull_object(json.loads(text), totalschema.schema())
+    gated = pullobject.pull_object(
+        totaljson.members(totaljson.read(text)), totalschema.schema()
+    )
     head = pull.head.sha
     queued = repo.slug in source.merge_queue
-    if queued:  # the base's runs, which a failed check asks for next, start now
-        _base_ahead(source, repo, pull.base)
-    seen, sent = concurrently.pair(  # the head's reads and the PR's, together
-        lambda: headchecks.read_head(source.github, repo, head),
-        lambda: _sources(source, repo, number),
-    )
+    seen, sent = _together(source, repo, pull, number)
     posted = seen.statuses
     kept, early = source.early(repo, pull, sent.comments)
     current = headchecks.settled(source.github, repo, head, seen)
@@ -188,23 +207,30 @@ def _needs_e2e(source: Source, repo: config.Repo, state: flow.PullState) -> bool
     return touched and not dispatchruns.completed(github, slug, pull.head.sha)
 
 
-def _handed(source: Source, repo: config.Repo, branch: str) -> handbacks.HandedBack:
-    # keyword: durable-record: only a relock PR owes no hand-back
-    return handedread.held(source.asks.handed, repo, branch, source.relock_prefix)
+def _handed(
+    source: Source, got: Fetched, trusted: AbstractSet[str]
+) -> handbacks.HandedBack:
+    # keyword: standing: only a relock PR owes no hand-back
+    if relock.is_relock(got.pull.head.branch, source.relock_prefix):
+        return handbacks.NOT_REQUIRED
+    return handbackderive.derive(got.pull, got.posted.comments, trusted)
 
 
 def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
+    trusted = source.review.trusted
+    is_relock = relock.is_relock(got.pull.head.branch, source.relock_prefix)
     return flow.PullState(
         pull=got.pull,
         labels=got.labels,
         checks=basefix.settle(got.checks, got.fixed),
         graded=reviews.recorded(source.review, repo.slug, got.posted),
         comments=got.posted.comments,
-        trusted=source.review.trusted,
+        trusted=trusted,
         undraft_clear=got.pull.draft and source.undraft(),
-        relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
+        relock=is_relock,
         recorded=flowstate.Recorded(
-            unchanged=frozenset(), handed=_handed(source, repo, got.pull.head.branch)
+            unchanged=frozenset(),
+            handed=_handed(source, got, trusted),
         ),
         draft=draftfacts.Draft(
             needs_e2e=False,

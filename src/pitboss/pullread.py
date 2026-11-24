@@ -4,7 +4,7 @@ import dataclasses
 import functools
 from typing import Callable
 
-from . import config, earlyreview, ghapi, handedread, holdscope, pinsonly, pulls
+from . import config, earlyreview, ghapi, holdscope, pinsonly, pulls
 
 
 def _unheld(
@@ -39,7 +39,6 @@ def _source(
         no_drafts=_opens_ready(settings.project),
         asks=pulls.Asks(
             pins=pinsonly.asker(github, settings),
-            handed=handedread.asker(github.run, settings),
         ),
     )
 

@@ -115,7 +115,8 @@ def check_stops(
     have = {each.name for each in current} | {each.context for each in statuses}
     missing = [
         (f"check {each}: required and not reported on the head", True)
-        for each in sorted(required - {SELF} - have)
+        for each in sorted(required)
+        if each != SELF and each not in have
     ]
     found = [*_run_lines(current), *_status_lines(statuses), *missing]
     merging = action in MERGING

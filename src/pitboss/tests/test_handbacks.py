@@ -1,132 +1,80 @@
-"""What the worktrees recorded of the hand-backs (keyword: standing, pitboss#507)."""
+"""A hand-back is what the PR shows, never a record (keyword: standing, #524)."""
 
-import pathlib
-import subprocess
+import dataclasses
 import unittest
-from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, handbackrecord, handbacks, handedread, running
-from . import fakes, handbackworld, repositories
+from .. import handbackderive, handbacks, shapes
+from . import test_flow
+from .test_plan_check_step import check_comment
+from .derivedhand import held
 
-REPO = config.make_repo("owner", "project")
 HEAD = "a" * 40
 OTHER = "b" * 40
-RECORD = handbacks.HandedBack(
-    required=True, states=frozenset({(HEAD, "digest", "ruling")})
-)
+BODY = f"## Plan\nthe plan\n\n$ echo hi\n\n## Execution\nx\n\nHead: {HEAD}\n"
+NO_PLAN = "text\nHead: none\n"
+
+
+def pull(body: str) -> shapes.Pull:
+    """A PR with a body.
+
+    Args:
+        body: the body.
+
+    Returns:
+        The PR.
+    """
+    return test_flow.pull_of(body=body)
+
+
+class TestDerive(unittest.TestCase):
+    """The hand-back is read from the body and the comments."""
+
+    def test_the_head_is_named_under_a_clean_check_only(self) -> None:
+        """No check, a check of another Plan, or the clean check of this one."""
+        trusted = frozenset({"MEMBER"})
+        none = handbackderive.derive(pull(BODY), [], trusted)
+        other = handbackderive.derive(
+            pull(BODY),
+            [check_comment("## Plan\nanother\n\n$ echo no\n")],
+            trusted,
+        )
+        clean = handbackderive.derive(pull(BODY), [check_comment(BODY)], trusted)
+        assert_that(
+            [none.head, other.head, clean.head, clean.checked],
+            equal_to(["", "", HEAD, ["2026-10-30T00:00:01Z"]]),
+        )
+
+    def test_a_check_of_an_untrusted_author_counts_for_nothing(self) -> None:
+        """The association decides."""
+        stranger = dataclasses.replace(check_comment(BODY), author_association="NONE")
+        found = handbackderive.derive(pull(BODY), [stranger], frozenset({"MEMBER"}))
+        assert_that((found.head, found.checked), equal_to(("", [])))
+
+    def test_a_body_without_a_head_line_names_none(self) -> None:
+        """Nothing is named, so nothing is handed back."""
+        found = handbackderive.derive(pull(NO_PLAN), [], frozenset())
+        assert_that(found.head, equal_to(""))
 
 
 class TestCovers(unittest.TestCase):
-    """What a record covers."""
+    """What a derived hand-back covers."""
 
     def test_a_relock_pr_is_covered(self) -> None:
         """A relock PR owes none."""
-        covered = handbacks.covers(handbacks.NOT_REQUIRED, OTHER, "x", "y")
+        covered = handbacks.covers(handbacks.NOT_REQUIRED, OTHER)
         same_state = handbacks.covers_state(handbacks.NOT_REQUIRED, OTHER, "x")
         assert_that((covered, same_state), equal_to((True, True)))
 
-    def test_the_head_body_and_ruling_must_be_the_recorded_ones(self) -> None:
-        """Each of the three."""
-        asked = [
-            (HEAD, "digest", "ruling"),
-            (OTHER, "digest", "ruling"),
-            (HEAD, "other", "ruling"),
-            (HEAD, "digest", "other"),
-        ]
-        found = [handbacks.covers(RECORD, *each) for each in asked]
-        assert_that(found, equal_to([True, False, False, False]))
+    def test_the_head_must_be_the_one_the_body_names(self) -> None:
+        """Another head, and no head, are not handed back."""
+        found = [handbacks.covers(held(HEAD), each) for each in (HEAD, OTHER, "")]
+        assert_that(found, equal_to([True, False, False]))
 
-    def test_a_review_names_the_head_abbreviated(self) -> None:
-        """The head of a review may be a prefix, under any ruling."""
-        asked = [
-            (HEAD[:7], "digest"),
-            (HEAD[:7], "other"),
-            (OTHER[:7], "digest"),
-            ("", "digest"),
-        ]
-        found = [handbacks.covers_state(RECORD, *each) for each in asked]
-        assert_that(found, equal_to([True, False, False, False]))
-
-    def test_a_ruling_is_applied_once_a_hand_back_names_it(self) -> None:
-        """The ruling a hand-back saw."""
-        found = [handbacks.applied(RECORD, "ruling"), handbacks.applied(RECORD, "x")]
-        assert_that(found, equal_to([True, False]))
-
-
-class TestRecord(unittest.TestCase):
-    """The record in a worktree's git directory."""
-
-    def test_a_record_is_a_line_of_three_words_and_an_older_line_is_the_head(
-        self,
-    ) -> None:
-        """A new line holds the head, the body and the ruling; an older one the head."""
-        record = repositories.directory() / handbackrecord.RECORD
-        handbackrecord.record(record.parent, HEAD, "digest", "ruling")
-        written = record.read_text(encoding="utf-8")
-        record.write_text(f"{written}\n{OTHER}\n")
-        older = (OTHER, handbacks.ANY, handbacks.ANY)
-        both = {(HEAD, "digest", "ruling"), older}
-        found = [written, handbackrecord.states(record.parent)]
-        assert_that(found, equal_to([f"{HEAD} digest ruling\n", both]))
-
-    def test_a_directory_with_no_record_has_no_states(self) -> None:
-        """Nothing was handed back."""
-        found = handbackrecord.states(repositories.directory())
-        assert_that(found, equal_to(frozenset()))
-
-
-class TestRead(unittest.TestCase):
-    """The worktree of a branch."""
-
-    def test_a_failed_git_read_is_no_hand_back_not_no_worker(self) -> None:
-        """git cannot list a clone that is not there: required, nothing recorded."""
-        settings = fakes.settings(repositories.directory())
-        ask = handedread.asker(_failing, settings)
-        none = handbacks.HandedBack(required=True, states=frozenset())
-        clone = settings.project.main_clone
-        directory = handedread.worktree_directory(_failing, clone, "x")
-        refused = handedread.asker(_exits, settings)(REPO, "no-such-branch")
-        assert_that(refused, equal_to(none))
-        assert_that(ask(REPO, "no-such-branch"), equal_to(none))
-        assert_that(directory, equal_to(None))
-        assert_that(handbacks.covers_state(none, HEAD, "digest"), equal_to(False))
-
-    def test_a_worktree_with_a_record_is_read(self) -> None:
-        """A worktree of the branch: its record is the states."""
-        made = repositories.build()
-        path = repositories.add_worktree(made.workspace / "project", "work")
-        git = pathlib.Path(handbackworld.git(path, "rev-parse", "--absolute-git-dir"))
-        handbackrecord.record(git, HEAD, "digest", "ruling")
-        owed = handbacks.HandedBack(required=True, states=frozenset())
-        found = [asked_of(made.workspace, each) for each in ("work", "other")]
-        assert_that(found, equal_to([RECORD, owed]))
-
-
-def asked_of(
-    workspace: pathlib.Path, branch: str, repo: config.Repo = REPO
-) -> handbacks.HandedBack:
-    """What the main clone of a workspace says a branch handed back.
-
-    Args:
-        workspace: the workspace.
-        branch: the branch.
-        repo: the PR's repository.
-
-    Returns:
-        The answer of the asker.
-    """
-    return handedread.asker(_real, fakes.settings(workspace))(repo, branch)
-
-
-def _real(cmdargs: Sequence[str], /) -> running.Output:
-    return fakes.run_for_real(cmdargs, None, None)
-
-
-def _exits(cmdargs: Sequence[str], /) -> running.Output:
-    raise subprocess.CalledProcessError(128, list(cmdargs))
-
-
-def _failing(cmdargs: Sequence[str], /) -> running.Output:
-    raise OSError("no git")
+    def test_a_review_needs_a_clean_check_before_it(self) -> None:
+        """A check posted after the review, none, and an unnamed head are no cover."""
+        record = held(HEAD, "2")
+        asked = [("a", "3"), ("a", "1"), ("", "3")]
+        found = [handbacks.covers_state(record, *each) for each in asked]
+        assert_that(found, equal_to([True, False, False]))

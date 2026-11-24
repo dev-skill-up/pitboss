@@ -58,7 +58,7 @@ def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
     )
     walks = scanning.memo(real_filesystem().inspect)
     return dead.Look(
-        run=args.safe_run,
+        run=args.world.safe_run,
         github=found.github,
         settings=found.settings,
         clean=found.clean,
@@ -115,7 +115,7 @@ def tempdirs_of(args: argparse.Namespace, look: dead.Look, found: Context) -> Te
     Returns:
         The tempdirs.
     """
-    machine = real_machine(args.env, found.now, running_in(args), args.usage)
+    machine = real_machine(args.world.env, found.now, running_in(args), args.usage)
     # a path two lists name is walked once (keyword: walk-speed)
     kept = dataclasses.replace(
         machine.fs, inspect=look.scan.walks or machine.fs.inspect
@@ -185,7 +185,7 @@ def remove_listed(
     use = functools.partial(args.usage, look.settings.project.workspace)
     before = use()
     gone = cleaning.remove_all(args, removing.recheck, chosen)
-    cleaning.prune(args.run, gone)
+    cleaning.prune(args.world.run, gone)
     look.scan.lap("paths removed", len(gone), "paths")
     return cleaning.Outcome(
         gone=gone,
@@ -347,7 +347,7 @@ def clean_worktrees(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     found = load_context(args)
-    how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
+    how = worktrees.Action(run=args.world.run, dry=not args.no_dry_run)
     done = worktrees.removal(sweep_look(found), how, found.now)
     for text in done.lines:
         print(text)
@@ -376,7 +376,7 @@ def merged(args: argparse.Namespace) -> None:
     found = load_context(args)
     dry = not args.no_dry_run
     how = mergedworktree.Removal(
-        look=sweep_look(found), run=args.run, now=found.now, dry=dry
+        look=sweep_look(found), run=args.world.run, now=found.now, dry=dry
     )
     for text in mergedworktree.remove(how, args.branch):
         print(text)

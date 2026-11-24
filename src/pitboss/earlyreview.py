@@ -15,6 +15,7 @@ import dataclasses
 import functools
 from typing import AbstractSet, Callable, Sequence
 
+from . import typedstd
 from . import (
     basefix,
     checkoutcome,
@@ -61,8 +62,8 @@ def draft_at(
     Returns:
         True when it was a draft.
     """
-    changes = sorted(
-        (each for each in events if each.kind in DRAFT_EVENTS), key=lambda e: e.at
+    changes = typedstd.ordered(
+        (each for each in events if each.kind in DRAFT_EVENTS), lambda e: e.at
     )
     if not changes:
         return pull.draft
@@ -261,7 +262,7 @@ def split(
     said = [(each, *_before(seen, events, each)) for each in written]
     early = [
         _premature(*triple)
-        for triple in sorted(said, key=lambda triple: triple[0].when)
+        for triple in typedstd.ordered(said, lambda triple: triple[0].when)
         if triple[1]
     ]
     gone = {(each.when, each.url) for each in early}

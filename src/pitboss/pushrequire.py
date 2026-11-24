@@ -31,7 +31,7 @@ def pre_push(
         SystemExit: 1 when a check is not ok; nothing is pushed.
     """
     lines = prepush.refusals(
-        args.safe_run,
+        args.world.safe_run,
         checks,
         directory,
     )
@@ -57,7 +57,7 @@ def green_nox(args: argparse.Namespace) -> None:
 
     def out(*words: str) -> str:
         try:
-            return str(args.safe_run(["git", *words]).stdout).strip()
+            return str(args.world.safe_run(["git", *words]).stdout).strip()
         except (OSError, subprocess.CalledProcessError):  # pragma: no cover
             return ""
 
@@ -95,7 +95,7 @@ def execution(
         SystemExit: 1 when a body lost it; nothing is pushed.
     """
     for each in wanted:
-        lost = evidencepush.missing_execution(args.safe_run, github, slug, each)
+        lost = evidencepush.missing_execution(args.world.safe_run, github, slug, each)
         for line in lost:
             print(line)
         if lost:

@@ -1,7 +1,6 @@
 """The check runs and commit statuses of a PR's head (keyword: red-status)."""
 
-import json
-from typing import AbstractSet, NamedTuple, Sequence
+from typing import AbstractSet, NamedTuple, Protocol, Sequence
 
 from . import (
     basefix,
@@ -13,6 +12,7 @@ from . import (
     parsing,
     shapes,
     supersede,
+    totaljson,
 )
 from . import pinsreading
 from .headsignals import HeadSignals as HeadSignals
@@ -60,8 +60,10 @@ def statuses(
 def _total_count(text: str) -> int:
     # the first page of check-runs says how many the commit has; a page that
     # says nothing is all there is
-    page = json.loads(text)
-    return int(page.get("total_count", len(page["check_runs"])))
+    page = totaljson.read(text)
+    runs = len(totaljson.listing(totaljson.field(page, "check_runs")))
+    total = totaljson.field(page, "total_count")
+    return runs if total is None else int(str(total))
 
 
 def runs_of(
@@ -260,3 +262,27 @@ def gate(
         What ``pending_gate`` says, or empty when the repository is not gated.
     """
     return pending_gate(posted) if slug in gated else ""
+
+
+class Headed(Protocol):
+    """What a PR has of its head: its check runs and signals."""
+
+    @property
+    def checks(self) -> Sequence[shapes.CheckRun]:
+        """Returns the head's check runs."""
+
+    @property
+    def signals(self) -> HeadSignals:
+        """Returns what else is known of the head."""
+
+
+def unanswered_of(pull: Headed) -> Sequence[shapes.CheckRun]:
+    """The failed checks of a PR's head that the base has not passed since.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        The failed checks, none when the base answered every one.
+    """
+    return unanswered(pull.checks, pull.signals)

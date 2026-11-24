@@ -3,12 +3,9 @@
 ``describe`` is the verb of a decision; an idle PR has no words (one-path).
 """
 
-import dataclasses
 from typing import Mapping
 
 from .steps import (
-    OWNER_ARTIFACT,
-    PAUSED_LABEL,
     PLAN_CHECK_FIRST_LINE,
     RULING_FIRST_LINE,
     RUN_E2E_MARKER,
@@ -22,26 +19,19 @@ TEXTS: Mapping[Step, str] = {
         "start an Opus agent whose only brief is to make a ruling, and record it"
         f" as a PR comment whose first line is {RULING_FIRST_LINE!r}"
     ),
-    Step.PAUSE_FOR_OWNER: (
-        f"label the PR and its ticket {PAUSED_LABEL}, comment what the rounds"
-        " disagreed about, the options and a `How we got here` section, and report"
-        " the number and the options to the owner on a card that has the section"
-        f" and, on the card, {OWNER_ARTIFACT}"
-    ),
     Step.FIX_RULING: (
         "the newest Opus ruling has no readable `Ruling:` second line; an agent"
         " edits or reposts the comment; no Opus agent is asked for"
     ),
     Step.RULING_ESCALATES: (
-        "the Opus ruling escalated to the owner: label the PR and its ticket"
-        f" {PAUSED_LABEL}, comment the options and a `How we got here` section,"
-        " and report the number and the options to the owner on a card that has"
-        f" the section and, on the card, {OWNER_ARTIFACT}"
+        "the Opus ruling escalated: the orchestrator decides it under the project's"
+        " rules, citing them; a PR no rule lets any round finish goes to `pitboss"
+        " impossible`; nothing waits for the owner"
     ),
     Step.PLAN_EDITED: (
-        "the Plan was edited after its approval: restore the approved Plan, or"
-        " ask an Opus agent for a ruling that says `revise the plan`; no review"
-        " or fix is offered meanwhile"
+        "the Plan was edited after its approval and no ruling stands: ask an Opus"
+        " agent for a ruling that says `revise the plan` (`ruling post` takes one"
+        " per PR); no review or fix is offered meanwhile"
     ),
     Step.PLAN_CHECK: (
         "post the Plan check: run `uvx pitboss plan-check <body file>` on the PR"
@@ -82,4 +72,6 @@ def describe(step: Next) -> str:
         return f"{REQUEST_REVIEW}: {step.stage.value}"
     if step.stage is not None:
         return step.stage.value
-    return TEXTS[step.step].format_map(dataclasses.asdict(step))
+    return TEXTS[step.step].format(
+        comment=step.comment, findings=step.findings, branch=step.branch
+    )

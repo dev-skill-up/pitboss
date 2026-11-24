@@ -149,7 +149,7 @@ class TestTheCommand(unittest.TestCase):
 
     def test_a_body_with_no_head_line_and_a_bad_reference_exit_2(self) -> None:
         """Nothing is changed."""
-        here = served("Fixes o/p#1\n")
+        here = served("Fixes o/p#1\nHead: none\n")
         bad = world.invoke(here, "body-head", "owner/project")
         codes = [run(here).code, bad.code, len(patches(here))]
         assert_that(codes, equal_to([2, 2, 0]))

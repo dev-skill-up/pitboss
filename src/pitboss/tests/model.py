@@ -11,7 +11,7 @@ import dataclasses
 from typing import Callable, Sequence
 
 from .. import bodydigest, expansion, flow, plandigest, rulingwords, shapes, steps
-from . import blank, checkcomment, pullstates, test_flow
+from . import blank, checkcomment, headed, pullstates, test_flow
 
 Verdict = shapes.Verdict
 Ruling = rulingwords.Ruling
@@ -46,7 +46,7 @@ class Model:
         pushed: when the head was pushed.
         ci: ``green``, ``red`` or ``running`` on the head.
         conflict: whether the PR conflicts with main.
-        paused: whether it carries the pause label.
+        paused: whether it ended impossible (its card is posted).
         plan: the version of the Plan section.
         history: the reviews, rulings and Plan checks.
         since_pause: how many rulings were posted since the last pause.
@@ -161,6 +161,17 @@ def _ruling(second: int, word: Ruling) -> shapes.Comment:
     )
 
 
+def _impossible(second: int) -> shapes.Comment:
+    # the card of a PR that ended impossible (keyword: impossible-state)
+    return dataclasses.replace(
+        blank.COMMENT,
+        body=f"{steps.IMPOSSIBLE_FIRST_LINE}\n\nNothing waits.\n",
+        author_association="MEMBER",
+        created_at=stamp(second),
+        url=f"https://example.org/impossible/{second}",
+    )
+
+
 def _graded(each: Review) -> shapes.Graded:
     second, plan, execution, head, version = each
     body = body_of(version, head)
@@ -170,7 +181,7 @@ def _graded(each: Review) -> shapes.Graded:
         when=stamp(second),
         plan=plan,
         execution=execution,
-        body=bodydigest.digest(body),
+        body=bodydigest.digest(headed.with_head_line(body, sha_of(head))),
         plan_digest=expansion.section_digest(plandigest.section(body)),
     )
 
@@ -206,9 +217,9 @@ def pull_state(model: Model) -> flow.PullState:
     made = model.history
     comments = [_plan_check(plan, at, second) for second, plan, at in made.checks]
     comments += [_ruling(second, word) for second, word in made.rulings]
+    comments += [_impossible(model.clock)] if model.paused else []
     return dataclasses.replace(
         pullstates.bare(pull),
-        labels={steps.PAUSED_LABEL} if model.paused else set(),
         checks=_check_runs(model),
         graded=[_graded(each) for each in made.reviews],
         comments=comments,
@@ -250,4 +261,4 @@ def ci_waits(at: Model, step: steps.Move) -> bool:
     Returns:
         True for the CI's wait.
     """
-    return isinstance(step, steps.Idle) and not at.paused
+    return isinstance(step, steps.Idle)

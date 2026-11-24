@@ -1,7 +1,6 @@
 """A pull request's comments and description through ``gh api`` (expand-split)."""
 
 import functools
-import json
 from typing import Callable, Mapping, Sequence, TypeVar
 
 from . import config, evidencesplit, ghapi, parsing, shapes, totaljson
@@ -9,6 +8,14 @@ from .running import Run
 
 DRY_RUN_URL = "(dry run: no URL yet)"
 Item = TypeVar("Item")
+
+
+def _comment(row: totaljson.JsonMap, body: str) -> evidencesplit.Comment:
+    return evidencesplit.Comment(
+        number=totaljson.count(row, "id"),
+        url=totaljson.text(row.get("html_url")),
+        body=body,
+    )
 
 
 def made(text: str, body: str) -> evidencesplit.Comment:
@@ -23,10 +30,7 @@ def made(text: str, body: str) -> evidencesplit.Comment:
     """
     if not text.strip():
         return evidencesplit.Comment(number=0, url=DRY_RUN_URL, body=body)
-    found = json.loads(text)
-    return evidencesplit.Comment(
-        number=int(found["id"]), url=str(found["html_url"]), body=body
-    )
+    return _comment(totaljson.whole(text), body)
 
 
 def listed(text: str) -> Sequence[evidencesplit.Comment]:
@@ -39,12 +43,8 @@ def listed(text: str) -> Sequence[evidencesplit.Comment]:
         The comments.
     """
     return [
-        evidencesplit.Comment(
-            number=int(each["id"]),
-            url=str(each["html_url"]),
-            body=totaljson.text(each.get("body")),
-        )
-        for each in json.loads(text)
+        _comment(each, totaljson.text(each.get("body")))
+        for each in totaljson.rows(text)
     ]
 
 
@@ -155,7 +155,7 @@ def body(github: ghapi.GitHub, path: str) -> str:
 
 
 def _texts(page: str) -> Sequence[str]:
-    return [totaljson.text(each.get("body")) for each in json.loads(page)]
+    return [totaljson.text(each.get("body")) for each in totaljson.rows(page)]
 
 
 def comment_texts(github: ghapi.GitHub, path: str) -> Sequence[str]:
@@ -171,23 +171,12 @@ def comment_texts(github: ghapi.GitHub, path: str) -> Sequence[str]:
     return ghapi.pages(github, f"{path}/comments", _texts)
 
 
-def label_names(github: ghapi.GitHub, path: str) -> Sequence[str]:
-    """The names of the labels of a pull request or an issue.
-
-    Args:
-        github: the API.
-        path: its issue path.
-
-    Returns:
-        The names.
-    """
-    found = totaljson.listed(ghapi.get_object(github, path), "labels")
-    return [totaljson.text(each.get("name")) for each in found]
-
-
 def _bodies(text: str) -> Sequence[tuple[int, str]]:
-    found = json.loads(text)
-    return [(int(each["number"]), totaljson.text(each.get("body"))) for each in found]
+    found = totaljson.rows(text)
+    return [
+        (totaljson.count(each, "number"), totaljson.text(each.get("body")))
+        for each in found
+    ]
 
 
 def pull_bodies(github: ghapi.GitHub, slug: str) -> Sequence[tuple[int, str]]:

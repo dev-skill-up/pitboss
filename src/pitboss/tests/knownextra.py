@@ -29,7 +29,7 @@ def dispatch_target() -> Target:
 
 @case(
     "X27",
-    "verdict row; paused-owner disarms",
+    "verdict row; paused-owner is not added",
     "paused-owner on a PR with auto-merge armed",
 )
 def _paused_armed(given: knownkit.Kit) -> bool:
@@ -38,10 +38,10 @@ def _paused_armed(given: knownkit.Kit) -> bool:
         pull={**ARMED, "labels": [{"name": "paused-owner"}]}, events=[armed]
     )
     hub = knownkit.made(given, knownkit.change(pull=ARMED, events=[armed]))
-    knownkit.act(given, hub, "label", name="paused-owner")
     return (
-        knownkit.stops(given, "merge", world, "auto_merge armed on a paused-owner")
-        and pull_now(hub)["auto_merge"] is None
+        knownkit.stops(given, "merge", world, "labels=")
+        and knownplay.verb_refused(given, hub, "label", name="paused-owner")
+        and pull_now(hub)["auto_merge"] is not None
     )
 
 

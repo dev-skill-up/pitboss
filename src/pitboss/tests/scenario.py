@@ -278,10 +278,12 @@ def kind(step: steps.Move) -> str:
 
     Returns:
         ``WORKER:RULING_STEPS``, ``REGULAR_REVIEW:RULING_STEPS``, ``MERGE``;
-        ``IDLE`` for a PR nobody acts on (an idle step carries no reason).
+        ``IDLE`` for a PR nobody acts on yet, ``IMPOSSIBLE`` for one that ended.
     """
     if isinstance(step, steps.Idle):
         return "IDLE"
+    if isinstance(step, steps.Ended):
+        return "IMPOSSIBLE"
     named = [step.step.name]
     named += [step.task.name] if step.task else []
     named += [step.stage.name] if step.stage else []

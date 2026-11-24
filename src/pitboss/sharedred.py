@@ -15,7 +15,15 @@ error lines differ (the lines are compared whole).
 import functools
 from typing import Callable, Sequence
 
-from . import blockedby, concurrently, failures, flowstep, ghapi, headchecks, listed
+from . import (
+    blockedby,
+    concurrently,
+    failures,
+    flowstep,
+    ghapi,
+    headchecks,
+    listed,
+)
 from . import pulls, shapes, world
 from .sharedstep import MAIN, Seen, Shared, at_fix, groups
 
@@ -47,7 +55,9 @@ def _of_prs(github: ghapi.GitHub, red: Sequence[pulls.PullFacts]) -> Sequence[Se
     found: list[Seen] = []
     for each in red:
         names = {check.id: check.name for check in each.checks}
-        for identifier, failure in failures.read_all(github, each).items():
+        for identifier, failure in failures.read_all(
+            github, each.repo, headchecks.unanswered_of(each)
+        ).items():
             found.append(
                 Seen(
                     slug=each.repo.slug,

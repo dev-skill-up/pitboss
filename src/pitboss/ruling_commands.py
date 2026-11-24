@@ -19,10 +19,9 @@ from . import (
 
 
 def _already(github: ghclient.GitHub, slug: str, number: int) -> str:
-    # keyword: one-ruling (A6): the PR's comments and labels, as GitHub has them
-    path = f"repos/{slug}/issues/{number}"
-    texts = ghstore.comment_texts(github, path)
-    return rulingguard.refusal(texts, ghstore.label_names(github, path))
+    # keyword: one-ruling (A6): the PR's comments, as GitHub has them
+    texts = ghstore.comment_texts(github, f"repos/{slug}/issues/{number}")
+    return rulingguard.refusal(texts)
 
 
 def step_findings(github: ghclient.GitHub, slug: str, number: int, text: str) -> str:
@@ -74,7 +73,7 @@ def ruling(args: argparse.Namespace) -> None:
     second line is ``Ruling: <word>`` with a word of the ruling words, and it
     has a ``How we got here`` section with the analysis in it. It is also
     refused when the PR already has an Opus ruling and is not paused for the
-    owner (A6: one ruling per PR, a further rejection is the owner's). It posts
+    owner (A6: one ruling per PR; a further rejection is a worker's round). It posts
     as it is run, with no flag; the exit status is 2 for a refusal or a file it
     cannot read.
 

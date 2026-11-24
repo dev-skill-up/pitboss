@@ -14,17 +14,10 @@ is stated as demonstrated (``done-when-form``) and the body keeps the PR body's 
 """
 
 import dataclasses
-import re
 from typing import Sequence
 
-from . import forms, plandigest, plandonewhen
+from . import forms, plandigest, plandonewhen, rulingtyped
 
-STEP = re.compile(
-    r"^[ \t]*(?:(?:\d+[.)]|[-*])[ \t]+)?(ticket|body)[ \t]+(delete|replace)[ \t]*:"
-    r"[ \t]*(.+?)[ \t]*$",
-    re.IGNORECASE | re.MULTILINE,
-)
-ARROW = " => "
 GATE = "ruling step {step} ({edit}): {why}"
 FAILS = "gate {gate}: after the ruling's steps, {finding}"
 
@@ -56,10 +49,6 @@ class Edit:
         return f"{self.target} {verb}: {self.old[:60]}"
 
 
-def _unquoted(text: str) -> str:
-    return text.strip().strip("`\"'").strip()
-
-
 def orders_edits(ruling: str) -> bool:
     """Whether a ruling orders an edit of the ticket or the body.
 
@@ -69,25 +58,15 @@ def orders_edits(ruling: str) -> bool:
     Returns:
         True when one of its steps is an edit.
     """
-    return bool(_edits(ruling))
+    return bool(rulingtyped.parts(ruling))
 
 
 def _edits(ruling: str) -> Sequence[Edit]:
     # the edits a ruling orders, in the order written
-    found: list[Edit] = []
-    for number, each in enumerate(STEP.finditer(ruling), 1):
-        target, operation, text = (
-            each.group(1).lower(),
-            each.group(2).lower(),
-            each.group(3),
-        )
-        old, _, new = (
-            text.partition(ARROW) if operation == "replace" else (text, "", "")
-        )
-        found.append(
-            Edit(step=number, target=target, old=_unquoted(old), new=_unquoted(new))
-        )
-    return found
+    return [
+        Edit(step=number, target=target, old=old, new=new)
+        for number, (target, old, new) in enumerate(rulingtyped.parts(ruling), 1)
+    ]
 
 
 def findings(ruling: str, ticket: str, body: str, head: str) -> Sequence[str]:

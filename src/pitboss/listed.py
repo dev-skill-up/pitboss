@@ -11,6 +11,7 @@ from typing import AbstractSet, Mapping
 
 from . import config, pullnames, relock
 from .totaljson import text
+from . import typedstd
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -55,7 +56,7 @@ def listed_row(repo: config.Repo, prefix: str, row: Mapping[str, object]) -> Lis
     Returns:
         The row.
     """
-    head = row["head"] if isinstance(row["head"], dict) else {}
+    head = typedstd.members(row["head"]) or {}
     branch = text(head.get("ref"))
     made = searched_row(repo, relock.is_relock(branch, prefix), row)
     names = pullnames.names(made.title, text(row.get("body")), branch, repo)

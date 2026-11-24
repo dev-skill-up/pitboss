@@ -14,23 +14,23 @@ from . import (
     expansion,
     handbacks,
     plandigest,
+    rulingtyped,
     rulingwords,
     sessionurl,
     shapes,
     steps,
+    typedstd,
 )
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Recorded:
-    """What the caller reads of the base and of the worktree of a PR.
+    """What the caller reads of the base and of the hand-backs of a PR.
 
     Attributes:
-        unchanged: the reviewed heads since which no code moved to the head (the
-            caller reads the base for the one ``flowquestions.asked_rejection``
-            asks of; keyword: unfixed-execution).
-        handed: what the worktree of the PR's branch recorded of the worker's
-            hand-backs (keyword: standing).
+        unchanged: the reviewed heads since which no code moved to the head
+            (keyword: unfixed-execution).
+        handed: what the PR shows of the worker's hand-backs (keyword: standing).
     """
 
     unchanged: AbstractSet[str]
@@ -53,8 +53,7 @@ class PullState:
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
         draft: what the caller read for a draft (``draftfacts.Draft``).
-        recorded: what the caller read of the base and of the PR's worktree
-            (``Recorded``).
+        recorded: what the caller read of the base and the hand-backs.
     """
 
     pull: shapes.Pull
@@ -79,10 +78,10 @@ class PullState:
 
     @property
     def handed(self) -> handbacks.HandedBack:
-        """What the PR's worktree recorded of the hand-backs (keyword: standing).
+        """What the PR shows of the hand-backs (keyword: standing).
 
         Returns:
-            The record.
+            The value.
         """
         return self.recorded.handed
 
@@ -131,8 +130,6 @@ def read_ruling(body: str) -> rulingwords.Ruling | None:
 def newest_ruling(pr: PullState) -> shapes.Comment | None:
     """The newest trusted comment that records an Opus ruling.
 
-    A ruling fixed by an edit keeps its ``created_at``.
-
     Args:
         pr: the PR.
 
@@ -144,7 +141,7 @@ def newest_ruling(pr: PullState) -> shapes.Comment | None:
         for each in pr.comments
         if is_ruling(each.body) and each.author_association in pr.trusted
     ]
-    return max(found, key=lambda each: each.created_at, default=None)
+    return typedstd.newest(found, lambda each: each.created_at)
 
 
 def readable_comment(
@@ -195,16 +192,14 @@ def has_unreadable_ruling(pr: PullState) -> bool:
 def plan_edited_without_ruling(pr: PullState) -> bool:
     """Whether the Plan was edited after its approval and no ruling allows it.
 
-    The newest regular review that approves the Plan and records a Plan digest
-    is the one compared (keyword: plan-digest, pitboss#172). An Opus ruling
-    ``revise the plan`` written after that review authorises the edit.
+    The newest approving review's Plan digest is compared (keyword: plan-digest,
+    pitboss#172); a ``revise the plan`` ruling after it allows the edit.
 
     Args:
         pr: the PR.
 
     Returns:
-        True when the Plan section of the body is not the one that review read
-        and no such ruling was recorded after it.
+        True when the Plan is not the one that review read and no ruling allows it.
     """
     newest = newest_plan_digest(pr)
     if newest is None:
@@ -246,8 +241,7 @@ def newest_plan_digest(pr: PullState) -> shapes.Graded | None:
     Returns:
         The review, or None when no review does.
     """
-    approving = (each for each in pr.graded if _approves(each))
-    return max(approving, key=lambda each: each.when, default=None)
+    return typedstd.newest(filter(_approves, pr.graded), lambda each: each.when)
 
 
 def plan_edit_ruled(pr: PullState, after: str) -> bool:
@@ -258,8 +252,7 @@ def plan_edit_ruled(pr: PullState, after: str) -> bool:
         after: the time of the approving review (ISO 8601).
 
     Returns:
-        True when the newest readable Opus ruling revises the Plan and was
-        written after that time.
+        True when the newest readable ruling revises the Plan, written after it.
     """
     answered = readable_comment(pr)
     return (
@@ -276,12 +269,15 @@ def ruling_hold(pr: PullState) -> steps.Next | None:
         pr: the PR.
 
     Returns:
-        The step to fix an unreadable ruling, or that of a Plan edited with no
-        ruling to allow it; None when neither holds.
+        The step to fix an unreadable ruling or an edited Plan; else None.
     """
     if has_unreadable_ruling(pr):
         return steps.fix_ruling(ruling_address(pr))
-    return steps.plan_edited() if plan_edited_without_ruling(pr) else None
+    if not plan_edited_without_ruling(pr):
+        return None
+    stood = newest_ruling(pr) is not None and ruling_applied(pr)  # quire#1130
+    restore = steps.worker(steps.Task.RESTORE_PLAN)  # keyword: restore-plan
+    return restore if stood else steps.plan_edited()
 
 
 def ruling_address(pr: PullState) -> str:
@@ -298,12 +294,10 @@ def ruling_address(pr: PullState) -> str:
 
 
 def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
-    """The readable ruling no review and no push has followed.
+    """The readable ruling no handed-back review and no push has followed.
 
-    A ruling is applied once a worker handed work back that saw it (keyword:
-    standing); for a PR no worker holds, once a regular review or a check run of
-    the head (a push) is newer than it. Until then its own step is next, whatever
-    the newest review that counts says (pitboss#294).
+    Applied once a review of a handed-back state or a push is newer (keyword:
+    standing); until then its own step is next (pitboss#294).
 
     Args:
         pr: the PR.
@@ -315,10 +309,21 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     if answered is None:
         return None
     posted, ruled = answered
-    if pr.handed.required:  # a worker's hand-back that saw the ruling applies it
-        return None if handbacks.applied(pr.handed, posted.url) else ruled
-    reviewed = any(each.when > posted.created_at for each in pr.graded if each.comment)
-    return None if reviewed or pushed_since(pr, posted) else ruled
+    if not pr.handed.required:
+        return None if _followed(pr, posted) else ruled
+    # keyword: ruling-typed: a body edit shows itself, and the body carries it
+    edited = _followed(pr, posted) or rulingtyped.edits_body(posted.body)
+    seen = handbacks.covers(pr.handed, pr.pull.head.sha) and edited
+    return None if seen and rulingtyped.carried(posted.body, pr.pull.body) else ruled
+
+
+def _followed(pr: PullState, posted: shapes.Comment) -> bool:
+    reviewed = (
+        each.when > posted.created_at and handbacks.covers_review(pr.handed, each)
+        for each in pr.graded
+        if each.comment
+    )
+    return any(reviewed) or pushed_since(pr, posted)
 
 
 def pushed_since(pr: PullState, posted: shapes.Comment) -> bool:
@@ -335,11 +340,11 @@ def pushed_since(pr: PullState, posted: shapes.Comment) -> bool:
 
 
 def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
-    """The Plan review of a draft, once the check its repository requires is done.
+    """The Plan review of a draft, once the check its repository requires has passed.
 
-    quire's lint refuses an approval of a head with no completed green ``check``
-    run, and a draft runs that job (keyword: plan-review-check, pitboss#275), so
-    the review waits for the run as a ready PR's does; the Plan check needs no CI.
+    quire's lint refuses an approval of a head with no green ``check`` run, and a
+    draft runs that job (keyword: plan-review-check, pitboss#275), so the review
+    waits for a green run (a red one is fixed); the Plan check needs no CI.
 
     Args:
         pr: the draft, whose Plan is not approved and not rejected at its head.
@@ -347,12 +352,12 @@ def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
 
     Returns:
         The wait for CI when the step is the review and the configured check has
-        not completed at the head, else the step.
+        not passed at the head, else the step.
     """
     name = pr.draft.plan_review_check
     due = step.step is steps.Step.REGULAR_REVIEW and name
-    if due and not checkoutcome.any_finished(draftfacts.of_name(pr.checks, name)):
-        return steps.IDLE
+    if due and not checkoutcome.all_passed(draftfacts.of_name(pr.checks, name)):
+        return steps.Idle.CI_RUN
     return step
 
 
@@ -377,7 +382,7 @@ def e2e_step(pr: PullState) -> steps.Move | None:
     if not pr.draft.needs_e2e:
         return None
     running = [each for each in pr.checks if not each.finished]
-    return steps.IDLE if running else steps.run_e2e(pr.pull.head.branch)
+    return steps.Idle.CI_RUN if running else steps.run_e2e(pr.pull.head.branch)
 
 
 def ruling_applied(pr: PullState) -> bool:

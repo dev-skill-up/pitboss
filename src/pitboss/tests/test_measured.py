@@ -18,6 +18,7 @@ from hamcrest import (
 )
 
 from .. import breakdown, calllog, cli_parser, measured, startup, timing
+from . import fakeargs
 from . import fakes, fixeddisk, world
 from .says import lacks, says
 from .test_commands import sweep
@@ -51,12 +52,12 @@ def calling(*commands: Sequence[str]) -> measured.Command:
 
     def run(*, args: argparse.Namespace) -> None:
         for each in commands:
-            args.safe_run(each)
+            args.world.safe_run(each)
 
     return run
 
 
-def namespace(**names: object) -> argparse.Namespace:
+def namespace(**names: str) -> argparse.Namespace:
     """Arguments whose runner answers every command with nothing.
 
     Args:
@@ -65,9 +66,9 @@ def namespace(**names: object) -> argparse.Namespace:
     Returns:
         The arguments.
     """
-    return argparse.Namespace(
-        safe_run=lambda command, /: fakes.Output(stdout=""), **names
-    )
+    made = fakeargs.args(safe_run=lambda command, /: fakes.Output(stdout=""))
+    vars(made).update(names)
+    return made
 
 
 def timed(command: measured.Command, args: argparse.Namespace) -> Sequence[str]:
@@ -122,7 +123,8 @@ class TestTheLines(unittest.TestCase):
         """A noted section has its seconds, its count and its own commands."""
 
         def run(*, args: argparse.Namespace) -> None:
-            args.safe_run(["gh", "api", "repos/o/r/pulls"])
+            ran = args.world.safe_run
+            ran(["gh", "api", "repos/o/r/pulls"])
             timing.note(args, "ranking", 3, "items")
 
         found = timed(run, namespace(__gather_name__="sweep"))
@@ -281,8 +283,9 @@ class TestTheCallsAreCounted(unittest.TestCase):
         """The runner of the arguments is the one the log wraps."""
         fake = fakes.FakeProcesses(bodies={"repos/o/r": {"id": 1}})
         clock = timing.start(ticks(1.0))
-        args = timing.logged_args(argparse.Namespace(safe_run=fake), clock)
-        args.safe_run(["gh", "api", "repos/o/r"])
+        args = timing.logged_args(fakeargs.args(safe_run=fake), clock)
+        ran = args.world.safe_run
+        ran(["gh", "api", "repos/o/r"])
         with contextlib.suppress(subprocess.CalledProcessError):
-            args.safe_run(["gh", "api", "repos/o/missing"])
+            ran(["gh", "api", "repos/o/missing"])
         says("\n".join(timing.finish(clock, "x", 0.0)), "GitHub API 2 calls")

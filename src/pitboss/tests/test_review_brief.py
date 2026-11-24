@@ -16,7 +16,7 @@ GATED_FORM = (
     "[review.gated_form]\n"
     'lines = ["## Adversarial review", "Reviewed: {sha}", "Verdict: {verdict}"]\n'
 )
-BODY = "## Plan\nthe plan\nHead: 1\n\n## Execution\nthe work\n"
+BODY = "## Plan\nthe plan\n\n## Execution\nthe work\n"
 
 
 def brief_of_third(here: world.World) -> str:

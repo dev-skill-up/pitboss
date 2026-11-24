@@ -6,6 +6,7 @@ inputs read with it are ``pullstate`` (keyword: one-path).
 
 from typing import Mapping, Sequence, TypeVar
 
+from . import typedstd
 from . import schematypes
 from .pullrecords import Closure, Errored, Merging, Mistyped, PullObject, Ticket, Where
 
@@ -41,8 +42,8 @@ def object_at(value: object, *path: str) -> Raw:
         Its members by name; empty when a step is missing or it is no object.
     """
     for step in path:
-        value = typed_or(value, dict, {}).get(step)
-    return {str(name): each for name, each in typed_or(value, dict, {}).items()}
+        value = (typedstd.members(value) or {}).get(step)
+    return dict(typedstd.members(value) or {})
 
 
 def count_at(value: object, name: str) -> int:

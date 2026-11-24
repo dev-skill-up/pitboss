@@ -128,25 +128,43 @@ class TestMerge(unittest.TestCase):
         )
 
 
+def comments_of(hub: fakehub.Made) -> object:
+    """The timeline of the PR the hub holds.
+
+    Args:
+        hub: the hub.
+
+    Returns:
+        Its timeline.
+    """
+    return hub.act.hub.timeline(REPO, NUMBER)
+
+
+def at_review() -> fakehub.Made:
+    """A hub whose PR has no review of its head: its step is the review (accepts).
+
+    Returns:
+        The hub.
+    """
+    first = knownkit.base_items("timeline")[:1]
+    return made(GIVEN, change(ctx={"timeline": first}))
+
+
 class TestReview(unittest.TestCase):
     """The review the verdict reads."""
 
     def test_c17_act_review_is_read_as_an_approval(self) -> None:
         """A review written by the verb approves this head, body and tickets."""
-        first = knownkit.base_items("timeline")[:1]
-        hub = made(GIVEN, change(ctx={"timeline": first}))
+        hub = at_review()
         assert_that(refusal(hub, "merge"), contains_string("review"))
         findings = "Findings: the change does what the ticket says."
         act(GIVEN, hub, "review", findings=findings, **GRADES)
-        timeline = hub.act.hub.timeline(REPO, NUMBER)
-        assert_that(
-            knownkit.verdict(GIVEN, "merge", change(ctx={"timeline": timeline})).word,
-            equal_to(gatesaid.GO),
-        )
+        after = change(ctx={"timeline": comments_of(hub)})
+        assert_that(knownkit.verdict(GIVEN, "merge", after).word, equal_to(gatesaid.GO))
 
     def test_c17_grade_lines_are_refused(self) -> None:
         """Findings with a grade key, a grade in another form, a Verdict comment."""
-        hub = made(GIVEN)
+        hub = at_review()
         keyed = refusal(hub, "review", findings="Verdict: approved", **GRADES)
         assert_that(keyed, contains_string("key"))
         loose = refusal(hub, "review", findings="x", **{**GRADES, "plan": "ok"})

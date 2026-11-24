@@ -10,11 +10,10 @@ import os
 import pathlib
 from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
-from gather import commands as gather_commands
 
-from .. import cli_parser, disk
-from . import fakes, fixeddisk, ownerbodies, repositories, ticket_bodies, worldcomments
-from .handedworld import plant
+from .. import cli_parser, disk, shell
+from . import faketranscripts, fakes, fixeddisk, ownerbodies, repositories
+from . import ticket_bodies, worldcomments
 from .worldreads import GATE_READS
 
 FUTURE = "2030-01-01T00:00:00+00:00"
@@ -247,7 +246,7 @@ def configure(workspace: pathlib.Path) -> pathlib.Path:
     """
     ledger = workspace / "ledger.json"
     fakes.settings(workspace, EXTRA.format(ledger=ledger))
-    fakes.seed_ledger(ledger, ("tiny", "big"))
+    faketranscripts.seed_ledger(ledger, ("tiny", "big"))
     return ledger
 
 
@@ -328,7 +327,7 @@ def invoke(
         What it did.
     """
     out, err = io.StringIO(), io.StringIO()
-    env = {**shell_env(plant(world), directory), **dict(variables)}
+    env = {**shell_env(world, directory), **dict(variables)}
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         code = exit_code(world, ["pitboss", *argv], env)
     return Result(out=out.getvalue(), err=err.getvalue(), code=code)
@@ -346,7 +345,7 @@ def exit_code(world: World, argv: Sequence[str], env: Mapping[str, str]) -> obje
         The code it exited with; 0 when it returned.
     """
     try:
-        gather_commands.run_maybe_dry(
+        shell.run_maybe_dry(
             parser=parser(world),
             argv=list(argv),
             env=env,

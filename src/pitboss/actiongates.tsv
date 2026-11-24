@@ -12,7 +12,6 @@ Step.WORKER	pressure	a worker pushes with pitboss push	test_hold_scope.TestB20.t
 Step.UNDRAFT	hold	flow.next_step: steps.HELD	test_hold_scope.TestB20.test_b20_an_undraft_is_withheld_during_a_hold
 Step.REGULAR_REVIEW	free	a review is a comment, no runner work	-
 Step.OPUS_RULING	free	a ruling is a comment	-
-Step.PAUSE_FOR_OWNER	free	waits for the owner; nothing is done	-
 Step.FIX_RULING	free	a comment	-
 Step.RULING_ESCALATES	free	a comment to the owner	-
 Step.PLAN_EDITED	free	a comment	-
@@ -23,6 +22,7 @@ Step.MERGE	hold	flow.next_step: steps.HELD	test_hold_scope.TestB20.test_b20_a_me
 Task.FIRST_ROUND	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.FIX_CI	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.REVISE_PLAN	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
+Task.RESTORE_PLAN	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.RESOLVE_CONFLICT	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.FIX_EXECUTION	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.RULING_STEPS	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not

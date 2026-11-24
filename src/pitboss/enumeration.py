@@ -164,7 +164,8 @@ def _actions(read: Reader) -> Iterator[Row]:
             group="agent-tool", value=tool.strip(), source="this session's tool list"
         )
     found = re.search(r"\{([a-z,-]+)\}", read("pitboss-commands.txt"))
-    for command in found.group(1).split(",") if found else ():
+    names = found.string[found.start(1) : found.end(1)] if found else ""
+    for command in names.split(",") if names else ():
         yield Row(group="pitboss-command", value=command, source=COMMANDS_SOURCE)
     for fields in _columns(read("pr-event-actions.tsv")):
         source = "docs webhook-events-and-payloads"

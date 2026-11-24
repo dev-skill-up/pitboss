@@ -68,9 +68,11 @@ def found_or_fetched(args: argparse.Namespace) -> str:
         return configsearch.named(args)
     except FileNotFoundError as missing:
         start = configsearch.working_directory(args)
-        name = configsearch.repository_name(start, configsearch.ceilings(args.env))
-        read = functools.partial(_output, args.safe_run)
-        return str(configfetch.fetch(read, args.env, name, missing))
+        name = configsearch.repository_name(
+            start, configsearch.ceilings(args.world.env)
+        )
+        read = functools.partial(_output, args.world.safe_run)
+        return str(configfetch.fetch(read, args.world.env, name, missing))
 
 
 def settle(args: argparse.Namespace, destination: str | None) -> None:

@@ -7,7 +7,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import config, ghapi, red, redmodel, redreport, redrender
-from . import fakes, redworld
+from . import faketranscripts, fakes, redworld
 from .fakes import calls_with
 
 REPO = config.make_repo("o", "r")
@@ -30,7 +30,7 @@ def build(
     sources = redreport.Sources(
         github=github,
         repos=[REPO],
-        transcripts=fakes.FakeTranscripts(_texts=texts or {}),
+        transcripts=faketranscripts.FakeTranscripts(_texts=texts or {}),
     )
     return redreport.build(sources, analysis, redworld.NOW), github
 

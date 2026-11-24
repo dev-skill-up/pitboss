@@ -8,10 +8,8 @@ pushes. A branch with no open PR, a PR that is not a draft, a branch that cannot
 be told, or a read that fails is held as before.
 """
 
-import json
 import subprocess
-import urllib.parse
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from . import ghapi
 from .running import Run
@@ -60,6 +58,11 @@ def current_branch(run: Run) -> str:
     return "" if shown == "HEAD" else shown
 
 
+def _only_drafts(found: Sequence[Mapping[str, object]]) -> bool:
+    # at least one PR, and every one a draft
+    return bool(found) and all(each.get("draft") is True for each in found)
+
+
 def drafts(github: ghapi.GitHub, slug: str, branch: str) -> bool:
     """Whether a branch has an open PR and every such PR is a draft.
 
@@ -72,16 +75,8 @@ def drafts(github: ghapi.GitHub, slug: str, branch: str) -> bool:
         True when GitHub lists an open PR from the branch and all are drafts;
         False for none, a PR that is ready, or a read that failed.
     """
-    owner = slug.split("/")[0]
-    head = urllib.parse.quote(f"{owner}:{branch}", safe=":/")
-    try:
-        body = ghapi.get(github, f"repos/{slug}/pulls?head={head}&state=open")
-        found = json.loads(body)
-    except (subprocess.CalledProcessError, ValueError):
-        return False
-    if not isinstance(found, list) or not found:
-        return False
-    return all(isinstance(each, dict) and each.get("draft") is True for each in found)
+    # keyword: second-read: the open PRs of a branch are read by ghapi alone
+    return _only_drafts(ghapi.branch_pulls(github, slug, branch))
 
 
 def all_drafts(

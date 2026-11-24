@@ -5,7 +5,6 @@ row reads is read as empty, so the row that needs it stops; nothing here raises.
 """
 
 import json
-import pathlib
 from typing import Mapping, Sequence
 
 JsonMap = Mapping[str, object]
@@ -86,19 +85,6 @@ def records(value: object) -> Sequence[JsonMap]:
     return [members(each) for each in listing(value)]
 
 
-def listed(value: object, key: str) -> Sequence[JsonMap]:
-    """The objects of an array that is a field of a JSON object.
-
-    Args:
-        value: what was read.
-        key: the field's name.
-
-    Returns:
-        Each item as an object; none when there is no such array.
-    """
-    return records(field(value, key))
-
-
 def at(value: object, *keys: str) -> object:
     """A value reached by a path of fields.
 
@@ -127,6 +113,44 @@ def name_at(value: object, *keys: str) -> str:
     return text(at(value, *keys))
 
 
+def read(text: str) -> object:
+    """JSON text read, as the value it holds, whatever it is.
+
+    Args:
+        text: the JSON text.
+
+    Returns:
+        The value.
+    """
+    value: object = json.loads(text)
+    return value
+
+
+def whole(text: str) -> JsonMap:
+    """The object a JSON text holds, or an empty one.
+
+    Args:
+        text: the JSON text.
+
+    Returns:
+        The object (empty when the text holds another shape).
+    """
+    return members(read(text))
+
+
+def rows(text: str, *keys: str) -> Sequence[JsonMap]:
+    """The objects of a JSON array, or of the array at a path in an object.
+
+    Args:
+        text: the JSON text.
+        *keys: the fields to the array, outermost first; none when it is the text.
+
+    Returns:
+        The objects of the array (none when it is not one).
+    """
+    return records(at(read(text), *keys))
+
+
 def lines_of(out: str) -> Sequence[object]:
     """The items of ``gh api --paginate --jq '.[]'``: a JSON value a line.
 
@@ -141,18 +165,6 @@ def lines_of(out: str) -> Sequence[object]:
     found: list[object] = []
     for line in out.splitlines():
         if line.strip():
-            value = json.loads(line)
+            value: object = json.loads(line)
             found.extend(value if isinstance(value, list) else [value])
     return found
-
-
-def read_file(path: pathlib.Path) -> object:
-    """Read a JSON file.
-
-    Args:
-        path: the file.
-
-    Returns:
-        What it holds.
-    """
-    return json.loads(path.read_text(encoding="utf-8"))

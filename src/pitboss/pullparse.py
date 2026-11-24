@@ -1,10 +1,9 @@
 """Parsing a page of the open PRs of a repository, with where each head lives."""
 
 import dataclasses
-import json
 from typing import Sequence
 
-from . import parsing, shapes
+from . import parsing, shapes, totaljson
 
 
 def with_repo(pull: shapes.Pull, repo: str) -> shapes.Pull:
@@ -30,9 +29,9 @@ def open_pulls(text: str) -> Sequence[shapes.Pull]:
         The pull requests, in the order GitHub lists them, each head with the
         ``owner/name`` of the repository it lives in (empty for a deleted fork).
     """
-    items = json.loads(text)
-    pulls = parsing.pulls_of(items)
-    heads = [item["head"].get("repo") or {} for item in items]
+    items = totaljson.read(text)
+    listed = totaljson.listing(items)
+    heads = [totaljson.name_at(item, "head", "repo", "full_name") for item in listed]
     return [
-        with_repo(pull, head.get("full_name", "")) for pull, head in zip(pulls, heads)
+        with_repo(pull, head) for pull, head in zip(parsing.pulls_of(listed), heads)
     ]

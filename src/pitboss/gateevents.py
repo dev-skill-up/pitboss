@@ -5,18 +5,18 @@ review one of an older state (pitboss#444, the act verdict's row of the timeline
 It reads the typed timeline ``pullstate`` made (plan 6.1).
 """
 
-import functools
 from typing import AbstractSet, Sequence
 
 from . import enumeration
 from .gatestop import Route, Stop
 from .pullrecords import Event, GateState, listed
 from .totalanswer import KNOWN_LABELS
+from . import typedstd
 
 LABEL_EVENTS = frozenset({"labeled", "unlabeled"})
 
 
-@functools.cache
+@typedstd.memo
 def stale_events() -> AbstractSet[str]:
     """The documented timeline kinds after which the newest review is stale.
 

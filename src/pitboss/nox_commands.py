@@ -55,7 +55,7 @@ def run_command(
         The exit status and what it printed.
     """
     given = {} if environment is None else {"env": environment}
-    done = args.safe_run(
+    done = args.world.safe_run(
         list(command),
         check=False,
         capture_output=False,
@@ -82,7 +82,7 @@ def gate_command(
     """
     return gaterun.outcome(
         gaterun.run(
-            args.safe_run,
+            args.world.safe_run,
             gaterun.Gate(
                 command=command, timeout=SESSION_SECONDS, environment=environment
             ),

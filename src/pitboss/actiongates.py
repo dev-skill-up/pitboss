@@ -6,14 +6,14 @@ table that asked of each state change whether a gate covers it. ``actiongates.ts
 has a row for every ``steps.Task``, ``steps.Step`` and ``actions.Action``: the gate
 (``hold``, ``pressure`` or ``free`` with its reason), where it is made and the test
 that shows it. ``findings`` is the check, run by a test, so a member added to the
-code with no row, a row of no member, and a step the matrix lets make a gated
-action while its own row is ``free`` all fail.
+code with no row, a row of no member, and a step that carries a gated verb
+while its own row is ``free`` all fail.
 """
 
 import enum
 from typing import Callable, Mapping, Sequence
 
-from . import actions, steps, tablefile
+from . import actions, carriedby, steps, tablefile
 
 
 class Gate(enum.Enum):
@@ -91,36 +91,34 @@ def _row_findings(
     return found
 
 
-def _matrix_findings(
-    rows: Mapping[str, tuple[str, str, str]], matrix: str
-) -> Sequence[str]:
-    grid = actions.parse(matrix)[1]
+def _carried_findings(rows: Mapping[str, tuple[str, str, str]]) -> Sequence[str]:
+    named = {
+        f"Step.{each.name}": carried for each, carried in carriedby.CARRIED.items()
+    }
     return [
-        f"{state} may make {action.lower()} but its gate is free"
-        for state, cells in grid.items()
-        for action in RUNNER_COST
-        if cells.get(f"Action.{action}") == "y"
-        and gate_of(rows.get(state, ("free",))[0]) is Gate.FREE
+        f"{step} carries {carried.name.lower()} but its gate is free"
+        for step, carried in named.items()
+        if carried.name in RUNNER_COST
+        and gate_of(rows.get(step, ("free",))[0]) is Gate.FREE
     ]
 
 
-def findings(table: str, matrix: str, exists: Callable[[str], bool]) -> Sequence[str]:
+def findings(table: str, exists: Callable[[str], bool]) -> Sequence[str]:
     """What the table gets wrong.
 
     Args:
         table: the gate table.
-        matrix: the text of ``actionmatrix.tsv``.
         exists: whether a named test exists.
 
     Returns:
         A finding for a member with no row, a row of no member, a gate that is
         not a ``Gate``, a ``hold`` or ``pressure`` row whose test does not
-        exist, a ``free`` row with no reason, and a step the matrix allows a gated
-        action at whose row is ``free``.
+        exist, a ``free`` row with no reason, and a step that carries a gated verb whose
+        row is ``free``.
     """
     rows = parse(table)
     found = [f"{each} has no gate row" for each in members() if each not in rows]
     found += [
         f"{each} is no task, step or action" for each in rows if each not in members()
     ]
-    return [*found, *_row_findings(rows, exists), *_matrix_findings(rows, matrix)]
+    return [*found, *_row_findings(rows, exists), *_carried_findings(rows)]

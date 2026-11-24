@@ -186,8 +186,8 @@ def _line(each: Seen) -> str:
     where = each.reference or f"{each.repository} branch {each.branch}"
     return (
         f"{UNLEDGERED} event {each.identifier}: {actions.word(each.action)}"
-        f" of {where} at {each.time.isoformat()} was not made by pitboss act; the"
-        " matrix (actionmatrix.tsv) was not asked"
+        f" of {where} at {each.time.isoformat()} was not made by pitboss act; no"
+        " decision was asked"
     )
 
 

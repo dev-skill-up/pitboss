@@ -26,11 +26,12 @@ from . import (
     expansion,
     forms,
     noxrow,
+    givenfile,
     plancheck,
     plandigest,
     totalbody,
 )
-from .totaljson import JsonMap, listing, members, read_file, text
+from .totaljson import JsonMap, listing, members, text
 
 SCHEMA = "planformat.schema.json"
 BODY_SCHEMA = "bodyformat.schema.json"
@@ -51,7 +52,7 @@ def schema(name: str = SCHEMA) -> JsonMap:
     Returns:
         The schema, as the repository holds it.
     """
-    return members(read_file(pathlib.Path(__file__).with_name(name)))
+    return members(givenfile.json_file(pathlib.Path(__file__).with_name(name)))
 
 
 def _object(value: JsonMap, rules: JsonMap, where: str) -> Iterator[str]:
@@ -287,7 +288,7 @@ def body_findings(made: str, head: str) -> Sequence[str]:
 def _refused_or(args: argparse.Namespace) -> object:
     # the file's JSON; the faults of its kind's schema end the command (exit 1)
     try:
-        found = read_file(pathlib.Path(args.file))
+        found = givenfile.json_file(pathlib.Path(args.file))
     except (OSError, ValueError) as error:
         print(f"{args.file}: {error}", file=sys.stderr)
         raise SystemExit(1)

@@ -241,9 +241,9 @@ class TestRulingOfAnEditedPlan(unittest.TestCase):
         test_flow.expect(steps.worker(steps.Task.RULING_STEPS), pr)
 
     def test_a_push_after_the_ruling_leaves_the_hold(self) -> None:
-        """The nearest input: the ruling is applied, the Plan stays edited."""
+        """quire#1130: the ruling is applied and the Plan stays edited: a worker."""
         pr = ruled(EDITED_PLAN, BODY, [PUSHED], test_flow.HEAD)
-        test_flow.expect(steps.plan_edited(), pr)
+        test_flow.expect(steps.worker(steps.Task.RESTORE_PLAN), pr)
 
     def test_the_fix_round_with_new_urls_is_re_reviewed(self) -> None:
         """Done-when 4: ruling, new head, URL-only change, green checks."""

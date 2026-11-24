@@ -13,6 +13,7 @@ from typing import Sequence
 
 from . import blockedform
 from .plansection import plan_section
+from . import typedstd
 
 MACHINE_PATH = re.compile(r"(?<![\w.>&-])(~|/(tmp|home|root|mnt))/[^\s`'\")|]*")
 HEAD = re.compile(r"(?m)^Head: (\S+)\s*$")
@@ -35,8 +36,8 @@ def plan_commands(body: str) -> Sequence[str]:
         Its inline code spans, then its ``$ `` lines.
     """
     section = plan_section(body) or ""
-    spans = re.findall(r"`([^`\n]+)`", section)
-    return [*spans, *re.findall(r"(?m)^\$ (.+)$", section)]
+    spans = typedstd.findall(r"`([^`\n]+)`", section)
+    return [*spans, *typedstd.findall(r"(?m)^\$ (.+)$", section)]
 
 
 def _path_finding(body: str) -> Sequence[str]:
@@ -60,7 +61,7 @@ def body_findings(body: str, head: str) -> Sequence[str]:
         A line for each row the body breaks.
     """
     found = []
-    named = HEAD.findall(body)
+    named = typedstd.findall(HEAD, body)
     if named and named[-1] != head:
         found.append("body: the last `Head:` line names another commit than the head")
     found += [

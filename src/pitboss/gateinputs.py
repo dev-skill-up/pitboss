@@ -53,7 +53,8 @@ def reader(github: ghapi.GitHub) -> Read:
         try:
             if path.startswith(ALL):  # pages by number (keyword: proxy-paging)
                 return ghapi.every(github, path.removeprefix(ALL))
-            return json.loads(github.run(["gh", "api", path]).stdout)
+            found: object = json.loads(github.run(["gh", "api", path]).stdout)
+            return found
         except subprocess.CalledProcessError as error:
             # GitHub's answer (a 404, a 422); a read that failed every try is
             # ``retrying.ReadFailed``, which ends the command (plan 3.2, P11)

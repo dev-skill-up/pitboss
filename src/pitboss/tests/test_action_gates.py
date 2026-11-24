@@ -2,7 +2,7 @@
 
 quire#1110: a PR dropped from the merge queue was told to arm auto-merge again
 during a quiet period of the runner hold. Each task, step and action has a gate
-row, the row's test exists, the matrix lets no ungated step make a gated action,
+row, the row's test exists, a step that carries a gated verb is not free,
 and the re-arm of a dropped PR is withheld by the hold and offered after it.
 """
 
@@ -21,7 +21,6 @@ from ..actiongates import findings
 from .knownplay import held
 
 TABLE = phrases.shipped_text("actiongates.tsv")
-MATRIX = phrases.shipped_text("actionmatrix.tsv")
 PULL = "owner/project#2"
 
 
@@ -42,12 +41,12 @@ class TestTable(unittest.TestCase):
 
     def test_c26_the_shipped_table_has_no_finding(self) -> None:
         """Every member has its row, every test exists, no gated step is free."""
-        assert_that(findings(TABLE, MATRIX, resolvable), empty())
+        assert_that(findings(TABLE, resolvable), empty())
 
     def test_c26_a_member_with_no_row_is_found(self) -> None:
         """A new action with no gate row fails the check."""
         text = TABLE.replace("Action.ARM\t", "Action.OTHER\t", 1)
-        found = findings(text, MATRIX, resolvable)
+        found = findings(text, resolvable)
         assert_that(
             found,
             equal_to(
@@ -59,20 +58,15 @@ class TestTable(unittest.TestCase):
         )
 
     def test_c26_a_step_that_makes_a_gated_action_is_not_free(self) -> None:
-        """Step.MERGE allows merge and arm: its row cannot be free."""
+        """Step.MERGE carries the merge: its row cannot be free."""
         row = next(
             each for each in TABLE.splitlines() if each.startswith("Step.MERGE\t")
         )
         text = TABLE.replace(row, "Step.MERGE\tfree\tnothing\t-")
-        found = findings(text, MATRIX, resolvable)
+        found = findings(text, resolvable)
         assert_that(
             having(found, "its gate is free"),
-            equal_to(
-                [
-                    "Step.MERGE may make merge but its gate is free",
-                    "Step.MERGE may make arm but its gate is free",
-                ]
-            ),
+            equal_to(["Step.MERGE carries merge but its gate is free"]),
         )
 
     def test_c26_a_gate_without_a_test_or_a_reason_is_found(self) -> None:
@@ -80,18 +74,18 @@ class TestTable(unittest.TestCase):
         text = TABLE.replace(
             "test_c26_an_arm_during_a_hold_is_refused_and_changes_nothing", "gone"
         )
-        found = findings(text, MATRIX, resolvable)
+        found = findings(text, resolvable)
         assert_that(found[0], contains_string("does not exist"))
         free = TABLE.replace("closing a PR starts no workflow run of the project", " ")
         assert_that(
-            findings(free, MATRIX, resolvable),
+            findings(free, resolvable),
             equal_to(["Action.CLOSE: a free row says why"]),
         )
 
     def test_c26_a_gate_that_is_none_of_the_three_is_found(self) -> None:
         """The words are hold, pressure and free."""
         text = TABLE.replace("Action.CLOSE\tfree", "Action.CLOSE\tmaybe", 1)
-        says("\n".join(findings(text, MATRIX, resolvable)), "is none of hold")
+        says("\n".join(findings(text, resolvable)), "is none of hold")
 
     def test_c26_a_row_with_a_missing_field_is_refused(self) -> None:
         """A short row is an error."""
@@ -107,6 +101,23 @@ class TestRearm(unittest.TestCase):
         said = acthub.WRITES["arm"](actcore.Change(kind="arm", repo="o/r", number=2))
         assert_that(list(said[:4]), equal_to(["gh", "pr", "merge", "2"]))
         assert_that(list(said[-2:]), equal_to(["--auto", "--merge"]))
+
+    def test_c17_pin_the_merge_and_the_arm_name_the_head_they_read(self) -> None:
+        """GitHub holds a merge or an arm to the head the verb read (keyword: pin)."""
+        words = {
+            kind: acthub.WRITES[kind](
+                actcore.Change(
+                    kind=kind, repo="o/r", number=2, fields={"sha": "abc123"}
+                )
+            )
+            for kind in ("arm", "merge")
+        }
+        arm, merge = words["arm"], words["merge"]
+        assert_that(
+            list(arm[arm.index("--match-head-commit") :][:2]),
+            equal_to(["--match-head-commit", "abc123"]),
+        )
+        assert_that(list(merge[-3:-1]), equal_to(["-f", "sha=abc123"]))
 
     def test_c26_an_arm_during_a_hold_is_refused_and_changes_nothing(self) -> None:
         """A hold of merges.

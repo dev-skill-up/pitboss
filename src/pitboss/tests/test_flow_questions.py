@@ -67,14 +67,6 @@ def comment(body: str, second: int, author: str = "MEMBER") -> shapes.Comment:
 class TestQuestions(unittest.TestCase):
     """The eleven questions."""
 
-    def test_is_paused_for_owner(self) -> None:
-        """The paused-owner label pauses a PR."""
-        labelled = state(labels=frozenset({"paused-owner", "x"}))
-        check(
-            lambda each: "paused-owner" in each.labels,
-            [(labelled, True), (state(), False)],
-        )
-
     def test_has_plan_execution_body(self) -> None:
         """Both sections are needed, each as a heading of its own."""
         bodies = ["## Plan\nx\n## Execution\ny", "## Plan\nx\n", "Plan, Execution", ""]

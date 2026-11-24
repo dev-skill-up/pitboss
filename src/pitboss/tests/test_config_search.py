@@ -1,6 +1,5 @@
 """The file a command with no configuration finds (keyword: default-config)."""
 
-import argparse
 import functools
 import pathlib
 import tempfile
@@ -10,6 +9,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import configfile, configsearch
+from . import fakeargs
 from . import configcases, fakes, world
 
 QUIRE = "https://github.com/owner/quire.git"
@@ -137,7 +137,7 @@ class TestFinding(unittest.TestCase):
         (found,) = written(directory, "pitboss.toml")
 
         def name(config: str | None, env: Mapping[str, str]) -> str:
-            args = argparse.Namespace(config=config, env={"PWD": str(directory), **env})
+            args = fakeargs.args(config=config, env={"PWD": str(directory), **env})
             return configfile.named(args)
 
         viable = {"PITBOSS_CONFIG": "env.toml"}

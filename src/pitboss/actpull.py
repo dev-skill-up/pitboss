@@ -11,8 +11,11 @@ from . import actcore, totalanswer
 from .actcore import disarm_first, head_now, options_of, pull_of, repo_write
 from .totaljson import text
 
-LABELS = totalanswer.KNOWN_LABELS | {"p0", "p1", "p2", "p3", actcore.HOLD_LABEL}
+PRIORITIES = frozenset({"p0", "p1", "p2", "p3"})  # only the owner changes one
+LABELS = totalanswer.KNOWN_LABELS | {actcore.HOLD_LABEL}
 WORKFLOWS = ("relock.yml", "check.yml")
+RECORDED = frozenset({"arm"})  # the verbs that write their head to the timeline
+PINNED = frozenset({"merge", "arm"})  # gh has a head guard for these (not undraft)
 CLOSE_REASONS = ("completed", "not_planned", "duplicate")
 
 
@@ -34,10 +37,13 @@ def gated_write(
         What was done.
     """
     pull = pull_of(act, target)
-    if action == "arm":
-        actcore.record(act, target, f"arm head={actcore.head_of(pull)}")
-    actcore.put(act, target, action)
-    return f"{action} {target.name} at {actcore.head_of(pull)}"
+    head = actcore.head_of(pull)
+    if action in RECORDED:
+        actcore.record(act, target, f"{action} head={head}")
+    # keyword: pin: GitHub merges or arms only when the head is still the one read
+    fields = {"sha": head} if action in PINNED else {}
+    actcore.put(act, target, action, fields)
+    return f"{action} {target.name} at {head}"
 
 
 def disarm(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
@@ -100,7 +106,7 @@ def block(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
 
 
 def label(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
-    """Add or remove a label pitboss applies; ``paused-owner`` disarms.
+    """Add or remove a label pitboss applies (never a priority, never ``paused-owner``).
 
     Args:
         act: the verb's world.
@@ -111,14 +117,20 @@ def label(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
         What was done.
 
     Raises:
-        actcore.BadInput: a label pitboss does not apply.
+        actcore.BadInput: a label pitboss does not apply, a priority (only the
+            owner changes one), or ``paused-owner`` added (it is retired; removal
+            is allowed).
     """
     name = actcore.option(options, "name")
+    removing = bool(options.get("remove"))
+    refused = {
+        **dict.fromkeys(PRIORITIES, "only the owner changes a priority"),
+        totalanswer.PAUSED: "removing is allowed, adding is retired",
+    }
+    if name in refused and not (removing and name not in PRIORITIES):
+        raise actcore.BadInput(f"label {name}: {refused[name]}")
     if name not in LABELS:
         raise actcore.BadInput(f"label {name} is not one pitboss applies")
-    removing = bool(options.get("remove"))
-    if name == totalanswer.PAUSED and not removing:
-        disarm_first(act, target, totalanswer.PAUSED)
     kind = "unlabel" if removing else "label"
     actcore.put(act, target, kind, {"name": name})
     return f"{kind} {name} on {target.name}"

@@ -5,7 +5,7 @@ import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
 from . import bodydigest, config, gradeline, missed, reviewnote
-from . import reviewplain, sessionurl, shapes
+from . import reviewplain, sessionurl, shapes, typedstd
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -321,7 +321,7 @@ def newest(sources: Sources, review: config.Review, slug: str) -> Found | None:
     """
     gated = slug in review.gated
     found = _gated(sources, review, slug) if gated else _open(sources, review)
-    return max(found, key=lambda item: item.when, default=None)
+    return typedstd.newest(found, lambda item: item.when)
 
 
 def rules(review: config.Review, slug: str) -> tuple[Reader, config.ReviewForm]:

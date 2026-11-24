@@ -17,6 +17,7 @@ import re
 from typing import AbstractSet, Mapping, Protocol, Sequence
 
 from . import phrases, rules, sessionurl, shapes, steps, tsv
+from . import typedstd
 
 FIELDS = 5
 RULING = "ruling"
@@ -67,7 +68,7 @@ def named(pair: Declared) -> str:
 def _stems(text: str) -> Sequence[str]:
     return [
         word[:STEM]
-        for word in re.findall(r"[a-z]{4,}", text.lower())
+        for word in typedstd.findall(r"[a-z]{4,}", text.lower())
         if word not in STOP
     ]
 
@@ -238,7 +239,7 @@ def register_words() -> Mapping[str, str]:
     return dict(zip([each.id for each in rows], [each.words for each in rows]))
 
 
-@functools.cache
+@typedstd.memo
 def shipped() -> Sequence[Declared]:
     """The pairs pitboss ships.
 

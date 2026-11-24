@@ -26,6 +26,17 @@ UNRECORDED = (
 )
 
 
+def unhand(pull: object, body: str) -> None:
+    """Put a body that names no head on a PR's JSON.
+
+    Args:
+        pull: the JSON of the PR, a mapping.
+        body: the body.
+    """
+    assert isinstance(pull, dict)
+    pull["body"] = body
+
+
 def incident() -> world.World:
     """The incident: cap one, PR 3 in fix the review, PR 1 waiting for a review.
 
@@ -35,12 +46,12 @@ def incident() -> world.World:
         start, and one slot is left.
     """
     here = flows.unfixed_after_the_ruling()
-    head = "1" * 40
-    branch = {"sha": head, "ref": "branch-1"}
-    here.bodies[f"{PROJECT}/pulls/1"] = fakes.pull_body(1, head=branch)
-    here.bodies[fakes.page(f"{PROJECT}/commits/{head}/check-runs")] = {
-        "check_runs": [world.GREEN]
-    }
+    unhanded = f"{fakes.PLAN_AND_EXECUTION}\nHead: none\n"  # no hand-back yet (#524)
+    unhand(here.bodies[f"{PROJECT}/pulls/3"], unhanded)
+    first = {"sha": "1" * 40, "ref": "branch-1"}
+    here.bodies[f"{PROJECT}/pulls/1"] = fakes.pull_body(1, head=first)
+    runs = fakes.page(f"{PROJECT}/commits/{first['sha']}/check-runs")
+    here.bodies[runs] = {"check_runs": [world.GREEN]}
     run_all(here, [("remove", "big")])
     return here
 

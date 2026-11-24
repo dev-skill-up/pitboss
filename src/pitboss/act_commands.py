@@ -10,6 +10,7 @@ and what stands instead of it is printed with exit 2. Writes are a dry run unles
 """
 
 import argparse
+import dataclasses
 import functools
 import sys
 from typing import Callable, Mapping, NoReturn, Sequence
@@ -17,7 +18,7 @@ from typing import Callable, Mapping, NoReturn, Sequence
 from gather.commands import add_argument
 
 from . import ENTRY_DATA, actcore, actfacts, actledger, actread, actverbs, actwiring
-from . import answer, configsettle, logline, onepath, render
+from . import answer, configsettle, logline, onepath, pressureread, render
 from .commandarguments import CONFIG_OPTION, DRY_RUN_ARGUMENT, NOW_ARGUMENT
 from .commands import Context, load_context
 
@@ -109,7 +110,8 @@ def act(args: argparse.Namespace) -> None:
     owner = actwiring.owner_of(path)
     questions, given = _decided(found, args, options)
     asking = actwiring.Asking(owner=owner, questions=questions)
-    world = actwiring.act_of(found.github, found.settings, args.run, asking)
+    world = actwiring.act_of(found.github, found.settings, args.world.run, asking)
+    world = dataclasses.replace(world, pressure=lambda: pressureread.held_line(found))
     given(world)
     target = actledger.target_of(args.target)
     asked = actfacts.Asked(verb=args.verb, target=target, options=options)

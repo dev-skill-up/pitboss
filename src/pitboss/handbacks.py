@@ -1,87 +1,88 @@
-"""A PR's hand-backs as the review flow reads them (keyword: standing).
+"""A PR's hand-backs, derived from what the PR shows (keyword: standing, #524).
 
-``hand-back-check`` records, in the project's main clone (and the worktree), each
-head it accepted with the digest of the PR body and the ruling the PR had then. A
-review is offered only for a head and body that were handed back (``standing``),
-and a rejection counts as a round only when its head and body were
-(``stagerounds``).
+A hand-back is not recorded anywhere a worker could write: it is what the PR's body
+and comments say now. The body's last ``Head:`` line names the head and a trusted
+clean ``Plan check`` is posted (the two things ``hand-back-check`` refuses without),
+so a head is handed back exactly when ``derive`` says so, and nothing a worker could
+forge by writing a file counts. A past review state counts when a clean check was
+posted before the review (``covers_state``). ``handbackderive`` reads them.
 """
 
 import dataclasses
-from typing import AbstractSet
+from typing import Protocol, Sequence
 
-ANY = "*"  # a record of an older version holds only the head: it covers any body
 NO_RULING = "-"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class HandedBack:
-    """What the worktrees of a PR's branch recorded.
+    """What a PR shows of its worker's hand-backs.
 
     Attributes:
-        required: whether a worker's hand-back is owed (every PR but a relock PR,
-            whatever worktree exists: keyword durable-record, pitboss#513).
-        states: each ``(head, body digest, ruling address)`` accepted, ``ANY`` where
-            an older record did not hold it.
+        required: whether a worker's hand-back is owed (every PR but a relock PR).
+        head: the head the body's last ``Head:`` line names while the Plan check
+            of the body's Plan is clean; empty when it is not.
+        checked: when each clean ``Plan check`` of a trusted author was posted.
     """
 
     required: bool
-    states: AbstractSet[tuple[str, str, str]]
+    head: str
+    checked: Sequence[str]
 
 
-NOT_REQUIRED = HandedBack(required=False, states=frozenset())
+NOT_REQUIRED = HandedBack(required=False, head="", checked=())
 
 
-def _matches(kept: str, wanted: str) -> bool:
-    return kept in (ANY, wanted)
-
-
-def covers(handed: HandedBack, head: str, digest: str, ruling: str) -> bool:
-    """Whether a head and body were handed back under a ruling.
+def covers(handed: HandedBack, head: str) -> bool:
+    """Whether a head was handed back.
 
     Args:
-        handed: what was recorded.
+        handed: what the PR shows.
         head: the PR's head.
-        digest: the digest of the PR's body.
-        ruling: the address of the PR's newest ruling, ``NO_RULING`` when none.
 
     Returns:
-        True when no worker is required, or a record names the head, the body
-        and the ruling.
+        True when no worker is required, or the body names the head under a clean
+        Plan check.
     """
-    return not handed.required or any(
-        sha == head and _matches(body, digest) and _matches(ruled, ruling)
-        for sha, body, ruled in handed.states
-    )
+    return not handed.required or (bool(head) and handed.head == head)
 
 
-def covers_state(handed: HandedBack, head: str, digest: str) -> bool:
-    """Whether a head and body were handed back, under any ruling.
+def covers_state(handed: HandedBack, sha: str, when: str) -> bool:
+    """Whether a reviewed state was handed back before its review.
 
     Args:
-        handed: what was recorded.
-        head: a head, possibly abbreviated (a review's).
-        digest: the digest of the body.
+        handed: what the PR shows.
+        sha: the reviewed head, possibly abbreviated.
+        when: when the review was posted.
 
     Returns:
-        True when no worker is required, or a record names the head (not an
-        empty one, which is a prefix of every head) and the body.
+        True when no worker is required, or the review names a head and a clean
+        Plan check was posted before it.
     """
-    named = bool(head) and any(
-        sha.startswith(head) and _matches(body, digest)
-        for sha, body, _ in handed.states
-    )
-    return not handed.required or named
+    posted = any(each <= when for each in handed.checked)
+    return not handed.required or (bool(sha) and posted)
 
 
-def applied(handed: HandedBack, ruling: str) -> bool:
-    """Whether a worker handed work back after a ruling.
+class Reviewed(Protocol):
+    """A review: the head it names and when it was posted."""
+
+    @property
+    def sha(self) -> str:
+        """Return the head, possibly abbreviated."""
+
+    @property
+    def when(self) -> str:
+        """Return when it was posted."""
+
+
+def covers_review(handed: HandedBack, review: Reviewed) -> bool:
+    """Whether a review's state was handed back before the review.
 
     Args:
-        handed: what was recorded.
-        ruling: the address of the ruling.
+        handed: what the PR shows.
+        review: the review.
 
     Returns:
-        True when a record names the ruling (the worker saw it when it handed back).
+        What ``covers_state`` says of the review's head and time.
     """
-    return any(ruled == ruling for _, _, ruled in handed.states)
+    return covers_state(handed, review.sha, review.when)

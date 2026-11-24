@@ -58,7 +58,7 @@ def unnamed(body: str) -> Sequence[str]:
     return [
         line
         for line in body.splitlines()
-        if LOOSE.match(line) and not REFERENCE.findall(line)
+        if LOOSE.match(line) and not REFERENCE.search(line)
     ]
 
 

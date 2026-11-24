@@ -20,6 +20,7 @@ from . import (
     shapes,
     steps,
 )
+from . import typedstd
 
 QUOTED = 600
 
@@ -43,6 +44,23 @@ def records_check(body: str, digest: str) -> bool:
     )
 
 
+def is_clean(body: str) -> bool:
+    """Whether a comment is a ``plan-check`` that found nothing, of any Plan.
+
+    Args:
+        body: the comment.
+
+    Returns:
+        True when its first line is ``Plan check`` and it has ``Plan check: ok``.
+    """
+    lines = [each.rstrip() for each in sessionurl.lines(body)]
+    return (
+        bool(lines)
+        and lines[0] == steps.PLAN_CHECK_FIRST_LINE
+        and (steps.PLAN_CHECK_OK in lines)
+    )
+
+
 def is_plan_check(body: str, digest: str) -> bool:
     """Whether a comment is a clean ``plan-check`` of the Plan with a digest.
 
@@ -54,8 +72,7 @@ def is_plan_check(body: str, digest: str) -> bool:
         True when it records that Plan digest and has the line
         ``Plan check: ok``.
     """
-    lines = [each.rstrip() for each in sessionurl.lines(body)]
-    return records_check(body, digest) and steps.PLAN_CHECK_OK in lines
+    return records_check(body, digest) and is_clean(body)
 
 
 def newest_check(
@@ -82,7 +99,7 @@ def newest_check(
         if each.author_association in trusted
         and any(records_check(each.body, digest) for digest in digests)
     ]
-    return max(found, key=lambda each: each.created_at, default=None)
+    return typedstd.newest(found, lambda each: each.created_at)
 
 
 def findings(check: shapes.Comment) -> str:

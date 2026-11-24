@@ -293,7 +293,7 @@ def remove_all(
     verb = " FREED" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
     gone = []
     how = Removal(
-        run=args.run, recheck=recheck, batch=args.batch, dry=not args.no_dry_run
+        run=args.world.run, recheck=recheck, batch=args.batch, dry=not args.no_dry_run
     )
     for each, why in removals(how, chosen):
         gone.extend([] if why else [each])

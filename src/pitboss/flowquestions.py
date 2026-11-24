@@ -7,7 +7,7 @@ recorded of the PR.
 from typing import AbstractSet, Protocol, Sequence
 
 from . import bodydigest, checkoutcome, draftfacts, expansion, handbacks
-from . import plandigest, shapes
+from . import plandigest, shapes, typedstd
 
 current_for = expansion.current_for
 Subject = expansion.Subject
@@ -68,7 +68,7 @@ def newest_counting_review(pr: PullState) -> Graded | None:
         the newest one read another body.
     """
     found = _of_head(pr, regular_reviews(pr))
-    newest = max(found, key=lambda each: each.when, default=None)
+    newest = typedstd.newest(found, _when)
     now = bodydigest.digest(pr.pull.body)
     if newest and not current_for(Subject.BODY, newest.body, now):
         return None
@@ -129,7 +129,7 @@ def get_plan_rejections(pr: PullState) -> int:
         (each.sha, each.body)
         for each in regular_reviews(pr)
         if each.plan is Verdict.CHANGES_NEEDED
-        and handbacks.covers_state(pr.handed, each.sha, each.body)
+        and handbacks.covers_review(pr.handed, each)
     }
     return len(states)
 
@@ -186,6 +186,10 @@ def asked_rejection(pr: PullState) -> shapes.Graded | None:
     return rejecting if moved else None
 
 
+def _when(each: shapes.Graded) -> str:
+    return each.when
+
+
 def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
     """The regular reviews of a PR, oldest first (no GitHub review).
 
@@ -196,7 +200,7 @@ def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
         The reviews.
     """
     regular = [each for each in pr.graded if each.comment]
-    return sorted(regular, key=lambda each: each.when)
+    return sorted(regular, key=_when)
 
 
 def used_again(pr: PullState, review: shapes.Graded, posted: shapes.Comment) -> bool:
@@ -211,5 +215,6 @@ def used_again(pr: PullState, review: shapes.Graded, posted: shapes.Comment) -> 
         True when the review came after the ruling and a worker handed back the
         head and body it graded (keyword: standing).
     """
-    handed = handbacks.covers_state(pr.handed, review.sha, review.body)
-    return review.when > posted.created_at and handed
+    return review.when > posted.created_at and handbacks.covers_review(
+        pr.handed, review
+    )

@@ -189,7 +189,7 @@ def section(args: argparse.Namespace, settings: config.Config) -> bool:
     unkept = syncguard.not_synced(given, document, [each.path for each in found])
     for line in unkept:
         print(line)
-    done = sync_lines(args.safe_run, sync, found)
+    done = sync_lines(args.world.safe_run, sync, found)
     for line in done.lines:
         print(line)
     return done.failed or bool(unkept)

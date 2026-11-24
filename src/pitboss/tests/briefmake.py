@@ -105,6 +105,7 @@ def make(kind: brief.Kind, **changes: object) -> brief.Spec:
         heads=_part(COMMITS, changes),
         rules=_part(RULES, changes),
         paths=changes.get("paths"),  # type: ignore[arg-type]
+        failed=changes.get("failed", ()),  # type: ignore[arg-type]
     )
 
 

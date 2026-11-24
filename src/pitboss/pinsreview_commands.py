@@ -100,7 +100,7 @@ def pins_review(args: argparse.Namespace) -> None:
     found = commands.load_context(args)
     facts = _facts(found, args.pull)
     reading = _cleared(found, facts)
-    form = gateform.read(args.safe_run, found.settings, facts.repo.slug).form
+    form = gateform.read(args.world.safe_run, found.settings, facts.repo.slug).form
     text = pinsreview.comment(form, facts.pull.head.sha, reading)
     path = f"repos/{facts.repo.slug}/issues/{facts.pull.number}/comments"
     print(text, end="")

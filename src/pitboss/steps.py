@@ -8,16 +8,11 @@ import dataclasses
 import enum
 from typing import AbstractSet
 
-PAUSED_LABEL = "paused-owner"
+IMPOSSIBLE_FIRST_LINE = "Impossible state"  # keyword: impossible-state
 RULING_FIRST_LINE = "Opus ruling"
 PLAN_CHECK_FIRST_LINE = "Plan check"  # keyword: plan-check (pitboss#192)
 PLAN_CHECK_OK = "Plan check: ok"
 RUN_E2E_MARKER = "RUN E2E BEFORE APPROVAL"  # keyword: run-e2e (pitboss#199)
-# keyword: owner-artifact (pitboss#237, the owner's standing ruling of 2026-11-04)
-OWNER_ARTIFACT = (
-    "attach a markdown artifact with the sections 'What happened', 'Recommendation' "
-    "and 'Suggested mitigation'"
-)
 FIRST_STEP = (
     "write the code, open the PR as a draft whose body has a Plan section and an"
     " Execution section; no open PR says it fixes this ticket"
@@ -38,7 +33,6 @@ class Step(enum.Enum):
         UNDRAFT: mark the PR ready (a draft approved at its head, pitboss#176).
         REGULAR_REVIEW: a new reviewer grades a stage.
         OPUS_RULING: one Opus agent makes a binding ruling.
-        PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
         FIX_RULING: the newest Opus ruling has no readable ``Ruling:`` line.
         RULING_ESCALATES: the Opus ruling escalated to the owner.
         PLAN_EDITED: the approved Plan was edited, no ruling allows it (plan-digest).
@@ -52,7 +46,6 @@ class Step(enum.Enum):
     UNDRAFT = enum.auto()
     REGULAR_REVIEW = enum.auto()
     OPUS_RULING = enum.auto()
-    PAUSE_FOR_OWNER = enum.auto()
     FIX_RULING = enum.auto()
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
@@ -69,6 +62,7 @@ class Task(enum.Enum):
         FIRST_ROUND: the first work on a PR with no Plan and Execution body.
         FIX_CI: the head's CI is red.
         REVISE_PLAN: the plan alone, no code.
+        RESTORE_PLAN: put the approved Plan back, an Opus ruling already stands.
         RESOLVE_CONFLICT: the head conflicts with the base.
         FIX_EXECUTION: the execution, against the approved plan.
         RULING_STEPS: exactly the steps of an Opus ruling.
@@ -87,6 +81,7 @@ class Task(enum.Enum):
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
     FIX_CI = "fix CI on the head (a red CI is never a rejection)"
     REVISE_PLAN = "revise the PLAN only, change no code"
+    RESTORE_PLAN = "restore the approved Plan in the body, change no code"
     RESOLVE_CONFLICT = "resolve the conflict"
     FIX_EXECUTION = "fix the execution against the approved plan"
     RULING_STEPS = "do exactly the steps of the Opus ruling"
@@ -167,7 +162,6 @@ class Next:
 UNRESOLVED = frozenset(
     {
         Step.OPUS_RULING,
-        Step.PAUSE_FOR_OWNER,
         Step.RULING_ESCALATES,
         Step.PLAN_EDITED,
     }
@@ -239,15 +233,6 @@ def opus_ruling() -> Next:
     return Next(step=Step.OPUS_RULING)
 
 
-def pause_for_owner() -> Next:
-    """The step that pauses the PR for the owner.
-
-    Returns:
-        The step.
-    """
-    return Next(step=Step.PAUSE_FOR_OWNER)
-
-
 def fix_ruling(comment: str) -> Next:
     """The step of a PR whose newest Opus ruling cannot be read.
 
@@ -309,20 +294,46 @@ def merge() -> Next:
 
 
 class Idle(enum.Enum):
-    """No actor takes the PR now (keyword: one-path: it is omitted, not said).
+    """No actor takes the PR now; each member is the event that ends the wait.
 
-    Its one member carries nothing: a reason not to act is no decision (the
-    one-path plan, 6.2), so no reader can tell one idle PR from another.
+    The wait is not said (the one-path plan, 6.2: a reason not to act is no
+    decision; keyword: idle-event, #524), but it is typed: each member is one
+    event, and ``idlewait`` maps each to the input whose re-read can end it, so a
+    PR that waits with no event has no member to be.
 
     Attributes:
-        IDLE: no actor takes the PR.
+        CI_RUN: a check run of the head has not finished, or the check the Plan
+            review waits for has not passed.
+        RUNNER_PRESSURE: a runner-pressure hold covers the PR's repository.
+        BLOCKER_OPEN: a PR or issue the PR names as its blocker is open.
+        UNDRAFT_WINDOW: the approved draft waits for the undraft window.
+        LOWER_PR_FIXES: the lowest-numbered PR of the shared red fixes it.
     """
 
-    IDLE = enum.auto()
+    CI_RUN = enum.auto()
+    RUNNER_PRESSURE = enum.auto()
+    BLOCKER_OPEN = enum.auto()
+    UNDRAFT_WINDOW = enum.auto()
+    LOWER_PR_FIXES = enum.auto()
 
 
-Move = Next | Idle
-IDLE = Idle.IDLE
+class Ended(enum.Enum):
+    """The PR ended impossible: a state of its own, never an idle one.
+
+    An idle PR waits on an event that changes what is observed (a CI result, a
+    push, a comment); an ended one waits on none, so a proof that every idle PR
+    names such an event leaves this the only move without one (keyword:
+    impossible-state).
+
+    Attributes:
+        IMPOSSIBLE: the PR's card was posted; the queue moves past it.
+    """
+
+    IMPOSSIBLE = enum.auto()
+
+
+Move = Next | Idle | Ended
+IMPOSSIBLE = Ended.IMPOSSIBLE
 
 
 def step_is(move: Move, wanted: AbstractSet[Step]) -> bool:

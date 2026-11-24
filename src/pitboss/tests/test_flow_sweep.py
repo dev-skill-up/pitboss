@@ -10,9 +10,12 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import bodydigest, shapes
 from . import (
     actreviewed,
+    blank,
+    card,
     decisionline,
     fakes,
     fullpull,
+    headed,
     quietworld,
     test_flow,
     world,
@@ -20,19 +23,18 @@ from . import (
 )
 from .test_commands import sweep
 from .test_slot_commands import next_output
-from . import blank
 
 HEAD = "3" * 40
 OLDER = "2" * 40
 CHANGES = "changes needed"
 APPROVED = "approved"
 RULING_LINE = "RULING: owner/project#3: start an Opus agent"
-PAUSE_LINE = "ORCHESTRATOR: owner/project#3: label the PR and its ticket paused-owner"
-ESCALATES = "ORCHESTRATOR: owner/project#3: the Opus ruling escalated to the owner"
+PAUSE_LINE = "paused-owner"  # retired: no line says it (keyword: impossible-state)
+ESCALATES = "ORCHESTRATOR: owner/project#3: the Opus ruling escalated: the orchestrator"
 REVISE = "WORKER: owner/project#3: revise the PLAN only"
+FIX_EXECUTION = "WORKER: owner/project#3: fix the execution against the approved plan"
 REVIEW_THIRD = "REVIEWER: owner/project#3: grade Plan and Execution together"
 CONFLICT_THIRD = "WORKER: owner/project#3: resolve the conflict"
-# PR 3's commits since main: authored at the older head, a fix of a.bats at HEAD
 AUTHORED = {"sha": "1", "parents": [{"sha": "0"}]}
 COMMITS: Mapping[str, object] = {
     f"{world.PROJECT}/compare/main...{HEAD}": {
@@ -82,7 +84,7 @@ def reading(review: shapes.Comment, body: str) -> shapes.Comment:
     """
     lines = review.body.splitlines()
     at = next(n for n, line in enumerate(lines) if line.startswith("Reviewed:")) + 1
-    lines.insert(at, f"Body: {bodydigest.digest(body)}")
+    lines.insert(at, f"Body: {bodydigest.digest(headed.with_head_line(body, HEAD))}")
     return dataclasses.replace(review, body="\n".join(lines) + "\n")
 
 
@@ -98,9 +100,10 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
     """
     here = world.make_world()
     path = fakes.page("repos/owner/project/issues/3/comments")
-    said = [world.comment_json(each) for each in rounds]
-    here.bodies[path] = [*said, worldcomments.CLEAN_CHECK]
-    changes.setdefault("head", {"sha": HEAD, "ref": "branch-3"})
+    here.bodies[path] = [*map(world.comment_json, rounds), worldcomments.CLEAN_CHECK]
+    changes = dict(
+        headed.headed({"head": {"sha": HEAD, "ref": "branch-3"}, **changes}, HEAD)
+    )
     here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, **changes)
     # keyword: one-path: the open listing's row carries what the pull carries
     fakes.listed_row(here.bodies, world.PROJECT, 3, **fullpull.row_fields(changes))
@@ -196,19 +199,19 @@ class TestSweepAndNext(unittest.TestCase):
         assert_that(swept, contains_string(RULING_LINE))
         assert_that(listed, contains_string(RULING_LINE))
 
-    def test_pause_after_the_ruling_and_another_plan_rejection(self) -> None:
-        """The orchestrator posts the question to the owner: the decision."""
+    def test_a_plan_rejection_after_the_ruling_is_a_plan_round(self) -> None:
+        """A worker revises the Plan: no pause, no second ruling (pitboss#517)."""
         swept, listed = sweep_and_next([*RULED, graded(CHANGES, None, 4)])
-        assert_that(swept, contains_string(PAUSE_LINE))
-        assert_that(RULING_LINE in swept, equal_to(False))
-        assert_that(listed, contains_string(PAUSE_LINE))
+        assert_that(swept, contains_string(REVISE))
+        assert_that(PAUSE_LINE in swept or RULING_LINE in swept, equal_to(False))
+        assert_that(listed, contains_string(REVISE))
 
-    def test_pause_after_the_ruling_and_a_rejected_execution(self) -> None:
-        """An execution rejection after the ruling pauses too."""
+    def test_a_rejected_execution_after_the_ruling_is_a_fix_of_it(self) -> None:
+        """A worker fixes the Execution against the ruling; the owner is not asked."""
         rounds = [EXECUTION_TWICE[0], test_flow.ruling(2), graded(None, CHANGES, 3)]
         swept, listed = sweep_and_next(rounds)
-        assert_that(swept, contains_string(PAUSE_LINE))
-        assert_that(listed, contains_string(PAUSE_LINE))
+        assert_that(swept, contains_string(FIX_EXECUTION))
+        assert_that(listed, contains_string(FIX_EXECUTION))
 
     def test_a_review_that_approves_the_plan_and_asks_for_changes_is_a_ruling(
         self,
@@ -235,11 +238,11 @@ class TestSweepAndNext(unittest.TestCase):
         """The control: with no review comment, PR 3 is listed."""
         assert_that(sweep_and_next([])[1], contains_string(REVIEW_THIRD))
 
-    def test_a_paused_pr_is_listed_for_nothing(self) -> None:
-        """The label holds it, and it prints no line of the limit."""
-        here = world_with([], labels=[{"name": "paused-owner"}])
-        assert_that(listed_for_third(here), equal_to([]))
-        assert_that(RULING_LINE in sweep(here).out, equal_to(False))
+    def test_an_impossible_pr_is_listed_for_nothing(self) -> None:
+        """The card ends it, and it prints no line of the limit."""
+        here = world_with([card.impossible()])
+        shown = (listed_for_third(here), RULING_LINE in sweep(here).out)
+        assert_that(shown, equal_to(([], False)))
 
     def test_the_ticket_of_a_held_pr_stays_taken(self) -> None:
         """The PR is at its ruling; the ticket its body fixes is not offered again."""
@@ -381,9 +384,7 @@ def unfixed_rounds(*recorded: shapes.Comment, files: Sequence[str] = ()) -> worl
 
 
 def unfixed_after_the_ruling(files: Sequence[str] = ()) -> world.World:
-    """An Execution rejected, ruled on, its Plan revised and approved alone.
-
-    PR 3's head has no code the rejection has not seen but files (pitboss#390).
+    """An Execution rejected, ruled on, its Plan revised and approved alone (#390).
 
     Args:
         files: the paths the last commit changes.

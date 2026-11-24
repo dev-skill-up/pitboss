@@ -33,7 +33,7 @@ SHA256 = {
         "2967d3849c60b31278234ebc5f43967534efd4434fdc906b0225c701ee701dbc"
     ),
     enumeration.ACTIONS: (
-        "f44496cc5b0518262b11f30be4ddae819b2f8b533a8b31364db68b45924f7e3f"
+        "aadaee1eefed3ffab146ef3c4d9ebc9731c04d1888525e25b51cb871a082fb33"
     ),
 }
 
@@ -93,7 +93,7 @@ class TestFrozen(unittest.TestCase):
             len(enumeration.frozen(enumeration.VARIABLES)),
             len(enumeration.frozen(enumeration.ACTIONS)),
         )
-        assert_that(counts, equal_to((188, 323)))
+        assert_that(counts, equal_to((188, 322)))
 
 
 class TestCells(unittest.TestCase):
@@ -157,7 +157,7 @@ class TestCover(unittest.TestCase):
             row.kind for row in coverwrites.commands(SOURCE, names, actverbs.VERBS)
         )
         assert_that(
-            (len(names), dict(kinds)), equal_to((40, {"fires": 12, "benign": 28}))
+            (len(names), dict(kinds)), equal_to((39, {"fires": 11, "benign": 28}))
         )
 
     def test_444_the_registered_commands_are_the_frozen_list_less_mutation_check(

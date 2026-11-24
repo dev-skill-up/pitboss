@@ -9,6 +9,7 @@ OF_CATEGORY = {
     workitem.Category.REVIEW_FIX_ROUND: brief.Kind.REVIEW_FIX_ROUND,
     workitem.Category.FIRST_ROUND: brief.Kind.FIRST_ROUND,
     workitem.Category.REVISE_PLAN: brief.Kind.REVISE_PLAN,
+    workitem.Category.RESTORE_PLAN: brief.Kind.RESTORE_PLAN,
     workitem.Category.FIX_REVIEW: brief.Kind.FIX_REVIEW,
     workitem.Category.FIX_CI: brief.Kind.FIX_CI,
     workitem.Category.RESOLVE_CONFLICT: brief.Kind.RESOLVE_CONFLICT,
@@ -21,6 +22,7 @@ OF_CATEGORY = {
     workitem.Category.FIX_BLOCKED_BY: brief.Kind.FIX_BLOCKED_BY,
     workitem.Category.AFTER_BLOCKER: brief.Kind.AFTER_BLOCKER,
     workitem.Category.FINISH_PARTIAL: brief.Kind.FINISH_PARTIAL,
+    workitem.Category.HAND_BACK: brief.Kind.HAND_BACK,
 }
 
 

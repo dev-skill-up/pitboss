@@ -10,7 +10,7 @@ review already graded, has no review step, whatever its comments say (quire#1122
 
 from typing import AbstractSet, Protocol, Sequence
 
-from . import bodydigest, expansion, handbacks, sessionurl, shapes, steps
+from . import bodydigest, expansion, handbacks, sessionurl, shapes, steps, typedstd
 
 
 class Held(Protocol):
@@ -57,22 +57,6 @@ class Held(Protocol):
         """
 
 
-def ruling_address(
-    comments: Sequence[shapes.Comment], trusted: AbstractSet[str]
-) -> str:
-    """The address of a PR's newest trusted ruling.
-
-    Args:
-        comments: the PR's issue comments.
-        trusted: the author associations whose comments count.
-
-    Returns:
-        The address, ``handbacks.NO_RULING`` when there is no ruling.
-    """
-    newest = _newest_ruling(comments, trusted)
-    return newest.url if newest and newest.url else handbacks.NO_RULING
-
-
 def _newest_ruling(
     comments: Sequence[shapes.Comment], trusted: AbstractSet[str]
 ) -> shapes.Comment | None:
@@ -82,7 +66,7 @@ def _newest_ruling(
         if sessionurl.first_line_is(each.body, steps.RULING_FIRST_LINE)
         and each.author_association in trusted
     ]
-    return max(found, key=lambda each: each.created_at, default=None)
+    return typedstd.newest(found, lambda each: each.created_at)
 
 
 def _alone(stage: steps.Stage) -> bool:
@@ -120,8 +104,7 @@ def of(pr: Held, stage: steps.Stage) -> steps.Standing | None:
     granted = steps.Standing(
         head=pr.pull.head.sha, body=bodydigest.digest(pr.pull.body), stage=stage
     )
-    ruling = ruling_address(pr.comments, pr.trusted)
-    if not handbacks.covers(pr.handed, granted.head, granted.body, ruling):
+    if not handbacks.covers(pr.handed, granted.head):
         return None
     newest = _newest_ruling(pr.comments, pr.trusted)
     since = newest.created_at if newest else ""

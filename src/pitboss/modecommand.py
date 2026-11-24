@@ -36,7 +36,6 @@ class Command(enum.Enum):
         LINT: ``lint``.
         MERGED: ``merged``.
         NOX: ``nox``.
-        OWNER_PAUSE: ``owner-pause``.
         PLAN_CHECK: ``plan-check``.
         PLAN_DIGEST: ``plan-digest``.
         PRESSURE: ``pressure``.
@@ -73,7 +72,6 @@ class Command(enum.Enum):
     LINT = "lint"
     MERGED = "merged"
     NOX = "nox"
-    OWNER_PAUSE = "owner-pause"
     PLAN_CHECK = "plan-check"
     PLAN_DIGEST = "plan-digest"
     PRESSURE = "pressure"

@@ -337,7 +337,7 @@ def slots(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     action = Action[args.action.upper().replace("-", "_")]
-    tracefs.say(args.safe_run)
+    tracefs.said(args.world)
     found = load_context(args)
     _require_ledger(found, action)
     _by_mode(found, action, onepath.mode_of(args, found, {}))

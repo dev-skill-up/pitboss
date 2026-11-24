@@ -10,6 +10,7 @@ class Kind(enum.Enum):
         NEW_PR: a worker starts a ticket.
         FIRST_ROUND: a worker writes the Plan and Execution body of a PR.
         REVISE_PLAN: a worker revises the Plan and nothing else.
+        RESTORE_PLAN: a worker puts the approved Plan back and nothing else.
         FIX_REVIEW: a worker fixes the findings of a review.
         FIX_CI: a worker fixes a red CI.
         RESOLVE_CONFLICT: a worker merges the base into a conflicted PR.
@@ -28,6 +29,7 @@ class Kind(enum.Enum):
         AFTER_BLOCKER: a worker merges the base into a PR whose blockers merged.
         FINISH_PARTIAL: a worker finishes a PR handed back unfinished (keyword:
             finish-partial).
+        HAND_BACK: a worker hands the head and body back (keyword: standing).
         FIX_ROUND: a worker fixes the findings of a review of the Plan that name a
             file of the tree, or of a Plan check that refused (keyword:
             fix-round-kind, pitboss#390).
@@ -47,6 +49,7 @@ class Kind(enum.Enum):
     NEW_PR = "start a PR"
     FIRST_ROUND = "write the Plan and Execution body"
     REVISE_PLAN = "revise the plan"
+    RESTORE_PLAN = "restore the approved Plan"
     FIX_REVIEW = "fix the review"
     FIX_CI = "fix the CI"
     RESOLVE_CONFLICT = "resolve the conflict"
@@ -59,6 +62,7 @@ class Kind(enum.Enum):
     FIX_BLOCKED_BY = "correct the Blocked-by lines of the body"
     AFTER_BLOCKER = "merge the base into the branch, the blockers merged"
     FINISH_PARTIAL = "finish the PR handed back unfinished"
+    HAND_BACK = "hand the head and body back"
     FIX_ROUND = "fix round for the findings"
     REVIEW_FULL = "review the Plan and the Execution"
     REVIEW_EXECUTION = "review the Execution"

@@ -11,11 +11,11 @@ from . import (
     checkoutcome,
     conflicts,
     expansion,
-    draftfacts,
     evidence,
     floworder,
     flowquestions,
     flowstate,
+    impossiblecard,
     headline,
     plancheckflow,
     planbody,
@@ -27,6 +27,7 @@ from . import (
     stagerounds,
     standing,
     steps,
+    usedstep,
 )
 
 current_for = expansion.current_for
@@ -48,7 +49,7 @@ plan_revised = flowquestions.plan_revised
 get_plan_rejections = flowquestions.get_plan_rejections
 
 
-PAUSED = steps.IDLE
+TERMINAL = steps.IMPOSSIBLE  # keyword: impossible-state: the queue moves past the PR
 
 
 def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
@@ -76,7 +77,7 @@ def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
     )
     posted, ruled = answered
     again = flowquestions.used_again(pr, review, posted)
-    after = steps.pause_for_owner() if again else ruled_step(pr, ruled)
+    after = usedstep.of(review, posted) if again else ruled_step(pr, ruled)
     return after if staged is None else staged
 
 
@@ -174,7 +175,7 @@ def next_step(pr: PullState) -> steps.Move:
     step = next(row.step(pr) for row in ROWS if row.holds(pr))
     acted = isinstance(step, steps.Next) and step.step in steps.HELD
     held = acted and pr.draft.hold  # keyword: hold-scope, B20
-    return steps.IDLE if held else step
+    return steps.Idle.RUNNER_PRESSURE if held else step
 
 
 def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
@@ -208,10 +209,10 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
         ready = _ready(pr)
         if pr.draft.no_drafts:  # keyword: no-drafts (pitboss#390): never reviewed
             # a red CI is fixed by the worker before the undraft (draft-red-ci)
-            return ci_gate(pr, review) if _red_besides(pr) else ready
+            return ci_gate(pr, review) if _red(pr) else ready
         # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
         rejection = rejection_step(pr, review) if review else None
-        if _red_besides(pr) and not rejection:  # keyword: draft-red-ci
+        if _red(pr) and not rejection:  # keyword: draft-red-ci
             return ci_gate(pr, review)
         if rejection or not plan_approved(pr):
             alone = _plan_review(pr)
@@ -223,15 +224,14 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
     return ci_gate(pr, review)
 
 
-def _red_besides(pr: PullState) -> bool:
-    # keyword: draft-red-ci: a check other than the Plan review's failed
-    others = draftfacts.besides(pr.checks, pr.draft.plan_review_check)
-    return checkoutcome.result(others) is checkoutcome.Ci.RED
+def _red(pr: PullState) -> bool:
+    # keyword: draft-red-ci: a failed check is fixed, the Plan review's too (quire#1134)
+    return checkoutcome.result(pr.checks) is checkoutcome.Ci.RED
 
 
 def _ready(pr: PullState) -> steps.Move:
     # an approved draft is undrafted when the window allows, else no actor takes it
-    return steps.undraft() if pr.undraft_clear else steps.IDLE
+    return steps.undraft() if pr.undraft_clear else steps.Idle.UNDRAFT_WINDOW
 
 
 def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
@@ -246,7 +246,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
     """
     ci = checkoutcome.result(pr.checks)  # GREEN, RED, or None (running or none)
     if ci is None:
-        return steps.IDLE  # nobody works or reviews meanwhile
+        return steps.Idle.CI_RUN  # nobody works or reviews meanwhile
     if ci is Ci.RED:  # a red CI is never a rejection, and it fixes no wait
         return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 
@@ -331,7 +331,7 @@ def _ruling_held(pr: PullState) -> steps.Move:
     # (keyword: plan-digest, pitboss#172)
     held = flowstate.ruling_hold(pr)
     if held is None:  # pragma: no cover
-        return PAUSED  # unreachable: the row holds only when held
+        return steps.Idle.RUNNER_PRESSURE  # unreachable: the row holds only when held
     return rulingafter.held_step(held, flowstate.ruling_unapplied(pr))
 
 
@@ -349,8 +349,11 @@ def _stale_body(pr: PullState) -> bool:
 
 
 def _refreshed(pr: PullState, found: steps.Move) -> steps.Move:
-    refreshed = isinstance(found, steps.Next) and found.step in steps.REFRESHED
-    stale = refreshed and _stale_body(pr)
+    # a body with an older head's line is no hand-back of this head: refresh it
+    owed = isinstance(found, steps.Next) and (
+        found.step in steps.REFRESHED or found.task is steps.Task.HAND_BACK
+    )
+    stale = owed and _stale_body(pr)
     return steps.worker(steps.Task.REFRESH_BODY) if stale else found
 
 
@@ -365,9 +368,9 @@ def _no_body(pr: PullState) -> bool:
 # hold at once, and a test fails for a pair that has none (keyword: flow-order).
 ROWS: Sequence[Row] = (
     Row(
-        name="paused-owner",
-        holds=lambda pr: steps.PAUSED_LABEL in pr.labels,
-        step=lambda pr: PAUSED,
+        name="impossible",
+        holds=lambda pr: impossiblecard.ended(pr.comments, pr.trusted),
+        step=lambda pr: TERMINAL,
     ),
     Row(
         name="ruling-hold",

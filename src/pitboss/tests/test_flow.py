@@ -20,7 +20,7 @@ from .. import (
     shapes,
     steps,
 )
-from . import blank, fakes, pullstates, scratch
+from . import blank, card, fakes, pullstates, scratch
 from .checkcomment import clean_check
 from . import reviewsteps
 
@@ -218,11 +218,11 @@ class TestTable(unittest.TestCase):
         expect(steps.opus_ruling(), state(FIRST_REJECTION, SECOND_REJECTION))
 
     def test_plan_rejected_after_an_opus_ruling(self) -> None:
-        """The owner decides."""
+        """A worker revises the Plan, not the owner."""
         rejected = state(
             FIRST_REJECTION, graded(*PLAN_REJECTED, 4), comments=[ruling(3)]
         )
-        expect(steps.pause_for_owner(), rejected)
+        expect(steps.worker(Task.REVISE_PLAN), rejected)
 
     def test_plan_approved_execution_not_graded(self) -> None:
         """A review of the execution against the approved plan."""
@@ -244,10 +244,10 @@ class TestTable(unittest.TestCase):
         expect(steps.opus_ruling(), state(first, graded(None, CHANGES, 2)))
 
     def test_execution_rejected_after_an_opus_ruling(self) -> None:
-        """The owner decides."""
+        """A worker fixes the Execution against the ruling, not the owner."""
         first = graded(*EXECUTION_REJECTED, 1, sha=OLDER)
         rejected = state(first, graded(None, CHANGES, 3), comments=[ruling(2)])
-        expect(steps.pause_for_owner(), rejected)
+        expect(steps.worker(Task.FIX_EXECUTION, ruling(2).url), rejected)
 
     def test_execution_approved_green_without_a_conflict(self) -> None:
         """Merge."""
@@ -257,10 +257,9 @@ class TestTable(unittest.TestCase):
 class TestBranches(unittest.TestCase):
     """The other branches of the flow, in the order written."""
 
-    def test_a_paused_pr_waits_for_the_owner(self) -> None:
-        """Before anything else, whatever the body is."""
-        labels = frozenset({steps.PAUSED_LABEL})
-        expect(steps.IDLE, state(body="", labels=labels))
+    def test_an_impossible_pr_has_no_step(self) -> None:
+        """Before anything else, whatever the body is (keyword: impossible-state)."""
+        expect(steps.IMPOSSIBLE, state(body="", comments=[card.impossible()]))
 
     def test_no_plan_and_execution_body_is_the_first_work(self) -> None:
         """The worker writes the body, before any review or gate."""
@@ -280,13 +279,13 @@ class TestBranches(unittest.TestCase):
     def test_a_draft_with_the_plan_approved_waits_for_the_window(self) -> None:
         """It cannot be undrafted yet."""
         approved = state(graded(*PLAN_APPROVED_ALONE, 1), checks=(), draft=True)
-        expect(steps.IDLE, approved)
+        expect(steps.Idle.UNDRAFT_WINDOW, approved)
 
     def test_nothing_runs_until_ci_finishes(self) -> None:
         """Nobody works or reviews while CI runs or has not started."""
         review = graded(*PLAN_REJECTED, 1)
         for checks in ((), (RUNNING,), (GREEN, RUNNING)):
-            expect(steps.IDLE, state(review, checks=checks))
+            expect(steps.Idle.CI_RUN, state(review, checks=checks))
 
     def test_red_ci_goes_to_the_worker(self) -> None:
         """Even where a review stands."""
@@ -326,9 +325,9 @@ class TestBranches(unittest.TestCase):
         expect(steps.merge(), state(graded(None, APPROVED, 1)))
 
     def test_a_ruling_is_used_whatever_came_before_it(self) -> None:
-        """A rejected plan after a ruling pauses, even the first one."""
-        rejected = state(graded(*PLAN_REJECTED, 2), comments=[ruling(1)])
-        expect(steps.pause_for_owner(), rejected)
+        """A rejected plan after a ruling is a Plan round, even the first one."""
+        pr = state(graded(*PLAN_REJECTED, 2), comments=[ruling(1)])
+        assert_that(flow.next_step(pr), equal_to(steps.worker(Task.REVISE_PLAN)))
 
     def test_a_github_review_is_no_regular_review(self) -> None:
         """The pseudo code reads regular reviews only, gated repository or not."""
@@ -390,11 +389,7 @@ class TestRulingBranches(unittest.TestCase):
                 with self.subTest(line=line):
                     expect(steps.fix_ruling(RULING_URL), pr)
 
-    def test_a_paused_pr_with_an_unreadable_ruling_waits_for_the_owner(self) -> None:
-        """The pause label is checked first."""
-        labels = frozenset({steps.PAUSED_LABEL})
-        comments = [ruling(5, line="no ruling line")]
-        expect(
-            steps.IDLE,
-            state(comments=comments, labels=labels),
-        )
+    def test_an_impossible_pr_with_an_unreadable_ruling_has_no_step(self) -> None:
+        """The impossible row is checked first."""
+        comments = [ruling(5, line="no ruling line"), card.impossible()]
+        expect(steps.IMPOSSIBLE, state(comments=comments))

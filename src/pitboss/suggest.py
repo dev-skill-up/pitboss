@@ -28,6 +28,7 @@ from . import (
     reviews,
     ruleconflicts,
     steps,
+    suggestfailed,
     suggestflake,
     suggestkind,
     suggestwhen,
@@ -111,7 +112,7 @@ def sourced(
         The source, with no volume read.
     """
     given = configfile.named(found.args)
-    start = pathlib.Path(found.args.env.get("PWD", "."))
+    start = pathlib.Path(found.args.world.env.get("PWD", "."))
     return Source(
         github=found.github,
         settings=found.settings,
@@ -308,6 +309,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         e2e=_touches_e2e(source, pick, kind),
         conflict=ruleconflicts.brief_lines(pick.pull.step if pick.pull else None),
         paths=_paths(source, pick, kind),
+        failed=suggestfailed.of(source.github, pick.pull, kind),
     )
 
 

@@ -134,7 +134,7 @@ def _test_names(args: argparse.Namespace, subject: forms.Subject) -> Sequence[st
     root = pathlib.Path(args.checkout)
     if not root.is_dir():
         raise _fail(f"--checkout {args.checkout}: not a directory")
-    return testnames.checked(subject.name, subject.body, root, args.safe_run)
+    return testnames.checked(subject.name, subject.body, root, args.world.safe_run)
 
 
 def _review_findings(
@@ -162,7 +162,7 @@ def _gated_form(args: argparse.Namespace, settings: config.Lint) -> config.Revie
     if args.config is None:
         raise _fail("--repository needs --config")
     full = commands.load_settings(args)
-    return gateform.read(args.safe_run, full, args.repository).form
+    return gateform.read(args.world.safe_run, full, args.repository).form
 
 
 def _brief_findings(

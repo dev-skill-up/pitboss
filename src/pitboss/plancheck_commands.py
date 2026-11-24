@@ -230,7 +230,7 @@ def _contained(args: argparse.Namespace, ref: str, sha: str) -> bool:
     # whether the commit of a run is one the head contains (a push or a merge of
     # main since keeps an approved Plan's run valid); keyword: plan-prior
     try:
-        args.safe_run(
+        args.world.safe_run(
             ["git", "-C", args.repo, "merge-base", "--is-ancestor", sha, ref],
             check=True,
             capture_output=True,
@@ -245,7 +245,9 @@ def _prior(args: argparse.Namespace, body: str) -> shapes.Comment | None:
     if not args.pull:
         return None
     slug, number = pullfile.split("plan-check", args.pull)
-    found = plancheckprior.comments(ghclient.read_only(args.safe_run), slug, number)
+    found = plancheckprior.comments(
+        ghclient.read_only(args.world.safe_run), slug, number
+    )
     return plancheckprior.relied_on(found, body)
 
 
@@ -262,7 +264,7 @@ def _remote(
 ) -> list[str]:
     # keywords: ci-run, plan-done-when (pitboss#317, #396): GitHub's word on the run
     ref, prior = given
-    github = ghclient.read_only(args.safe_run)
+    github = ghclient.read_only(args.world.safe_run)
     ticket = forms.named_ticket(body)
     earlier = functools.partial(_contained, args, ref) if prior else cirun.never
     heads = cirun.findings(section, ref, plantickets.run_head(github), earlier)
@@ -333,7 +335,7 @@ def scripted_in(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str],
     def grep(path: str) -> Sequence[str]:
         words = ["git", "-C", str(head), "grep", "-l", "-F", "--", path]
         try:
-            out: str = args.safe_run(words).stdout
+            out: str = args.world.safe_run(words).stdout
             return out.splitlines()
         except (subprocess.CalledProcessError, OSError):
             return []
