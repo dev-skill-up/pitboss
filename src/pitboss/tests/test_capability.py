@@ -167,3 +167,8 @@ class TestMain(unittest.TestCase):
             capability_of(frozenset({"gone"})),
         ):
             assert_that(capability.main(pathlib.Path(scratch)), equal_to(1))
+
+    def test_the_tree_itself_has_no_finding(self) -> None:
+        """The Done-when's command: the checker exits 0 on this repository."""
+        here = pathlib.Path(__file__).resolve()
+        assert_that(capability.main(here.parents[3]), equal_to(0))
