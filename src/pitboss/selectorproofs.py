@@ -90,6 +90,28 @@ def entry_findings(source: ast.AST) -> Sequence[str]:
     return found
 
 
+def given_outside(sources: Mapping[str, ast.AST]) -> Sequence[str]:
+    """Each call that gives a ``Task`` outside the modules that may.
+
+    Args:
+        sources: each module's syntax, by its short name.
+
+    Returns:
+        ``module:line`` of each, as a finding.
+    """
+    return [
+        f"P13.3: {name}:{node.lineno} gives a worker task outside steps.worker"
+        for name, tree in sources.items()
+        if name not in BUILDERS
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and any(
+            each.arg == "task" and ".Task." in f".{dotted(each.value)}"
+            for each in node.keywords
+        )
+    ]
+
+
 def tasks_can_end_their_selection(package: Package) -> Sequence[str]:
     """P13.3: one entry for each task, each reading a fact its action writes.
 
@@ -106,17 +128,7 @@ def tasks_can_end_their_selection(package: Package) -> Sequence[str]:
     if table is None:
         return ["P13.3: the table of worker tasks is missing"]
     found = list(entry_findings(table))
-    found += [
-        f"P13.3: {name}:{node.lineno} gives a worker task outside steps.worker"
-        for name, tree in sources.items()
-        if name not in BUILDERS
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and any(
-            each.arg == "task" and ".Task." in f".{dotted(each.value)}"
-            for each in node.keywords
-        )
-    ]
+    found += given_outside(sources)
     return found
 
 
