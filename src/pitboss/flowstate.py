@@ -312,7 +312,7 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     """The readable ruling no handed-back review and no push has followed.
 
     Applied once a review of a handed-back state or a push is newer (keyword:
-    standing); until then its own step is next (pitboss#294).
+    standing); until then its own step is next.
 
     Args:
         pr: the PR.
@@ -326,13 +326,16 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     posted, ruled = answered
     if not pr.handed.required:
         return None if _followed(pr, posted) else ruled
-    # keyword: ruling-typed: a body edit shows itself, and the body carries it
-    edited = _followed(pr, posted) or rulingtyped.edits_body(posted.body)
-    seen = handbacks.covers(pr.handed, pr.pull.head.sha) and edited
-    # keyword: ruling-progress (pitboss#526): the body shows the steps, or a review
-    # of the handed-back head after the ruling says they hold
+    typed = rulingtyped.edits_body(posted.body)
+    covered = handbacks.covers(pr.handed, pr.pull.head.sha)
+    seen = covered and (_followed(pr, posted) or typed)
+    # keywords ruling-typed, ruling-progress (pitboss#526): a typed edit shows and the
+    # body carries it, or a review says it holds; an untyped one: the hand-back after
     held = rulingtyped.carried(posted.body, pr.pull.body) or _reviewed(pr, posted)
-    return None if seen and held else ruled
+    after = (
+        covered and not typed and any(c > posted.created_at for c in pr.handed.checked)
+    )
+    return None if after or (seen and held) else ruled
 
 
 def _followed(pr: PullState, posted: shapes.Comment) -> bool:

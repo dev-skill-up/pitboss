@@ -122,3 +122,16 @@ class TestSelectorProof(unittest.TestCase):
         """A table's worker is the step of its task."""
         for task, entry in workerselect.TABLE.items():
             assert_that(steps.worker(task).task, equal_to(entry.task))
+
+    def test_a_task_that_only_files_a_ticket_is_refused(self) -> None:
+        """The shared red its own ticket left standing (keyword: outside-effect)."""
+        said = found(
+            Seed(
+                path="workerselect.py",
+                old="_of(Task.SHARED_RED, TICKET_NAMED, TICKET_NAMED)",
+                new="_of(Task.SHARED_RED, TICKET, TICKET)",
+            )
+        )
+        assert_that(
+            said, contains_string("Task.SHARED_RED requires only effects outside")
+        )

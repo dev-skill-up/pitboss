@@ -37,26 +37,31 @@ def _handed(state: flow.PullState) -> flow.PullState:
     return pullstates.with_recorded(again, handed=derived)
 
 
-def applied(state: flow.PullState, task: workerselect.Task) -> flow.PullState | None:
+def applied(
+    state: flow.PullState, task: workerselect.Task, body: str | None = None
+) -> flow.PullState | None:
     """The PR after a worker did the effects its task requires.
 
     Args:
         state: the PR.
         task: the worker's task.
+        body: the body the worker writes, when the task edits it.
 
     Returns:
         The PR, None when an effect cannot be done from what was recorded (a
-        ticket filed, a Plan written).
+        ticket filed, a body not given).
     """
     required = workerselect.TABLE[task].required
-    pushed = state
+    edits = {Effect.EDIT_BODY, Effect.EDIT_PLAN} & required
+    written = dataclasses.replace(state.pull, body=body) if body else state.pull
+    pushed = dataclasses.replace(state, pull=written)
     if Effect.PUSH in required:
-        head = dataclasses.replace(state.pull.head, sha=NEW_HEAD)
+        head = dataclasses.replace(pushed.pull.head, sha=NEW_HEAD)
         # GitHub reads a pushed head afresh: no conflict, no check run yet
         pull = dataclasses.replace(
-            state.pull, head=head, mergeable_state=shapes.MergeState.CLEAN
+            pushed.pull, head=head, mergeable_state=shapes.MergeState.CLEAN
         )
-        pushed = dataclasses.replace(state, pull=pull, checks=())
+        pushed = dataclasses.replace(pushed, pull=pull, checks=())
     done = _handed(pushed) if Effect.HAND_BACK in required else pushed
-    unreadable = {Effect.FILE_TICKET, Effect.EDIT_PLAN}
-    return None if unreadable & required else done
+    unwritten = bool(edits) and body is None
+    return None if unwritten or Effect.FILE_TICKET in required else done

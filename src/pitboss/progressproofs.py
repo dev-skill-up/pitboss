@@ -54,8 +54,8 @@ CASES: Mapping[str, Case] = {
         proof=ruling_text_has_a_way_out,
         seed=Seed(
             path="flowstate.py",
-            old=" or _reviewed(pr, posted)\n    return None if seen and held",
-            new="\n    return None if seen and held",
+            old=" or _reviewed(pr, posted)\n",
+            new="\n",
         ),
     ),
 }

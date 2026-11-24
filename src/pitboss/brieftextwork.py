@@ -59,8 +59,10 @@ TASK_SHARED_RED = (
     " its failure, and the same check of the repository's other open PRs and main)."
     " Fix no PR: search the open tickets for the check name, and file ONE ticket"
     " against the shared cause (a stale pin, a stale lock or a runner outage is"
-    " the cause, not any PR), or add the PRs to the ticket that exists, then stop."
-    " Each PR goes back to its own step when the shared red is closed."
+    " the cause, not any PR), or add the PRs to the ticket that exists. Then add a"
+    " `Blocked-by: <that ticket>` line to this PR's body (the PR waits on it, and"
+    " pitboss no longer offers this step), and stop. Each PR goes back to its own"
+    " step when the shared red is closed."
 )
 DEVIATIONS = (
     "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"

@@ -47,6 +47,23 @@ def _constants(source: ast.AST) -> dict[str, frozenset[str]]:
     return found
 
 
+def _requiring(
+    required: Mapping[str, frozenset[str]], outside: frozenset[str]
+) -> Sequence[str]:
+    # the tasks that require nothing, or only what is outside the PR
+    empty = [
+        f"P13.3: Task.{task} requires no effect"
+        for task, got in required.items()
+        if not got
+    ]
+    only = [
+        f"P13.3: Task.{task} requires only effects outside the PR"
+        for task, got in required.items()
+        if got and got <= outside
+    ]
+    return [*empty, *only]
+
+
 def entry_findings(source: ast.AST) -> Sequence[str]:
     """What is wrong with the entries of the table.
 
@@ -54,8 +71,9 @@ def entry_findings(source: ast.AST) -> Sequence[str]:
         source: the table's module.
 
     Returns:
-        A line for each task with no entry or two, and for each entry that requires
-        nothing.
+        A line for each task with no entry or two, for each entry that requires
+        nothing, and for each that requires only what is outside the PR (a ticket
+        filed changes nothing the PR's step is read from).
     """
     named = _constants(source)
     entries = _entries(source)
@@ -65,11 +83,8 @@ def entry_findings(source: ast.AST) -> Sequence[str]:
         for task in members(source, "Task")
         if given.count(task) != 1
     ]
-    found += [
-        f"P13.3: Task.{task} requires no effect"
-        for task, call in entries
-        if not _facts(call.args[1], named)
-    ]
+    required = {task: _facts(call.args[1], named) for task, call in entries}
+    found += _requiring(required, named.get("OUTSIDE", frozenset()))
     return found
 
 

@@ -85,6 +85,12 @@ class Effect(enum.Enum):
     FILE_TICKET = enum.auto()
 
 
+# the effects on something no PR's step is read from: a ticket's text is not the PR's
+# (keyword: outside-effect, pitboss#526: a task whose worker only filed a ticket was
+# chosen again by the same shared red)
+OUTSIDE = frozenset({Effect.FILE_TICKET})
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Selector:
     """One task: what its worker may do and must do.
@@ -111,6 +117,7 @@ BODY_ONLY = frozenset({Effect.EDIT_BODY, Effect.HAND_BACK})
 PLAN_BODY = BODY_ONLY | {Effect.EDIT_PLAN}
 BACK = frozenset({Effect.HAND_BACK})
 TICKET = frozenset({Effect.FILE_TICKET})
+TICKET_NAMED = TICKET | {Effect.EDIT_BODY}
 PUSH_THEN_BACK = frozenset({Effect.PUSH, Effect.HAND_BACK})
 
 TABLE: Mapping[Task, Selector] = dict(
@@ -122,12 +129,12 @@ TABLE: Mapping[Task, Selector] = dict(
         _of(Task.RESOLVE_CONFLICT, PUSH_THEN_BACK, PUSHES),
         _of(Task.FIX_EXECUTION, PUSH_THEN_BACK, PUSHES),
         _of(Task.RULING_STEPS, BACK, PUSHES),
-        _of(Task.RULING_AS_GIVEN, BACK, PUSHES | TICKET),
+        _of(Task.RULING_AS_GIVEN, PUSH_THEN_BACK, PUSHES | TICKET),
         _of(Task.RUN_PLAN, BODY_ONLY, PUSHES),
         _of(Task.ADD_CI_QUOTES, BODY_ONLY, PUSHES),
         _of(Task.FIX_ROUND, PUSH_THEN_BACK, PUSHES),
         _of(Task.REFRESH_BODY, BODY_ONLY, BODY_ONLY),
-        _of(Task.SHARED_RED, TICKET, TICKET),
+        _of(Task.SHARED_RED, TICKET_NAMED, TICKET_NAMED),
         _of(Task.FIX_BLOCKED_BY, BODY_ONLY, BODY_ONLY),
         _of(Task.AFTER_BLOCKER, PUSH_THEN_BACK, PUSHES),
         _of(Task.FINISH_PARTIAL, BACK, PUSHES),
