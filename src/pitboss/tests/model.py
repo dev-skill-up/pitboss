@@ -11,7 +11,7 @@ import dataclasses
 from typing import Callable, Sequence
 
 from .. import bodydigest, expansion, flow, plandigest, rulingwords, shapes, steps
-from . import blank, checkcomment, headed, pullstates, test_flow
+from . import blank, checkcomment, flowbody, headed, pullstates
 
 Verdict = shapes.Verdict
 Ruling = rulingwords.Ruling
@@ -126,7 +126,7 @@ def body_of(plan: int, head: int = 0) -> str:
         The body.
     """
     url = f"https://github.com/o/r/actions/runs/{head + 100}/job/{head + 200}"
-    return test_flow.BODY.replace("the plan", f"the plan v{plan} {url}")
+    return flowbody.BODY.replace("the plan", f"the plan v{plan} {url}")
 
 
 def sha_of(head: int) -> str:
@@ -211,7 +211,7 @@ def pull_state(model: Model) -> flow.PullState:
     """
     head = {"sha": sha_of(model.head), "ref": "work"}
     dirty = "dirty" if model.conflict else "clean"
-    pull = test_flow.pull_of(
+    pull = flowbody.pull_of(
         body=body_of(model.plan, model.head), head=head, mergeable_state=dirty
     )
     made = model.history

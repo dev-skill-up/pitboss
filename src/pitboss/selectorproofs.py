@@ -2,9 +2,9 @@
 
 pitboss#526 (bats-lang/dom#140): a task selected by a fact its action cannot change
 is selected for ever. ``workerselect.TABLE`` pairs each ``Task`` with the facts it is
-selected by and those its action changes; this is the proof over it, read from the
-source: P13.3 has one entry for each ``Task``, every entry reads a fact its action
-writes, an entry that reads text names the fact that ends it, and no worker task is
+selected by and those its action changes. P13.3 is the proof over it, read from the
+source. It wants one entry for each ``Task``, every entry reading a fact its action
+writes, an entry that reads text naming the fact that ends it, and no worker task
 given but by ``steps.worker``.
 """
 
