@@ -84,7 +84,10 @@ APPROVED_PLAN_WORKERS = frozenset(
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
 DRAFTS = {True: text.DRAFT, False: text.READY}
-PUSHLESS: Mapping[Kind, Sequence[str]] = {Kind.REVISE_PLAN: [brieftextfolded.BODY_ONLY]}
+PUSHLESS: Mapping[Kind, Sequence[str]] = {
+    Kind.REVISE_PLAN: [brieftextfolded.BODY_ONLY],
+    Kind.RESTORE_PLAN: [brieftextfolded.BODY_ONLY],
+}
 CHECKOUTS = {True: text.NEW_PR_CHECKOUT, False: text.PR_CHECKOUT}
 
 

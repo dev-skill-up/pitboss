@@ -20,6 +20,7 @@ Item = workitem.Item
 REVIEWS = frozenset({Category.REVIEW, Category.RELOCK_REVIEW})
 CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.REVISE_PLAN: Category.REVISE_PLAN,
+    steps.Task.RESTORE_PLAN: Category.RESTORE_PLAN,
     steps.Task.FIX_CI: Category.FIX_CI,
     steps.Task.FIRST_ROUND: Category.FIRST_ROUND,
     steps.Task.RESOLVE_CONFLICT: Category.RESOLVE_CONFLICT,

@@ -125,6 +125,13 @@ TASK_REVISE_PLAN = (
     " the Plan again (`older-body`) and the next round is the next round of the"
     " Plan stage."
 )
+TASK_RESTORE_PLAN = (
+    "Task: PR {reference}: the approved Plan was edited after its approval and an"
+    " Opus ruling already stands, so no further ruling is made. Put the approved"
+    " Plan back in the `## Plan` section of the PR body as the approving review"
+    " read it; touch no code, doc or test, push nothing, leave the `Head:` line"
+    " as it is, and hand back the body digest (`pitboss body-digest`)."
+)
 TASK_FIX_REVIEW = (
     "Task: PR {reference}: fix the findings of {review}, each one, and nothing"
     " else: make no change that no finding names. The Plan is approved: do not"

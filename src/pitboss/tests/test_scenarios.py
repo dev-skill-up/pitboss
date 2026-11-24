@@ -47,7 +47,9 @@ def revised_then_ruled(times: Sequence[str]) -> Sequence[Mark]:
     """
     rules = ("A2", "A1", "A1", "A1", "A4")
     # the retired paused-owner label of the capture holds nothing back now (A4)
-    wants = (RULING_STEPS, "PLAN_EDITED", RULING_STEPS, RULING_STEPS, RULING_STEPS)
+    # quire#1130: a ruling stands, so the edited Plan is restored by a worker
+    restored = "WORKER:RESTORE_PLAN"
+    wants = (RULING_STEPS, restored, RULING_STEPS, RULING_STEPS, RULING_STEPS)
     return [Mark(*each) for each in zip(times, rules, wants)]
 
 

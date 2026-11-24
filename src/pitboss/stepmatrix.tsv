@@ -12,6 +12,7 @@ Step.MERGE	state	the READY TO MERGE line of the sweep; the PR STATE text says ho
 Task.FIRST_ROUND	category
 Task.FIX_CI	category
 Task.REVISE_PLAN	category
+Task.RESTORE_PLAN	category
 Task.RESOLVE_CONFLICT	category
 Task.FIX_EXECUTION	category
 Task.RULING_STEPS	category

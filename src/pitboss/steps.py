@@ -62,6 +62,7 @@ class Task(enum.Enum):
         FIRST_ROUND: the first work on a PR with no Plan and Execution body.
         FIX_CI: the head's CI is red.
         REVISE_PLAN: the plan alone, no code.
+        RESTORE_PLAN: put the approved Plan back, an Opus ruling already stands.
         RESOLVE_CONFLICT: the head conflicts with the base.
         FIX_EXECUTION: the execution, against the approved plan.
         RULING_STEPS: exactly the steps of an Opus ruling.
@@ -80,6 +81,7 @@ class Task(enum.Enum):
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
     FIX_CI = "fix CI on the head (a red CI is never a rejection)"
     REVISE_PLAN = "revise the PLAN only, change no code"
+    RESTORE_PLAN = "restore the approved Plan in the body, change no code"
     RESOLVE_CONFLICT = "resolve the conflict"
     FIX_EXECUTION = "fix the execution against the approved plan"
     RULING_STEPS = "do exactly the steps of the Opus ruling"

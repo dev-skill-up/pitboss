@@ -10,6 +10,7 @@ class Kind(enum.Enum):
         NEW_PR: a worker starts a ticket.
         FIRST_ROUND: a worker writes the Plan and Execution body of a PR.
         REVISE_PLAN: a worker revises the Plan and nothing else.
+        RESTORE_PLAN: a worker puts the approved Plan back and nothing else.
         FIX_REVIEW: a worker fixes the findings of a review.
         FIX_CI: a worker fixes a red CI.
         RESOLVE_CONFLICT: a worker merges the base into a conflicted PR.
@@ -48,6 +49,7 @@ class Kind(enum.Enum):
     NEW_PR = "start a PR"
     FIRST_ROUND = "write the Plan and Execution body"
     REVISE_PLAN = "revise the plan"
+    RESTORE_PLAN = "restore the approved Plan"
     FIX_REVIEW = "fix the review"
     FIX_CI = "fix the CI"
     RESOLVE_CONFLICT = "resolve the conflict"

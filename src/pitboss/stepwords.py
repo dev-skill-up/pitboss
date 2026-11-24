@@ -30,9 +30,9 @@ TEXTS: Mapping[Step, str] = {
         " impossible`; nothing waits for the owner"
     ),
     Step.PLAN_EDITED: (
-        "the Plan was edited after its approval: restore the approved Plan, or"
-        " ask an Opus agent for a ruling that says `revise the plan`; no review"
-        " or fix is offered meanwhile"
+        "the Plan was edited after its approval and no ruling stands: ask an Opus"
+        " agent for a ruling that says `revise the plan` (`ruling post` takes one"
+        " per PR); no review or fix is offered meanwhile"
     ),
     Step.PLAN_CHECK: (
         "post the Plan check: run `uvx pitboss plan-check <body file>` on the PR"

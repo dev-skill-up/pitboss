@@ -129,8 +129,6 @@ def read_ruling(body: str) -> rulingwords.Ruling | None:
 def newest_ruling(pr: PullState) -> shapes.Comment | None:
     """The newest trusted comment that records an Opus ruling.
 
-    A ruling fixed by an edit keeps its ``created_at``.
-
     Args:
         pr: the PR.
 
@@ -193,8 +191,8 @@ def has_unreadable_ruling(pr: PullState) -> bool:
 def plan_edited_without_ruling(pr: PullState) -> bool:
     """Whether the Plan was edited after its approval and no ruling allows it.
 
-    The newest approving review with a Plan digest is compared (keyword:
-    plan-digest, pitboss#172); a ``revise the plan`` ruling after it allows the edit.
+    The newest approving review's Plan digest is compared (keyword: plan-digest,
+    pitboss#172); a ``revise the plan`` ruling after it allows the edit.
 
     Args:
         pr: the PR.
@@ -254,8 +252,7 @@ def plan_edit_ruled(pr: PullState, after: str) -> bool:
         after: the time of the approving review (ISO 8601).
 
     Returns:
-        True when the newest readable Opus ruling revises the Plan and was
-        written after that time.
+        True when the newest readable ruling revises the Plan, written after it.
     """
     answered = readable_comment(pr)
     return (
@@ -272,11 +269,15 @@ def ruling_hold(pr: PullState) -> steps.Next | None:
         pr: the PR.
 
     Returns:
-        The step to fix an unreadable ruling or of an edited Plan; else None.
+        The step to fix an unreadable ruling or an edited Plan; else None.
     """
     if has_unreadable_ruling(pr):
         return steps.fix_ruling(ruling_address(pr))
-    return steps.plan_edited() if plan_edited_without_ruling(pr) else None
+    if not plan_edited_without_ruling(pr):
+        return None
+    stood = newest_ruling(pr) is not None and ruling_applied(pr)  # quire#1130
+    restore = steps.worker(steps.Task.RESTORE_PLAN)  # keyword: restore-plan
+    return restore if stood else steps.plan_edited()
 
 
 def ruling_address(pr: PullState) -> str:
@@ -341,9 +342,9 @@ def pushed_since(pr: PullState, posted: shapes.Comment) -> bool:
 def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
     """The Plan review of a draft, once the check its repository requires has passed.
 
-    quire's lint refuses an approval of a head with no completed green ``check``
-    run, and a draft runs that job (keyword: plan-review-check, pitboss#275), so
-    the review waits for a green run (a red one is fixed); the Plan check needs no CI.
+    quire's lint refuses an approval of a head with no green ``check`` run, and a
+    draft runs that job (keyword: plan-review-check, pitboss#275), so the review
+    waits for a green run (a red one is fixed); the Plan check needs no CI.
 
     Args:
         pr: the draft, whose Plan is not approved and not rejected at its head.
