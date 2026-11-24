@@ -2,19 +2,9 @@
 
 from collections.abc import Mapping
 
+from .. import headnamed
 
-def with_head_line(body: str, sha: str) -> str:
-    """A PR body that names the head its worker handed back.
-
-    Args:
-        body: the body.
-        sha: the head.
-
-    Returns:
-        The body, with a ``Head:`` line at its end unless it has any.
-    """
-    named = "\nHead:" in f"\n{body}"
-    return body if named else f"{body.rstrip()}\n\nHead: {sha}\n"
+with_head_line = headnamed.with_head_line
 
 
 def headed(changes: Mapping[str, object], default: str) -> Mapping[str, object]:

@@ -32,5 +32,10 @@ READERS = frozenset(
         "pitboss.issuelist",
         "pitboss.parsing",
         "pitboss.pulls",
+        "pitboss.blankrecords",
+        "pitboss.proofseeds",
+        "pitboss.witnessread",
+        "pitboss.witnesses",
+        "pitboss.witnessstates",
     }
 )

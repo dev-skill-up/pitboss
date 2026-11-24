@@ -89,6 +89,7 @@ LISTED: Mapping[str, str] = {
     "src/pitboss/mergedworktree.py": "reader",
     "src/pitboss/mode.py": "reader",
     "src/pitboss/modeproof.py": "reader",
+    "src/pitboss/modeseeds.py": "reader",
     "src/pitboss/mounts.py": "reader",
     "src/pitboss/mutation.py": "reader",
     "src/pitboss/mutationci.py": "reader",

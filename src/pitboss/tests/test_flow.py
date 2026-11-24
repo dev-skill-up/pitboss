@@ -18,7 +18,8 @@ from .. import (
     shapes,
     steps,
 )
-from . import blank, card, fakes, flowbody, pullstates, scratch
+from . import blank, card, fakes, flowbody, scratch
+from .. import witnessstates
 from .checkcomment import clean_check
 from . import reviewsteps
 
@@ -140,7 +141,7 @@ def state(
     """
     pull = pull_of(**changes)
     return dataclasses.replace(
-        pullstates.bare(pull),
+        witnessstates.bare(pull),
         labels=labels,
         checks=checks,
         graded=recorded,

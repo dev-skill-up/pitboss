@@ -199,6 +199,11 @@ module = [
     "pitboss.readworld",
     "pitboss.stuckci",
     "pitboss.workorder",
+    "pitboss.blankrecords",
+    "pitboss.proofseeds",
+    "pitboss.witnessread",
+    "pitboss.witnesses",
+    "pitboss.witnessstates",
 ]
 disallow_any_expr = true
 

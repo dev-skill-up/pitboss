@@ -11,7 +11,8 @@ from typing import Mapping
 from hamcrest import assert_that, equal_to, has_length, is_not
 
 from .. import flow, flowstep, steps, workerselect
-from . import corpuseffects, corpusreplay
+from .. import witnesses
+from . import corpusreplay
 
 DEAD_ENDS = ("dom-140", "quire-1128")
 
@@ -64,7 +65,7 @@ class TestCorpus(unittest.TestCase):
                 workerselect.Effect.EDIT_BODY,
                 workerselect.Effect.EDIT_PLAN,
             }:
-                after = corpuseffects.applied(state, found.task)
+                after = witnesses.applied(state, found.task)
                 checked += 1
                 assert_that(
                     (name, flow.next_step(after)), is_not(equal_to((name, found)))
@@ -84,5 +85,5 @@ class TestCorpus(unittest.TestCase):
         """Filing a ticket changes nothing the flow reads."""
         state = corpusreplay.read(corpusreplay.load("quire-1130")).state
         ticket = workerselect.OUTSIDE
-        done = corpuseffects.applied(state, workerselect.Task.SHARED_RED, None, ticket)
+        done = witnesses.applied(state, workerselect.Task.SHARED_RED, None, ticket)
         assert_that(done, equal_to(state))

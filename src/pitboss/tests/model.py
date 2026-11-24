@@ -22,7 +22,8 @@ from .. import (
     shapes,
     steps,
 )
-from . import blank, checkcomment, flowbody, headed, pullstates
+from . import blank, checkcomment, flowbody, headed
+from .. import witnessstates
 
 Verdict = shapes.Verdict
 Ruling = rulingwords.Ruling
@@ -232,7 +233,7 @@ def _handed(
     body = body_of(plan, head, applied)
     pull = flowbody.pull_of(body=body, head={"sha": sha_of(head), "ref": "work"})
     comments = [_plan_check(version, at, second) for second, version, at in checks]
-    return handbackderive.derive(pull, comments, pullstates.bare(pull).trusted)
+    return handbackderive.derive(pull, comments, witnessstates.bare(pull).trusted)
 
 
 def pull_state(model: Model) -> flow.PullState:
@@ -255,12 +256,12 @@ def pull_state(model: Model) -> flow.PullState:
     comments = [_plan_check(plan, at, second) for second, plan, at in made.checks]
     comments += [_ruling(second, word) for second, word in made.rulings]
     comments += [_impossible(model.clock)] if model.paused else []
-    bare = pullstates.bare(pull)
+    bare = witnessstates.bare(pull)
     # pitboss#526: the hand-back is read from the body and comments, as the shipped
     # command writes it (``handbackderive``), never declared
     handed = _handed(model.plan, model.head, made.applied, tuple(made.checks))
     return dataclasses.replace(
-        pullstates.with_recorded(bare, handed=handed),
+        witnessstates.with_recorded(bare, handed=handed),
         checks=_check_runs(model),
         graded=[_graded(each) for each in made.reviews],
         comments=comments,

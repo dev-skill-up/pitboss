@@ -6,7 +6,8 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to, is_
 
 from .. import flow, flowstate, rulingform, rulingtyped, steps
-from . import pullstates, test_flow
+from . import test_flow
+from .. import witnessstates
 from .derivedhand import held
 
 URL = "https://example.org/ruling/3"
@@ -55,7 +56,7 @@ def ruled_pr(body: str) -> flow.PullState:
     reviews = (test_flow.graded(*test_flow.PLAN_REJECTED, 2),)
     here = test_flow.state(*reviews, comments=[comment])
     pull = dataclasses.replace(here.pull, body=body)
-    return pullstates.with_recorded(dataclasses.replace(here, pull=pull), handed=SAW)
+    return witnessstates.with_recorded(dataclasses.replace(here, pull=pull), handed=SAW)
 
 
 class TestRefusal(unittest.TestCase):

@@ -10,7 +10,8 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import bodydigest, flow, flowquestions, handbacks, shapes, standing, steps
-from . import headed, pullstates, reviewsteps, test_flow
+from . import headed, reviewsteps, test_flow
+from .. import witnessstates
 from .derivedhand import held
 from . import usedrounds
 from .test_flow import CHANGES, HEAD, OLDER, expect, graded, state
@@ -31,7 +32,7 @@ def worked(pr: flow.PullState, record: handbacks.HandedBack) -> flow.PullState:
     Returns:
         The same with that recorded.
     """
-    return pullstates.with_recorded(pr, handed=record)
+    return witnessstates.with_recorded(pr, handed=record)
 
 
 def has_standing(

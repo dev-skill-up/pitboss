@@ -1,19 +1,4 @@
-"""P13.4: after its entry's required effects, a task's PR is not at a worker.
-
-pitboss#526 (keyword: progress, witnesses). For each ``Task`` there is a PR the
-shipped decider gives the task (``witnesses``). The proof takes the effects the
-task's entry of ``workerselect.TABLE`` requires, read from the source it was given,
-does them to that PR as the shipped command writes them, and runs the decider again:
-a step that is the same, or any worker's, is a finding. The decider is run, never
-copied, so an entry that requires an effect the step is not decided from (a hand-back
-for a red check) is refused by this proof alone: it has the shape P13.3 asks for.
-
-A seed for each task makes its entry require nothing; the proofs of the other tasks
-still hold. The proofs are in this test module, not in ``onepathproofs``: they run the
-witnesses, which are the tests' states, and a proof of the package that imports the
-tests is a cycle of the package with them. The tests of this module require each to
-hold on the package and to find its seed, as ``proofseeds`` does for the others.
-"""
+"""Tests of P13.4 (``witnessproofs``), which ``proofseeds`` runs with the proofs."""
 
 import functools
 import pathlib
@@ -22,49 +7,10 @@ from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to, has_length, starts_with
 
-from .. import proofseeds, proofsource, selectorproofs, workerselect
-from ..proofcase import Case, Proof, Seed
-from ..proofsource import Package
-from . import witnesses
+from .. import proofseeds, proofsource, witnessproofs, workerselect
+from ..proofcase import Seed
 
-
-def progress_of(task: str) -> Proof:
-    """The proof that one task's required effects move its PR on.
-
-    Args:
-        task: the name of the task.
-
-    Returns:
-        P13.4 for the task: a finding when, after the effects its entry of the table
-        in the source requires, the decider's step is the task's or another worker's.
-    """
-
-    def proof(package: Package) -> list[str]:
-        required = selectorproofs.required_in(package)
-        if task not in required:
-            return [f"P13.4.{task}: Task.{task} has no entry in the table"]
-        names = sorted(required[task])
-        effects = frozenset(workerselect.Effect[each] for each in names)
-        again = witnesses.of(workerselect.Task[task], effects)
-        said = f"P13.4.{task}: Task.{task} is still at a worker after {names}"
-        return [said] if witnesses.stuck(again) else []
-
-    return proof
-
-
-def _seed(task: workerselect.Task) -> Seed:
-    # a last entry of the task that requires nothing replaces the table's own
-    return Seed(
-        path="workerselect.py",
-        old="",
-        new=f"_of(Task.{task.name}, frozenset(), frozenset())",
-    )
-
-
-CASES: Mapping[str, Case] = {
-    f"P13.4.{task.name}": Case(proof=progress_of(task.name), seed=_seed(task))
-    for task in workerselect.Task
-}
+CASES = witnessproofs.cases(proofseeds.shipped_step)
 
 
 @functools.cache
@@ -89,7 +35,7 @@ def said(task: str, seed: Seed | None = None) -> str:
     """
     texts = proofseeds.seeded(package_texts(), seed) if seed else package_texts()
     package = proofsource.of_texts(texts)
-    return "\n".join(progress_of(task)(package))
+    return "\n".join(witnessproofs.progress_of(task, proofseeds.shipped_step)(package))
 
 
 class TestWitnessProofs(unittest.TestCase):
@@ -127,7 +73,9 @@ class TestWitnessProofs(unittest.TestCase):
 
     def test_an_empty_package_is_refused(self) -> None:
         """Nothing to read the effects from."""
-        found = progress_of("FIX_CI")(proofsource.of_texts({}))
+        found = witnessproofs.progress_of("FIX_CI", proofseeds.shipped_step)(
+            proofsource.of_texts({})
+        )
         assert_that(found, has_length(1))
 
     def test_each_proof_holds_and_finds_its_seed(self) -> None:

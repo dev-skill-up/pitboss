@@ -12,7 +12,8 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import flow, handbacks, plancheckflow, shapes, steps
-from . import blank, pullstates, test_flow
+from . import blank, test_flow
+from .. import witnessstates
 from .derivedhand import held
 from .checkcomment import clean_text
 from .test_flow import expect, state
@@ -64,7 +65,7 @@ def ruled(
         The state.
     """
     both = state(*REJECTIONS, comments=[test_flow.ruling(3), *after], checks=checks)
-    return pullstates.with_recorded(both, handed=held)
+    return witnessstates.with_recorded(both, handed=held)
 
 
 class TestBodyOnlyRound(unittest.TestCase):
@@ -116,7 +117,7 @@ def ruled_in_other_words(*after: shapes.Graded) -> flow.PullState:
     """
     words = dataclasses.replace(test_flow.ruling(3), body=UNCARRIED)
     both = state(*REJECTIONS, *after, comments=[words], checks=(test_flow.GREEN,))
-    return pullstates.with_recorded(
+    return witnessstates.with_recorded(
         both, handed=held(test_flow.HEAD, "2026-10-30T00:00:08Z")
     )
 
