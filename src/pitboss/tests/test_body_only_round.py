@@ -130,16 +130,16 @@ class TestRulingProgress(unittest.TestCase):
         """The words differ and a later review approved the head: the merge."""
         later = dataclasses.replace(
             test_flow.graded(*test_flow.EVERYTHING_APPROVED, 9),
-            comment="https://example.org/review/9",
+            comment=True,
         )
         assert_that(
-            flow.next_step(ruled_in_other_words(later)).step,
-            equal_to(steps.Step.MERGE),
+            flow.next_step(ruled_in_other_words(later)),
+            equal_to(steps.merge()),
         )
 
     def test_no_review_after_it_leaves_the_worker_step(self) -> None:
         """With no review the text decides: the ruling's own step."""
         assert_that(
-            flow.next_step(ruled_in_other_words()).step,
-            equal_to(steps.Step.WORKER),
+            flow.next_step(ruled_in_other_words()),
+            equal_to(FIX),
         )

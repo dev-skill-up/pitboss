@@ -45,7 +45,8 @@ def configuration_slug_is_the_project_own(package: Package) -> Sequence[str]:
         f"P13.1: {name}:{node.lineno} names the configuration's repository slug"
         for name, source in package.sources.items()
         for node in ast.walk(source.syntax)
-        if _names_the_slug(node)
+        if isinstance(node, ast.Attribute)
+        and _names_the_slug(node)
         and name.removeprefix("pitboss.") not in PROJECT_OWN
         and name != "pitboss.repoproofs"
     ]
