@@ -7,6 +7,7 @@ so the checker is not trusted on its own word.
 """
 
 import dataclasses
+import io
 import unittest
 from typing import AbstractSet, Mapping, Sequence
 
@@ -146,6 +147,11 @@ SEEDS: Sequence[Seed] = (
         refused="E14 names a Step by a value",
     ),
     Seed(
+        name="a Step looked up by a value through a name bound to its class",
+        files=_pure("from .steps import Step\nKind = Step\nx = Kind[word]\n"),
+        refused="E14 names a Step by a value",
+    ),
+    Seed(
         name="a Step looked up by a value through an alias of its class",
         files=_pure("from .steps import Step as Kind\nx = Kind[word]\n"),
         refused="E14 names a Step by a value",
@@ -214,19 +220,10 @@ class TestSeeds(unittest.TestCase):
         }
         assert_that(named <= {each.name for each in SEEDS}, equal_to(True))
 
-
-def load_tests(
-    loader: unittest.TestLoader, tests: unittest.TestSuite, pattern: str | None
-) -> unittest.TestSuite:
-    """Run the Done-when's proof seeds with this module: its command names only it.
-
-    Args:
-        loader: the loader.
-        tests: this module's tests.
-        pattern: unused.
-
-    Returns:
-        The tests of this module and of ``test_done_when_seeds``.
-    """
-    tests.addTests(loader.loadTestsFromName("pitboss.tests.test_done_when_seeds"))
-    return tests
+    def test_the_done_when_seeds_are_refused_each_by_its_one_proof(self) -> None:
+        """The Done-when's command names this module, so it runs those seeds too."""
+        loaded = unittest.TestLoader().loadTestsFromName(
+            "pitboss.tests.test_done_when_seeds"
+        )
+        outcome = unittest.TextTestRunner(stream=io.StringIO()).run(loaded)
+        assert_that(outcome.wasSuccessful(), equal_to(True))
