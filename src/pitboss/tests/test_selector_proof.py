@@ -80,6 +80,15 @@ class TestSelectorProof(unittest.TestCase):
         )
         assert_that(said, contains_string("brief does not read workerselect.TABLE"))
 
+    def test_a_package_with_no_brief_has_no_brief_finding(self) -> None:
+        """Only a brief that is there is read."""
+        package = proofsource.of_texts(
+            {k: v for k, v in TEXTS.items() if not k.endswith("brief.py")}
+        )
+        assert_that(
+            selectorproofs.tasks_can_end_their_selection(package), has_length(0)
+        )
+
     def test_a_missing_table_is_a_finding(self) -> None:
         """A package with no workerselect."""
         package = proofsource.of_texts(

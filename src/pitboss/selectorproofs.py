@@ -18,13 +18,10 @@ BUILDERS = frozenset({"steps", "finishstep"})
 
 
 def _facts(node: ast.AST, named: Mapping[str, frozenset[str]]) -> frozenset[str]:
-
     if isinstance(node, ast.Attribute) and dotted(node.value) == "Effect":
         return frozenset({node.attr})
     if isinstance(node, ast.Name):
         return named.get(node.id, frozenset())
-    if isinstance(node, ast.BinOp):
-        return _facts(node.left, named) | _facts(node.right, named)
     return frozenset().union(
         *(_facts(each, named) for each in ast.iter_child_nodes(node))
     )
