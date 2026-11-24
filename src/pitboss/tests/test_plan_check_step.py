@@ -7,7 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, plancheck, plandigest, shapes, steps, stepwords
-from . import blank, checkcomment, fakes, worldcomments
+from . import checkcomment, fakes, worldcomments
 from .plancheckcomment import check_comment as check_comment
 from .test_flow import CHANGES, expect, graded
 from .test_flow import BODY
