@@ -237,7 +237,7 @@ class TestReads(unittest.TestCase):
 
     def test_an_idle_pr_is_in_no_category(self) -> None:
         """A PR no actor takes is offered for no round."""
-        idle = steps.IDLE
+        idle = steps.Idle.CI_RUN
         facts = test_work.stepped(test_work.facts(3, test_work.NONE), idle)
         assert_that(work.category_of(facts), none())
 

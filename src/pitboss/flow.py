@@ -175,7 +175,7 @@ def next_step(pr: PullState) -> steps.Move:
     step = next(row.step(pr) for row in ROWS if row.holds(pr))
     acted = isinstance(step, steps.Next) and step.step in steps.HELD
     held = acted and pr.draft.hold  # keyword: hold-scope, B20
-    return steps.IDLE if held else step
+    return steps.Idle.RUNNER_PRESSURE if held else step
 
 
 def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
@@ -231,7 +231,7 @@ def _red(pr: PullState) -> bool:
 
 def _ready(pr: PullState) -> steps.Move:
     # an approved draft is undrafted when the window allows, else no actor takes it
-    return steps.undraft() if pr.undraft_clear else steps.IDLE
+    return steps.undraft() if pr.undraft_clear else steps.Idle.UNDRAFT_WINDOW
 
 
 def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
@@ -246,7 +246,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
     """
     ci = checkoutcome.result(pr.checks)  # GREEN, RED, or None (running or none)
     if ci is None:
-        return steps.IDLE  # nobody works or reviews meanwhile
+        return steps.Idle.CI_RUN  # nobody works or reviews meanwhile
     if ci is Ci.RED:  # a red CI is never a rejection, and it fixes no wait
         return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 
@@ -331,7 +331,7 @@ def _ruling_held(pr: PullState) -> steps.Move:
     # (keyword: plan-digest, pitboss#172)
     held = flowstate.ruling_hold(pr)
     if held is None:  # pragma: no cover
-        return steps.IDLE  # unreachable: the row holds only when held
+        return steps.Idle.RUNNER_PRESSURE  # unreachable: the row holds only when held
     return rulingafter.held_step(held, flowstate.ruling_unapplied(pr))
 
 

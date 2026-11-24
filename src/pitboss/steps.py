@@ -294,16 +294,27 @@ def merge() -> Next:
 
 
 class Idle(enum.Enum):
-    """No actor takes the PR now (keyword: one-path: it is omitted, not said).
+    """No actor takes the PR now; each member is the event that ends the wait.
 
-    Its one member carries nothing: a reason not to act is no decision (the
-    one-path plan, 6.2), so no reader can tell one idle PR from another.
+    The wait is not said (the one-path plan, 6.2: a reason not to act is no
+    decision; keyword: idle-event, #524), but it is typed: each member is one
+    event, and ``idlewait`` maps each to the input whose re-read can end it, so a
+    PR that waits with no event has no member to be.
 
     Attributes:
-        IDLE: no actor takes the PR.
+        CI_RUN: a check run of the head has not finished, or the check the Plan
+            review waits for has not passed.
+        RUNNER_PRESSURE: a runner-pressure hold covers the PR's repository.
+        BLOCKER_OPEN: a PR or issue the PR names as its blocker is open.
+        UNDRAFT_WINDOW: the approved draft waits for the undraft window.
+        LOWER_PR_FIXES: the lowest-numbered PR of the shared red fixes it.
     """
 
-    IDLE = enum.auto()
+    CI_RUN = enum.auto()
+    RUNNER_PRESSURE = enum.auto()
+    BLOCKER_OPEN = enum.auto()
+    UNDRAFT_WINDOW = enum.auto()
+    LOWER_PR_FIXES = enum.auto()
 
 
 class Ended(enum.Enum):
@@ -322,7 +333,6 @@ class Ended(enum.Enum):
 
 
 Move = Next | Idle | Ended
-IDLE = Idle.IDLE
 IMPOSSIBLE = Ended.IMPOSSIBLE
 
 

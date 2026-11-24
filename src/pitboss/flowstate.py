@@ -357,7 +357,7 @@ def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
     name = pr.draft.plan_review_check
     due = step.step is steps.Step.REGULAR_REVIEW and name
     if due and not checkoutcome.all_passed(draftfacts.of_name(pr.checks, name)):
-        return steps.IDLE
+        return steps.Idle.CI_RUN
     return step
 
 
@@ -382,7 +382,7 @@ def e2e_step(pr: PullState) -> steps.Move | None:
     if not pr.draft.needs_e2e:
         return None
     running = [each for each in pr.checks if not each.finished]
-    return steps.IDLE if running else steps.run_e2e(pr.pull.head.branch)
+    return steps.Idle.CI_RUN if running else steps.run_e2e(pr.pull.head.branch)
 
 
 def ruling_applied(pr: PullState) -> bool:

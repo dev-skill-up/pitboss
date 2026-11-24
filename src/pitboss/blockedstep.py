@@ -138,7 +138,7 @@ def verdict(pull: AtStep, found: Sequence[Blocker]) -> steps.Move | None:
     if shut:
         return FIX
     if live:
-        return steps.IDLE
+        return steps.Idle.BLOCKER_OPEN
     if _red_since(pull, when):
         return steps.worker(steps.Task.AFTER_BLOCKER)
     return None

@@ -91,7 +91,7 @@ def stepped(pull: AtStep, shared: Sequence[Shared]) -> steps.Move | None:
     first = [each for each in groups_of[0].holders if each != MAIN][0]
     if first == mine:
         return steps.worker(steps.Task.SHARED_RED)
-    return steps.IDLE
+    return steps.Idle.LOWER_PR_FIXES
 
 
 def at_fix(pull: AtStep) -> bool:

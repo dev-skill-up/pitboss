@@ -157,8 +157,8 @@ GATED = (
 )
 KEPT = (
     at_step(steps.worker(steps.Task.FIX_CI), RED),
-    at_step(steps.IDLE, RED),
-    at_step(steps.IDLE, RED),
+    at_step(steps.Idle.CI_RUN, RED),
+    at_step(steps.Idle.CI_RUN, RED),
     at_step(steps.merge()),
     shapes.Unreadable(reference="owner/project#8", call="x", status="500"),
 )

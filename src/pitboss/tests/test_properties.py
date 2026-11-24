@@ -245,7 +245,7 @@ class TestProperties(unittest.TestCase):
         found = [
             more.p2_ruling_steps(
                 dataclasses.replace(ruled_model(), ci=ci),
-                steps.IDLE,
+                steps.Idle.CI_RUN,
                 events.guard_allows,
             )[:2]
             for ci in ("green", "running")
@@ -269,7 +269,7 @@ class TestProperties(unittest.TestCase):
 
     def test_properties_p1_planted_a_pr_with_no_step_fails(self) -> None:
         """P1 planted: a step that waits for a CI that is not running fails."""
-        waiting = steps.IDLE
+        waiting = steps.Idle.CI_RUN
         green = model.Model()
         assert_that(
             p1_a_step(green, waiting, events.guard_allows), contains_string("P1")

@@ -65,7 +65,7 @@ def facts(
         review=found,
         standing=standing,
         unreadable=dataclasses.replace(straycomments.NONE, newer=unread),
-        step=steps.IDLE,
+        step=steps.Idle.CI_RUN,
         signals=headsignals.NONE,
         review_rounds=rounds.NONE,
         relock=False,

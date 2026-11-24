@@ -84,7 +84,7 @@ def facts(body: str, rulings: Sequence[folds.Recorded]) -> pulls.PullFacts:
         checks=[],
         review=None,
         standing=reviews.Standing.NONE,
-        step=steps.IDLE,
+        step=steps.Idle.CI_RUN,
         signals=headsignals.NONE,
         unreadable=straycomments.NONE,
         review_rounds=rounds.NONE,

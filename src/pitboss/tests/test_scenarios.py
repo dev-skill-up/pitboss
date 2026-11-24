@@ -152,7 +152,7 @@ class TestScenarios(unittest.TestCase):
 
     def test_an_idle_step_is_named_idle(self) -> None:
         """A PR nobody acts on is named IDLE (an impossible PR is one)."""
-        assert_that(scenario.kind(steps.IDLE), equal_to("IDLE"))
+        assert_that(scenario.kind(steps.Idle.CI_RUN), equal_to("IDLE"))
 
     def test_an_ended_step_is_named_impossible(self) -> None:
         """An impossible PR is no idle one."""
