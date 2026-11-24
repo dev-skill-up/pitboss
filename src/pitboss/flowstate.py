@@ -314,16 +314,24 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     # keyword: ruling-typed: a body edit shows itself, and the body carries it
     edited = _followed(pr, posted) or rulingtyped.edits_body(posted.body)
     seen = handbacks.covers(pr.handed, pr.pull.head.sha) and edited
-    return None if seen and rulingtyped.carried(posted.body, pr.pull.body) else ruled
+    # keyword: ruling-progress (pitboss#526): the steps show in the body, or a review
+    # of the handed-back head after the ruling says they hold (the worker may have
+    # carried them in other words, which no step of its own can change)
+    held = rulingtyped.carried(posted.body, pr.pull.body) or _reviewed(pr, posted)
+    return None if seen and held else ruled
 
 
-def _followed(pr: PullState, posted: shapes.Comment) -> bool:
-    reviewed = (
+def _reviewed(pr: PullState, posted: shapes.Comment) -> bool:
+    # a review of a handed-back state after the comment
+    return any(
         each.when > posted.created_at and handbacks.covers_review(pr.handed, each)
         for each in pr.graded
         if each.comment
     )
-    return any(reviewed) or pushed_since(pr, posted)
+
+
+def _followed(pr: PullState, posted: shapes.Comment) -> bool:
+    return _reviewed(pr, posted) or pushed_since(pr, posted)
 
 
 def pushed_since(pr: PullState, posted: shapes.Comment) -> bool:

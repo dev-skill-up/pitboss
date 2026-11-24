@@ -24,6 +24,7 @@ PROOFS = frozenset(
         "pitboss.proofseeds",
         "pitboss.doneproofs",
         "pitboss.repoproofs",
+        "pitboss.progressproofs",
     }
 )
 Top = TypeVar("Top", ast.FunctionDef, ast.ClassDef)
