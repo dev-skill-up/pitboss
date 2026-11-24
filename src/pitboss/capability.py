@@ -17,7 +17,7 @@ import pathlib
 import sys
 from typing import AbstractSet, Callable, Iterator, Mapping, Sequence
 
-from . import capabilityset, importgraph
+from . import capabilityinputs, capabilitypure, capabilityset, importgraph
 from .capabilitywords import (
     ALLOWED,
     BANNED_ATTRIBUTES,
@@ -127,13 +127,23 @@ def _dunder_strings(path: str, node: ast.AST) -> Iterator[Finding]:
             yield _made(path, node, "E3", "a string names a dunder")
 
 
+# whether a node is the name ``word``, or an attribute of that name
+def _says(node: ast.AST, word: str) -> bool:
+    return word in (getattr(node, "id", ""), getattr(node, "attr", ""))
+
+
 def _type_checking(path: str, node: ast.AST) -> Iterator[Finding]:
-    if isinstance(node, ast.If) and node.orelse:
-        test = node.test
-        named = isinstance(test, ast.Name) and test.id == "TYPE_CHECKING"
-        dotted = isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
-        if named or dotted:
-            yield _made(path, node, "E3", "runtime code under TYPE_CHECKING")
+    branched = isinstance(node, ast.If) and bool(node.orelse)
+    if branched and _says(getattr(node, "test", node), "TYPE_CHECKING"):
+        yield _made(path, node, "E3", "runtime code under TYPE_CHECKING")
+
+
+# E14: a Step is named by its member, never made from a string that is read at run time
+def _step_by_text(path: str, node: ast.AST) -> Iterator[Finding]:
+    looked = isinstance(node, ast.Subscript) and _says(node.value, "Step")
+    made = isinstance(node, ast.Call) and _says(node.func, "Step") and bool(node.args)
+    if looked or made:
+        yield _made(path, node, "E14", "names a Step by a value")
 
 
 RULES: Sequence[Callable[[str, ast.AST], Iterator[Finding]]] = (
@@ -143,10 +153,12 @@ RULES: Sequence[Callable[[str, ast.AST], Iterator[Finding]]] = (
     _attributes,
     _dunder_strings,
     _type_checking,
+    _step_by_text,
 )
 
 
-# the world modules a file binds, by the name it uses for each
+# the world modules a file binds, by the name it uses for each (``from os import path``
+# binds ``os.path``, as ``import os.path as path`` does)
 def _aliases(tree: ast.AST) -> Mapping[str, str]:
     bound: dict[str, str] = {}
     for node in ast.walk(tree):
@@ -155,17 +167,51 @@ def _aliases(tree: ast.AST) -> Mapping[str, str]:
                 bound[each.asname or each.name.split(".")[0]] = (
                     each.name if each.asname else each.name.split(".")[0]
                 )
+        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            bound.update(_submodules(node.module, node.names))
     return bound
 
 
-# each use of an imported world module that is not one of its safe names
+# ``from os import path``: the names of an import that are submodules of the world
+def _submodules(module: str, names: Sequence[ast.alias]) -> Mapping[str, str]:
+    dotted = {each.asname or each.name: f"{module}.{each.name}" for each in names}
+    known = {*capabilitypure.PURE_NAMES, *WORLD_MODULES}
+    return {name: full for name, full in dotted.items() if full in known}
+
+
+# the module a name or a dotted name stands for, through the aliases
+def _module_of(node: ast.expr, bound: Mapping[str, str]) -> str | None:
+    if isinstance(node, ast.Name):
+        return bound.get(node.id)
+    if isinstance(node, ast.Attribute):
+        base = _module_of(node.value, bound)
+        dotted = f"{base}.{node.attr}"
+        return dotted if base and dotted in capabilitypure.PURE_NAMES else None
+    return None
+
+
+# each use of an imported world module that is not one of its safe names; a
+# submodule with pure names is used only through one of them
 def _uses(path: str, tree: ast.AST) -> Iterator[Finding]:
     bound = _aliases(tree)
+    inner = {
+        id(node.value) for node in ast.walk(tree) if isinstance(node, ast.Attribute)
+    }
     for node in ast.walk(tree):
-        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            key = _world_key(bound.get(node.value.id, ""))
-            if key and node.attr not in WORLD_MODULES[key]:
-                yield _made(path, node, "E1", f"uses {key}.{node.attr}")
+        if not isinstance(node, ast.Attribute):
+            continue
+        module = _module_of(node.value, bound)
+        if module is None:
+            continue
+        pure = capabilitypure.PURE_NAMES.get(module)
+        key = module if pure is not None else _world_key(module)
+        allowed = pure if pure is not None else WORLD_MODULES.get(key or "", None)
+        bare = (
+            f"{module}.{node.attr}" in capabilitypure.PURE_NAMES
+            and id(node) not in inner
+        )
+        if allowed is not None and (node.attr not in allowed or bare):
+            yield _made(path, node, "E1", f"uses {key}.{node.attr}")
 
 
 # each use of a banned builtin that is not a call (``reader = open``: an alias)
@@ -232,6 +278,39 @@ def _decision(texts: Mapping[str, str]) -> Iterator[Finding]:
             yield Finding(
                 path=path, line=1, rule="E12", what="in the imports of the decision"
             )
+    for path in sorted(texts):
+        if importgraph.module_of(path) in inside:
+            yield from _injected(path, ast.parse(texts[path], filename=path))
+
+
+def _second_reads() -> Iterator[Finding]:
+    # E13: one input is read by one module (``capabilityinputs``)
+    owners: dict[str, str] = {}
+    for path, reading in sorted(capabilityinputs.INPUTS.items()):
+        if reading in owners:
+            what = f"reads {reading}, which {owners[reading]} reads"
+            yield Finding(path=path, line=1, rule="E13", what=what)
+        owners.setdefault(reading, path)
+
+
+def _is_protocol(node: ast.ClassDef) -> bool:
+    return any(_says(each, "Protocol") for each in node.bases)
+
+
+def _is_method(node: ast.stmt) -> bool:
+    return isinstance(node, ast.FunctionDef) and not any(
+        ast.unparse(each) == "property" for each in node.decorator_list
+    )
+
+
+def _injected(path: str, tree: ast.AST) -> Iterator[Finding]:
+    # E15: a Protocol with a method, in the decision's imports, is a reader handed in
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and _is_protocol(node):
+            if any(_is_method(each) for each in node.body):
+                yield _made(
+                    path, node, "E15", f"{node.name} is a Protocol with a method"
+                )
 
 
 def _stale(path: str) -> Finding:
@@ -256,7 +335,18 @@ def check(texts: Mapping[str, str]) -> Sequence[Finding]:
         found.extend([] if listed else mine)
         found.extend([_stale(path)] if listed and not mine else [])
     found.extend(_decision(texts))
+    found.extend(_second_reads())
     return found
+
+
+def _read(root: pathlib.Path) -> Mapping[str, str]:
+    # every ``.py`` file under the root but the environment's and the build's
+    skipped = {".venv", "build", ".git", "node_modules"}
+    return {
+        path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(root.rglob("*.py"))
+        if not skipped & set(path.relative_to(root).parts)
+    }
 
 
 def main(root: pathlib.Path) -> int:
@@ -268,20 +358,13 @@ def main(root: pathlib.Path) -> int:
     Returns:
         0 when there is none, else 1.
     """
-    texts = {
-        path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
-        for path in sorted(root.rglob("*.py"))
-        if not {".venv", "build", ".git", "node_modules"}
-        & set(path.relative_to(root).parts)
-    }
-    found = [
-        *check(texts),
-        *(
-            Finding(path=each, line=1, rule="E11", what="listed, and no such file")
-            for each in sorted(capabilityset.LISTED)
-            if each not in texts
-        ),
-    ]
+    texts = _read(root)
+    gone = (
+        Finding(path=each, line=1, rule="E11", what="listed, and no such file")
+        for each in sorted(capabilityset.LISTED)
+        if each not in texts
+    )
+    found = [*check(texts), *gone]
     for each in found:
         print(each)
     print(f"{len(found)} findings", file=sys.stderr)

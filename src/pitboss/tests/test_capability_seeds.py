@@ -6,12 +6,14 @@ finding, and the clean control passes. A rule that stops seeing its seed fails h
 so the checker is not trusted on its own word.
 """
 
+import contextlib
 import dataclasses
 import unittest
-from typing import AbstractSet, Mapping, Sequence
+from typing import AbstractSet, Iterator, Mapping, Sequence
 
 from hamcrest import assert_that, contains_exactly, equal_to
 
+from .. import capabilityinputs
 from .test_capability import capability_of, refusals
 
 PURE = "src/pitboss/pure.py"
@@ -27,12 +29,14 @@ class Seed:
         files: the files of the tree, by path.
         refused: the finding, ``rule what``.
         listed: the modules the list holds while it runs.
+        inputs: the input each module reads while it runs.
     """
 
     name: str
     files: Mapping[str, str]
     refused: str
     listed: AbstractSet[str] = frozenset()
+    inputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
 
 
 def _pure(text: str) -> Mapping[str, str]:
@@ -110,19 +114,88 @@ SEEDS: Sequence[Seed] = (
         listed=frozenset({"reader"}),
         refused="E12 in the imports of the decision",
     ),
+    Seed(
+        name="a file read through a function of os.path that is not pure",
+        files=_pure("import os\nos.path.getctime(x)\n"),
+        refused="E1 uses os.path.getctime",
+    ),
+    Seed(
+        name="os.path reached by importing it from os",
+        files=_pure("from os import path\npath.lexists(x)\n"),
+        refused="E1 uses os.path.lexists",
+    ),
+    Seed(
+        name="os.path held in a name, so that its use is not seen",
+        files=_pure("import os\nfiles = os.path\n"),
+        refused="E1 uses os.path",
+    ),
+    Seed(
+        name="a file the command line opens",
+        files=_pure("import argparse\nargparse.FileType('r')\n"),
+        refused="E3 uses .FileType",
+    ),
+    Seed(
+        name="a log file the logging module opens",
+        files=_pure("import logging\nlogging.basicConfig(filename=x)\n"),
+        refused="E3 uses .basicConfig",
+    ),
+    Seed(
+        name="a Step named by a string read at run time",
+        files=_pure("import enum\nclass Step(enum.Enum):\n    A = 1\nx = Step[word]\n"),
+        refused="E14 names a Step by a value",
+    ),
+    Seed(
+        name="a reader handed to the decision as a Protocol",
+        files={
+            "src/pitboss/decide.py": "from . import injected\n",
+            "src/pitboss/injected.py": (
+                "from typing import Protocol\n"
+                "class Reader(Protocol):\n    def read(self) -> str: ...\n"
+            ),
+        },
+        refused="E15 Reader is a Protocol with a method",
+    ),
+    Seed(
+        name="a second read of one input",
+        files={},
+        inputs={"src/pitboss/first.py": "pulls", "src/pitboss/second.py": "pulls"},
+        refused="E13 reads pulls, which src/pitboss/first.py reads",
+    ),
 )
+
+
+@contextlib.contextmanager
+def inputs_of(names: Mapping[str, str]) -> Iterator[None]:
+    """Name the input each module reads while the block runs.
+
+    Args:
+        names: the input of each module, by its path.
+
+    Yields:
+        Nothing; the names are put back on leaving.
+    """
+    before = capabilityinputs.INPUTS
+    capabilityinputs.INPUTS = names
+    try:
+        yield
+    finally:
+        capabilityinputs.INPUTS = before
 
 
 class TestSeeds(unittest.TestCase):
     """The checker sees each seed, with one finding, and passes the control."""
 
-    def test_there_are_thirteen_seeds_with_one_name_each(self) -> None:
+    def test_every_seed_has_one_name_each(self) -> None:
         """Seeds are counted: dropping one is a change of this file."""
         names = [each.name for each in SEEDS]
-        assert_that((len(names), len(set(names))), equal_to((13, 13)))
+        assert_that((len(names), len(set(names))), equal_to((len(SEEDS), len(SEEDS))))
 
     def test_each_seed_is_refused_by_exactly_the_one_rule_named_for_it(self) -> None:
         """No other finding; a rule that stops seeing its seed fails here."""
         for seed in SEEDS:
-            with self.subTest(seed.name), capability_of(seed.listed):
+            with (
+                self.subTest(seed.name),
+                capability_of(seed.listed),
+                inputs_of(seed.inputs),
+            ):
                 assert_that(refusals(seed.files), contains_exactly(seed.refused))

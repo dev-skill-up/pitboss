@@ -56,7 +56,9 @@ WORLD_MODULES: Mapping[str, AbstractSet[str]] = {
     "subprocess": frozenset(
         {"CalledProcessError", "TimeoutExpired", "CompletedProcess", "SubprocessError"}
     ),
-    "os": frozenset({"fspath", "sep", "linesep", "PathLike", "path"}),
+    "os": frozenset(
+        {"fspath", "sep", "linesep", "PathLike", "path"}
+    ),  # path: capabilitypure
     "sys": frozenset({"stdout", "stderr", "exit", "version_info"}),
     "datetime": frozenset(
         {"datetime", "date", "time", "timedelta", "timezone", "UTC", "tzinfo"}
@@ -79,8 +81,20 @@ WORLD_MODULES: Mapping[str, AbstractSet[str]] = {
     "gather": frozenset(),
     "commander_data": frozenset(),
 }
+# what opens a file by an argument or a setting, in modules that are otherwise values
+FILE_OPENERS = frozenset(
+    {
+        "FileType",
+        "basicConfig",
+        "FileHandler",
+        "WatchedFileHandler",
+        "RotatingFileHandler",
+        "TimedRotatingFileHandler",
+    }
+)
 BANNED_CALLS = frozenset(
     {
+        *FILE_OPENERS,
         "open",
         "exec",
         "eval",
@@ -100,6 +114,7 @@ BANNED_CALLS = frozenset(
 # attributes of any object that no pure module may use
 BANNED_ATTRIBUTES = frozenset(
     {
+        *FILE_OPENERS,
         _dunder("setattr"),
         _dunder("class"),
         _dunder("dict"),

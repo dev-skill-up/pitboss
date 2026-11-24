@@ -178,6 +178,7 @@ LISTED: Mapping[str, str] = {
     "src/pitboss/tests/skillfiles.py": "harness",
     "src/pitboss/tests/syncworld.py": "harness",
     "src/pitboss/tests/test_any_expr.py": "harness",
+    "src/pitboss/tests/test_done_when_seeds.py": "harness",
     "src/pitboss/tests/test_act_command.py": "harness",
     "src/pitboss/tests/test_approval_ci.py": "harness",
     "src/pitboss/tests/test_autoclean_world.py": "harness",
