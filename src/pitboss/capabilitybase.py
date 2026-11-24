@@ -26,6 +26,17 @@ class Finding:
 
 
 def made(path: str, node: ast.AST, rule: str, what: str) -> Finding:
+    """A finding at a node.
+
+    Args:
+        path: the file.
+        node: the syntax; a node with no line is at line 0.
+        rule: the rule's name.
+        what: what was found.
+
+    Returns:
+        The finding.
+    """
     return Finding(
         path=path,
         line=node.lineno if isinstance(node, (ast.stmt, ast.expr)) else 0,
@@ -37,7 +48,15 @@ def made(path: str, node: ast.AST, rule: str, what: str) -> Finding:
 def reach(
     edges: Mapping[str, AbstractSet[str]], roots: Sequence[str]
 ) -> AbstractSet[str]:
-    # the roots that exist and every module they reach
+    """The roots that exist and every module they reach.
+
+    Args:
+        edges: the modules each module imports.
+        roots: the modules to start from.
+
+    Returns:
+        The roots that are in the graph, and everything they import.
+    """
     seen: set[str] = set()
     todo = [each for each in roots if each in edges]
     while todo:

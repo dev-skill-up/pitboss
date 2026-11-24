@@ -8,11 +8,15 @@ so the checker is not trusted on its own word.
 
 import dataclasses
 import unittest
-from typing import AbstractSet, Iterator, Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from hamcrest import assert_that, contains_exactly, equal_to
 
 from .test_capability import capability_of, refusals
+from .test_done_when_seeds import TestDoneWhenSeeds
+
+# the seeds of the Done-when are run here too: its command names this module
+TESTS = (TestDoneWhenSeeds,)
 
 PURE = "src/pitboss/pure.py"
 DUNDER = "_" * 2
@@ -89,6 +93,11 @@ SEEDS: Sequence[Seed] = (
         name="code that runs only when mypy does not read it",
         files=_pure("if TYPE_CHECKING:\n    a = 1\nelse:\n    a = 2\n"),
         refused="E3 runtime code under TYPE_CHECKING",
+    ),
+    Seed(
+        name="an owner-written wait",
+        files=_pure("class Idle:\n    WAIT_FOR_OWNER = 1\n"),
+        refused="E8 Idle has an OWNER",
     ),
     Seed(
         name="an owner among the actors",
@@ -196,3 +205,15 @@ class TestSeeds(unittest.TestCase):
         for seed in SEEDS:
             with self.subTest(seed.name), capability_of(seed.listed):
                 assert_that(refusals(seed.files), contains_exactly(seed.refused))
+
+    def test_the_checker_seeds_the_done_when_names_are_here(self) -> None:
+        """Each seed of the checker that the Done-when names is one of these."""
+        named = {
+            "a read of a file by its path",
+            "a second read of one input",
+            "a Step named by a string read at run time",
+            "code that runs only when mypy does not read it",
+            "a reader handed to the decision as a Protocol",
+            "an owner-written wait",
+        }
+        assert_that(named <= {each.name for each in SEEDS}, equal_to(True))

@@ -16,7 +16,13 @@ import pathlib
 import sys
 from typing import AbstractSet, Callable, Iterator, Mapping, Sequence
 
-from . import capabilitypure, capabilityreads, capabilityset, importgraph
+from . import (
+    capabilitypure,
+    capabilityreads,
+    capabilityset,
+    capabilitywords,
+    importgraph,
+)
 from .capabilitybase import Finding, made, reach
 from .capabilitywords import (
     ALLOWED,
@@ -24,9 +30,6 @@ from .capabilitywords import (
     BANNED_CALLS,
     BANNED_METHODS,
     FRAMEWORK,
-    MODULE_FILE,
-    NOT_PATHS,
-    ONE_ARGUMENT_METHODS,
     WORLD_MODULES,
 )
 
@@ -82,9 +85,13 @@ def _banned_names(path: str, node: ast.AST) -> Iterator[Finding]:
 def _banned_methods(path: str, node: ast.AST) -> Iterator[Finding]:
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
         method, receiver = node.func.attr, node.func.value
-        pathlike = not (isinstance(receiver, ast.Name) and receiver.id in NOT_PATHS)
+        pathlike = not (
+            isinstance(receiver, ast.Name) and receiver.id in capabilitywords.NOT_PATHS
+        )
         renamed = (
-            method in ONE_ARGUMENT_METHODS and len(node.args) == 1 and not node.keywords
+            method in capabilitywords.ONE_ARGUMENT_METHODS
+            and len(node.args) == 1
+            and not node.keywords
         )
         if pathlike and (method in BANNED_METHODS or renamed):
             yield made(path, node, "E3", f"calls .{method}")
@@ -105,7 +112,9 @@ def _attributes(path: str, node: ast.AST) -> Iterator[Finding]:
 
 def _dunder_strings(path: str, node: ast.AST) -> Iterator[Finding]:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        named = not MODULE_FILE.match(node.value)  # a path to a package's own file
+        named = not capabilitywords.MODULE_FILE.match(
+            node.value
+        )  # a path to a package's own file
         if named and "__" in node.value and node.value.strip("_") != "":
             yield made(path, node, "E3", "a string names a dunder")
 
@@ -230,17 +239,21 @@ def _aliases_of_banned(path: str, tree: ast.AST) -> Iterator[Finding]:
                 yield made(path, node, "E3", f"names {node.id}")
 
 
-# E8: the owner is no actor (a ruling of the owner, 2026-11-23: nothing waits on them)
+# the enums that name who acts and what is waited for: none has the owner in it
+OWNER_FREE = frozenset({"Actor", "Idle", "Task"})
+
+
+# E8: the owner is no actor and no wait is theirs (a ruling of the owner, 2026-11-23: nothing waits on them)
 def _owner(path: str, tree: ast.AST) -> Iterator[Finding]:
     for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name == "Actor":
+        if isinstance(node, ast.ClassDef) and node.name in OWNER_FREE:
             for member in node.body:
                 named = isinstance(member, ast.Assign) and any(
-                    isinstance(each, ast.Name) and each.id == "OWNER"
+                    isinstance(each, ast.Name) and "OWNER" in each.id
                     for each in member.targets
                 )
                 if named:
-                    yield made(path, member, "E8", "Actor has an OWNER")
+                    yield made(path, member, "E8", f"{node.name} has an OWNER")
 
 
 def _walk(path: str, tree: ast.AST) -> Iterator[Finding]:

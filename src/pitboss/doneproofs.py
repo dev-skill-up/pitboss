@@ -84,6 +84,27 @@ def act_takes_nothing_decided(package: Package) -> Sequence[str]:
     ]
 
 
+def restore_plan_is_reached(package: Package) -> Sequence[str]:
+    """P12.5: the flow names ``Task.RESTORE_PLAN``, so a re-pointed ticket is restored.
+
+    A ticket re-pointed after its Plan was approved leaves an edited Plan under a
+    ruling that stands (quire#1130); the flow answers with that task and not with
+    a wait for the owner.
+
+    Args:
+        package: the package.
+
+    Returns:
+        A line when ``flowstate`` never names the task.
+    """
+    named = {
+        node.attr
+        for node in ast.walk(module(package, "flowstate"))
+        if isinstance(node, ast.Attribute)
+    }
+    return [] if "RESTORE_PLAN" in named else ["P12.5: flowstate never restores a Plan"]
+
+
 def _hand_back_sites(package: Package) -> Sequence[str]:
     first = made_only_in("P12.3", "handbacks", ["HandedBack"], "handbackderive")
     return [each for each in first(package) if "handbacks:" not in each]
@@ -124,6 +145,14 @@ CASES: Mapping[str, Case] = {
             "flow.py",
             "from . import handbacks\n"
             'FORGED = handbacks.HandedBack(required=True, head="x", checked=())\n',
+        ),
+    ),
+    "P12.5": Case(
+        proof=restore_plan_is_reached,
+        seed=Seed(
+            path="flowstate.py",
+            old="steps.Task.RESTORE_PLAN)  # keyword: restore-plan",
+            new="steps.Task.REVISE_PLAN)  # keyword: restore-plan",
         ),
     ),
     "P12.4": Case(

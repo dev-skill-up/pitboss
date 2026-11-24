@@ -4,10 +4,9 @@ import pathlib
 import unittest
 from typing import Mapping
 
-from hamcrest import assert_that, contains_exactly, equal_to
+from hamcrest import assert_that, contains_exactly
 
 from .. import onepathproofs, proofseeds, proofsource
-from . import test_capability_seeds
 
 ROOT = pathlib.Path(proofseeds.__file__).resolve().parents[2]
 TEXTS = proofsource.read(ROOT)
@@ -22,13 +21,7 @@ PROOFS: Mapping[str, str] = {
     "an escalate-to-the-owner ruling": "R1.1",
     "a hand-back store written and read at different paths": "P12.2",
     "a version-skewed act": "P12.4",
-}
-CHECKER: Mapping[str, str] = {
-    "a read outside the capability": "a read of a file by its path",
-    "a second read of one input": "a second read of one input",
-    "a runtime string that names a Step": "a Step named by a string read at run time",
-    "a TYPE_CHECKING-else read": "code that runs only when mypy does not read it",
-    "a Protocol-injected reader": "a reader handed to the decision as a Protocol",
+    "a re-pointed ticket with an approved Plan": "P12.5",
 }
 
 
@@ -39,15 +32,10 @@ def _found_by(bullet: str) -> set[str]:
 
 
 class TestDoneWhenSeeds(unittest.TestCase):
-    """The proofs refuse their seed, each alone; the checker's seeds are named."""
+    """The proofs refuse their seed, each alone."""
 
     def test_each_proof_seed_is_refused_by_its_one_rule(self) -> None:
         """Seeding one proof's edit breaks that proof and no other."""
         for name, bullet in PROOFS.items():
             with self.subTest(name):
                 assert_that(sorted(_found_by(bullet)), contains_exactly(bullet))
-
-    def test_each_checker_seed_is_one_of_the_checkers(self) -> None:
-        """The seeds the checker is tested with name each of these."""
-        names = {each.name for each in test_capability_seeds.SEEDS}
-        assert_that(set(CHECKER.values()) <= names, equal_to(True))
