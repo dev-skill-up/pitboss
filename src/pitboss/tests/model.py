@@ -8,6 +8,7 @@ shipped ``flow.next_step``.
 """
 
 import dataclasses
+import functools
 from typing import Callable, Sequence
 
 from .. import (
@@ -222,6 +223,17 @@ def _check_runs(model: Model) -> Sequence[shapes.CheckRun]:
     ]
 
 
+@functools.cache
+def _handed(
+    plan: int, head: int, applied: int, checks: tuple[tuple[int, int, int], ...]
+) -> handbacks.HandedBack:
+    # read once for each body and set of clean checks: the walk reads a million
+    body = body_of(plan, head, applied)
+    pull = flowbody.pull_of(body=body, head={"sha": sha_of(head), "ref": "work"})
+    comments = [_plan_check(version, at, second) for second, version, at in checks]
+    return handbackderive.derive(pull, comments, pullstates.bare(pull).trusted)
+
+
 def pull_state(model: Model) -> flow.PullState:
     """The state the flow reads of a model.
 
@@ -245,7 +257,7 @@ def pull_state(model: Model) -> flow.PullState:
     bare = pullstates.bare(pull)
     # pitboss#526: the hand-back is read from the body and comments, as the shipped
     # command writes it (``handbackderive``), never declared
-    handed = handbackderive.derive(pull, comments, bare.trusted)
+    handed = _handed(model.plan, model.head, made.applied, tuple(made.checks))
     return dataclasses.replace(
         pullstates.with_recorded(bare, handed=handed),
         checks=_check_runs(model),
