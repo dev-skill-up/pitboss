@@ -7,7 +7,7 @@ from typing import Mapping, Sequence
 from .. import handbackcheck, plancheck, plandigest
 from . import fakes, world
 from .handbackrun import hand_back, processes
-from .handbackworld import BASE, ready, unposted
+from .handbackworld import BASE, name_origin, ready, unposted
 from .cleanworld import absent, same
 
 HEAD = "a" * 40
@@ -80,6 +80,7 @@ class TestAccepts(unittest.TestCase):
         """Never ok without the PR; a list that cannot be read is said."""
         quiet = processes(fakes.directory(), {})
         here = world.make_world()
+        name_origin(here.clone)
         unread = hand_back(here, quiet)
         here.bodies[f"{BASE}/pulls?state=open&head=owner:main"] = "[]"
         none = hand_back(here, quiet)

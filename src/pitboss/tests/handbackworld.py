@@ -38,11 +38,19 @@ def _check(body: str) -> Mapping[str, str]:
     return {**dataclasses.asdict(comment), "html_url": comment.url}
 
 
+def name_origin(tree: pathlib.Path) -> None:
+    """Point a worktree's origin at the project's GitHub repository (pitboss#526).
+
+    Args:
+        tree: the worktree.
+    """
+    git(tree, "remote", "set-url", "origin", ORIGIN)
+
+
 def _plant(
     here: world.World, tree: pathlib.Path, posted: Sequence[Mapping[str, str]]
 ) -> world.World:
-    # the PR is looked up in the repository the origin names (pitboss#526)
-    git(tree, "remote", "set-url", "origin", ORIGIN)
+    name_origin(tree)
     head, branch = git(tree, "rev-parse", "HEAD"), git(tree, "branch", "--show-current")
     pull = {
         "number": NUMBER,
