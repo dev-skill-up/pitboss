@@ -3,7 +3,7 @@
 A review that is not the first round of its stage and raises a finding present in
 the unchanged text of an earlier head says so on a line of its own that starts
 with ``Missed earlier:``. A PR's rounds count those lines, split at the newest
-Opus ruling (``rounds.of``).
+Opus ruling (``pulls._rounds``).
 """
 
 from typing import Sequence

@@ -2,8 +2,6 @@
 
 import dataclasses
 
-from . import flowstate, missed
-
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Rounds:
@@ -23,18 +21,3 @@ class Rounds:
 
 # no round missed
 NONE = Rounds(merges_only=False, missed_before=0, missed_after=0)
-
-
-def of(state: flowstate.PullState, merges_only: bool) -> Rounds:
-    """Read the rounds of a PR.
-
-    Args:
-        state: what is recorded of the PR.
-        merges_only: only merges (or skill-zips/) since an older approval.
-
-    Returns:
-        The rounds.
-    """
-    ruling = flowstate.newest_ruling(state)
-    before, after = missed.split(state.graded, ruling.created_at if ruling else "")
-    return Rounds(merges_only=merges_only, missed_before=before, missed_after=after)

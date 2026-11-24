@@ -330,7 +330,11 @@ class Run(Protocol):
 
     @property
     def finished(self) -> bool:
-        """Whether the run has ended."""
+        """Whether the run has ended.
+
+        Returns:
+            True when it has.
+        """
         ...
 
 
