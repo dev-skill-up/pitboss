@@ -58,8 +58,13 @@ class TestCorpus(unittest.TestCase):
             found = flow.next_step(state)
             if not isinstance(found, steps.Next) or found.task is None:
                 continue
-            after = corpuseffects.applied(state, found.task)
-            if after is not None:
+            required = workerselect.TABLE[found.task].required
+            # a body or a Plan the worker writes is not in a record
+            if not required & {
+                workerselect.Effect.EDIT_BODY,
+                workerselect.Effect.EDIT_PLAN,
+            }:
+                after = corpuseffects.applied(state, found.task)
                 checked += 1
                 assert_that(
                     (name, flow.next_step(after)), is_not(equal_to((name, found)))
@@ -78,6 +83,6 @@ class TestCorpus(unittest.TestCase):
     def test_a_task_the_corpus_cannot_do_is_a_ticket(self) -> None:
         """Filing a ticket changes nothing the flow reads."""
         state = corpusreplay.read(corpusreplay.load("quire-1130")).state
-        assert_that(
-            corpuseffects.applied(state, workerselect.Task.SHARED_RED), equal_to(None)
-        )
+        ticket = workerselect.OUTSIDE
+        done = corpuseffects.applied(state, workerselect.Task.SHARED_RED, None, ticket)
+        assert_that(done, equal_to(state))

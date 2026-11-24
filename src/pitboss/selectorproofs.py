@@ -8,7 +8,7 @@ table (``brief`` has no list of its own).
 """
 
 import ast
-from typing import Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from .proofcase import Case, Seed
 from .enummembers import members
@@ -48,7 +48,7 @@ def _constants(source: ast.AST) -> dict[str, frozenset[str]]:
 
 
 def _requiring(
-    required: Mapping[str, frozenset[str]], outside: frozenset[str]
+    required: Mapping[str, AbstractSet[str]], outside: AbstractSet[str]
 ) -> Sequence[str]:
     # the tasks that require nothing, or only what is outside the PR
     empty = [
@@ -62,6 +62,43 @@ def _requiring(
         if got and got <= outside
     ]
     return [*empty, *only]
+
+
+def required_of(source: ast.AST) -> Mapping[str, AbstractSet[str]]:
+    """The effects each task of the table requires, read from its source.
+
+    Args:
+        source: the table's module.
+
+    Returns:
+        The names of the required effects, by the name of the task.
+    """
+    named = _constants(source)
+    # a task entered twice is read as its last entry: the line that ends the table
+    entered = sorted(_entries(source), key=lambda each: each[1].lineno)
+    return {task: _facts(call.args[1], named) for task, call in entered}
+
+
+def required_in(package: Package) -> Mapping[str, AbstractSet[str]]:
+    """The effects each task of the package's table requires.
+
+    Args:
+        package: the package.
+
+    Returns:
+        The names of the required effects, by the name of the task; none when the
+        package has no table.
+    """
+    table = _table(package)
+    return required_of(table) if table else {}
+
+
+def _trees(package: Package) -> Mapping[str, ast.AST]:
+    return {short(name): each.syntax for name, each in package.sources.items()}
+
+
+def _table(package: Package) -> ast.AST | None:
+    return _trees(package).get("workerselect")
 
 
 def entry_findings(source: ast.AST) -> Sequence[str]:
@@ -83,8 +120,7 @@ def entry_findings(source: ast.AST) -> Sequence[str]:
         for task in members(source, "Task")
         if given.count(task) != 1
     ]
-    required = {task: _facts(call.args[1], named) for task, call in entries}
-    found += _requiring(required, named.get("OUTSIDE", frozenset()))
+    found += _requiring(required_of(source), named.get("OUTSIDE", frozenset()))
     return found
 
 
@@ -148,7 +184,7 @@ def tasks_can_end_their_selection(package: Package) -> Sequence[str]:
         ``steps.worker`` (and ``finishstep``, which gives the one that is no PR's
         own fix).
     """
-    sources = {short(name): each.syntax for name, each in package.sources.items()}
+    sources = _trees(package)
     table = sources.get("workerselect")
     if table is None:
         return ["P13.3: the table of worker tasks is missing"]

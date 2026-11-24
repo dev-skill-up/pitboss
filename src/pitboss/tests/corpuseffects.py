@@ -7,6 +7,7 @@ line naming the head and a clean ``Plan check`` of the body, read back by
 """
 
 import dataclasses
+from typing import AbstractSet
 
 from .. import flow, handbackderive, shapes, headlinepattern, workerselect
 from ..workerselect import Effect
@@ -22,9 +23,13 @@ def _named(body: str, head: str) -> str:
     return headlinepattern.HEAD_LINE.sub(line, body) if found else f"{body}\n{line}\n"
 
 
+def _rebodied(state: flow.PullState, body: str) -> flow.PullState:
+    return dataclasses.replace(state, pull=dataclasses.replace(state.pull, body=body))
+
+
 def _handed(state: flow.PullState) -> flow.PullState:
     body = _named(state.pull.body, state.pull.head.sha)
-    pull = dataclasses.replace(state.pull, body=body)
+    pull = _rebodied(state, body).pull
     check = dataclasses.replace(
         blank.COMMENT,
         body=checkcomment.clean_text(body),
@@ -37,31 +42,45 @@ def _handed(state: flow.PullState) -> flow.PullState:
     return pullstates.with_recorded(again, handed=derived)
 
 
+def _written(
+    state: flow.PullState, body: str | None, required: AbstractSet[Effect]
+) -> flow.PullState:
+    # the body the worker writes, when its effects edit it
+    edits = bool({Effect.EDIT_BODY, Effect.EDIT_PLAN} & required)
+    return _rebodied(state, body) if body and edits else state
+
+
+def _pushed(state: flow.PullState, required: AbstractSet[Effect]) -> flow.PullState:
+    if Effect.PUSH not in required:
+        return state
+    head = dataclasses.replace(state.pull.head, sha=NEW_HEAD)
+    # GitHub reads a pushed head afresh: no conflict, no check run yet
+    clean = dataclasses.replace(state.pull, mergeable_state=shapes.MergeState.CLEAN)
+    pull = dataclasses.replace(clean, head=head)
+    return dataclasses.replace(state, pull=pull, checks=())
+
+
 def applied(
-    state: flow.PullState, task: workerselect.Task, body: str | None = None
-) -> flow.PullState | None:
+    state: flow.PullState,
+    task: workerselect.Task,
+    body: str | None = None,
+    effects: AbstractSet[Effect] | None = None,
+) -> flow.PullState:
     """The PR after a worker did the effects its task requires.
+
+    A ticket filed is outside the PR (``workerselect.OUTSIDE``), so it changes
+    nothing here.
 
     Args:
         state: the PR.
         task: the worker's task.
         body: the body the worker writes, when the task edits it.
+        effects: what the worker does, the table's required effects of the task
+            when not given (a proof gives the effects of a table it was handed).
 
     Returns:
-        The PR, None when an effect cannot be done from what was recorded (a
-        ticket filed, a body not given).
+        The PR.
     """
-    required = workerselect.TABLE[task].required
-    edits = {Effect.EDIT_BODY, Effect.EDIT_PLAN} & required
-    written = dataclasses.replace(state.pull, body=body) if body else state.pull
-    pushed = dataclasses.replace(state, pull=written)
-    if Effect.PUSH in required:
-        head = dataclasses.replace(pushed.pull.head, sha=NEW_HEAD)
-        # GitHub reads a pushed head afresh: no conflict, no check run yet
-        pull = dataclasses.replace(
-            pushed.pull, head=head, mergeable_state=shapes.MergeState.CLEAN
-        )
-        pushed = dataclasses.replace(pushed, pull=pull, checks=())
-    done = _handed(pushed) if Effect.HAND_BACK in required else pushed
-    unwritten = bool(edits) and body is None
-    return None if unwritten or Effect.FILE_TICKET in required else done
+    required = workerselect.TABLE[task].required if effects is None else effects
+    pushed = _pushed(_written(state, body, required), required)
+    return _handed(pushed) if Effect.HAND_BACK in required else pushed

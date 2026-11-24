@@ -33,9 +33,26 @@ class TestWitnesses(unittest.TestCase):
             with self.subTest(task=task.name):
                 assert_that(_task_of(each.before()), equal_to(task))
 
-    def test_the_effects_the_table_requires_give_another_step(self) -> None:
-        """The step decided from what the worker changed is not the same task."""
+    def test_the_effects_the_table_requires_move_the_pr_to_no_worker(self) -> None:
+        """The step decided from what the worker changed is no worker's."""
         for task, each in witnesses.WITNESSES.items():
             with self.subTest(task=task.name):
-                after = each.after()
-                assert_that(_task_of(after) is task, equal_to(False))
+                assert_that(witnesses.stuck(each), equal_to(False))
+
+    def test_a_worker_that_does_nothing_leaves_every_task_where_it_was(self) -> None:
+        """With no effect the task is chosen again: the witnesses read the table."""
+        for task in workerselect.TABLE:
+            with self.subTest(task=task.name):
+                bare = witnesses.of(task, frozenset())
+                assert_that(bare.after(), equal_to(bare.before()))
+                assert_that(witnesses.stuck(bare), equal_to(True))
+
+    def test_the_step_after_may_not_be_none_or_another_worker(self) -> None:
+        """A step that is none, or another worker's, is stuck."""
+        none = witnesses.Witness(before=lambda: None, after=lambda: None)
+        other = steps.worker(workerselect.Task.FIX_CI)
+        moved = witnesses.Witness(
+            before=lambda: steps.worker(workerselect.Task.RUN_PLAN), after=lambda: other
+        )
+        assert_that(witnesses.stuck(none), equal_to(True))
+        assert_that(witnesses.stuck(moved), equal_to(True))
