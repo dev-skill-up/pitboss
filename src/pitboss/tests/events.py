@@ -192,7 +192,7 @@ def _worked(model: Model, step: steps.Next) -> Model:
     applied = newest if ruling else model.history.applied
     carried = dataclasses.replace(made, applied=applied)
     done = dataclasses.replace(at, ci="green", conflict=False, history=carried)
-    if step.task is not steps.Task.REVISE_PLAN:
+    if workerselect.Effect.EDIT_PLAN not in required:
         return done
     revised = _checked(done, model.plan + 1, done.head)
     return dataclasses.replace(done, plan=model.plan + 1, history=revised)

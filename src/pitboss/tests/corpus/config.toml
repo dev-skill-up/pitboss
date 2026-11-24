@@ -1,0 +1,17 @@
+[project]
+owner = "bats-lang"
+repository = "REPO"
+main_clone = "REPO-clone"
+workspace = "."
+
+[runners]
+repositories = ["quire", "bats"]
+
+[review.form]
+lines = ["Independent review (a separate reviewer agent, not the author) of head {sha}: {verdict}"]
+approved = "approved"
+changes_needed = "changes needed"
+
+[merge_queue]
+timeout_minutes = 60
+repositories = ["quire"]

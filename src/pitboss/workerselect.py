@@ -72,6 +72,7 @@ class Effect(enum.Enum):
     Attributes:
         PUSH: pushes commits to the head branch.
         EDIT_BODY: edits the PR body.
+        EDIT_PLAN: changes the Plan section of the PR body.
         HAND_BACK: names the head in the body's ``Head:`` line and has a clean Plan
             check posted for it.
         FILE_TICKET: files or extends a ticket.
@@ -79,6 +80,7 @@ class Effect(enum.Enum):
 
     PUSH = enum.auto()
     EDIT_BODY = enum.auto()
+    EDIT_PLAN = enum.auto()
     HAND_BACK = enum.auto()
     FILE_TICKET = enum.auto()
 
@@ -106,6 +108,7 @@ def _of(
 
 PUSHES = frozenset({Effect.PUSH, Effect.EDIT_BODY, Effect.HAND_BACK})
 BODY_ONLY = frozenset({Effect.EDIT_BODY, Effect.HAND_BACK})
+PLAN_BODY = BODY_ONLY | {Effect.EDIT_PLAN}
 BACK = frozenset({Effect.HAND_BACK})
 TICKET = frozenset({Effect.FILE_TICKET})
 PUSH_THEN_BACK = frozenset({Effect.PUSH, Effect.HAND_BACK})
@@ -114,8 +117,8 @@ TABLE: Mapping[Task, Selector] = dict(
     [
         _of(Task.FIRST_ROUND, BODY_ONLY, PUSHES),
         _of(Task.FIX_CI, PUSH_THEN_BACK, PUSHES),
-        _of(Task.REVISE_PLAN, BODY_ONLY, BODY_ONLY),
-        _of(Task.RESTORE_PLAN, BODY_ONLY, BODY_ONLY),
+        _of(Task.REVISE_PLAN, PLAN_BODY, PLAN_BODY),
+        _of(Task.RESTORE_PLAN, PLAN_BODY, PLAN_BODY),
         _of(Task.RESOLVE_CONFLICT, PUSH_THEN_BACK, PUSHES),
         _of(Task.FIX_EXECUTION, PUSH_THEN_BACK, PUSHES),
         _of(Task.RULING_STEPS, BACK, PUSHES),
