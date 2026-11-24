@@ -119,7 +119,8 @@ def of(pr: Held, stage: steps.Stage) -> steps.Standing | None:
 def _answered(pr: Held, stage: steps.Stage) -> steps.Next | None:
     # pitboss#526: a review already grades this state: approved, it is merged; rejected,
     # the worker fixes what it found; no hand-back changes a review that stands
-    covered = handbacks.covers(pr.handed, pr.pull.head.sha)
+    head = pr.pull.head.sha
+    covered = handbacks.covers(pr.handed, head)
     grades = [(each.plan, each.execution) for each in _naming(pr, stage)] * covered
     approved = shapes.Verdict.APPROVED
     if (approved, approved) in grades:
