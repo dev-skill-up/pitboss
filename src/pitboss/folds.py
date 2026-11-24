@@ -10,7 +10,9 @@ import json
 import re
 from typing import AbstractSet, Sequence
 
-from . import flowstate, parsing, pullnames, rulingwords, shapes
+from . import flowstate, parsing, pullnames, rulingwords, shapes, totaljson
+
+REQUIRED = ("author_association", "created_at")  # what a comment is read by
 
 # the comment's address, then its text
 Recorded = tuple[str, str]
@@ -110,10 +112,11 @@ def parse_comments(text: str) -> Sequence[shapes.Comment]:
         rest = rest[end:].lstrip()
     if not all(isinstance(each, dict) for each in objects):
         raise ValueError("a comment is not an object")
-    try:
-        return parsing.comments(json.dumps(objects))
-    except KeyError as error:
-        raise ValueError(f"a comment has no {error}") from error
+    for each in totaljson.records(objects):
+        for key in REQUIRED:
+            if key not in each:
+                raise ValueError(f"a comment has no {key!r}")
+    return parsing.comments(json.dumps(objects))
 
 
 def read_comments(text: str, trusted: AbstractSet[str]) -> Sequence[Recorded]:

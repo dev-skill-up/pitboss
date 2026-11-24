@@ -10,8 +10,9 @@ from .totaljson import text as text_of
 FAILURE = "failure"
 
 
-def _each(text: str, key: str) -> Sequence[str]:
-    return [str(item[key]) for item in json.loads(text)]
+def _head(data: totaljson.JsonMap) -> shapes.Head:
+    sha, branch = (totaljson.name_at(data, "head", key) for key in ("sha", "ref"))
+    return shapes.Head(sha=sha, branch=branch, repo="")
 
 
 def pull(text: str) -> shapes.Pull:
@@ -23,18 +24,18 @@ def pull(text: str) -> shapes.Pull:
     Returns:
         The pull request.
     """
-    data = json.loads(text)
+    data = totaljson.whole(text)
     return shapes.Pull(
-        number=data["number"],
-        title=data["title"],
-        created_at=data["created_at"],
+        number=totaljson.count(data, "number"),
+        title=text_of(data.get("title")),
+        created_at=text_of(data.get("created_at")),
         draft=bool(data.get("draft")),
-        author=data["user"]["login"],
-        body=data.get("body") or "",
-        head=shapes.Head(sha=data["head"]["sha"], branch=data["head"]["ref"], repo=""),
-        base=data["base"]["ref"],
+        author=totaljson.name_at(data, "user", "login"),
+        body=text_of(data.get("body")),
+        head=_head(data),
+        base=totaljson.name_at(data, "base", "ref"),
         mergeable_state=shapes.MERGE_STATES.get(
-            data.get("mergeable_state") or "", shapes.MergeState.UNKNOWN
+            text_of(data.get("mergeable_state")), shapes.MergeState.UNKNOWN
         ),
         auto_merge=data.get("auto_merge") is not None,
     )
@@ -61,8 +62,9 @@ def labels(text: str) -> AbstractSet[str]:
     Returns:
         The names of its labels.
     """
-    listed = json.loads(text).get("labels", ())
-    return frozenset(str(label["name"]) for label in listed)
+    return frozenset(
+        text_of(each.get("name")) for each in totaljson.rows(text, "labels")
+    )
 
 
 def pull_numbers(text: str) -> Sequence[int]:
@@ -74,7 +76,7 @@ def pull_numbers(text: str) -> Sequence[int]:
     Returns:
         The numbers.
     """
-    return [int(number) for number in _each(text, "number")]
+    return [totaljson.count(item, "number") for item in totaljson.rows(text)]
 
 
 def outcomes(text: str) -> Sequence[shapes.Outcome]:
@@ -88,12 +90,12 @@ def outcomes(text: str) -> Sequence[shapes.Outcome]:
     """
     return [
         shapes.Outcome(
-            branch=item["head"]["ref"],
-            still_open=item["state"] == "open",
+            branch=totaljson.name_at(item, "head", "ref"),
+            still_open=item.get("state") == "open",
             merged=item.get("merged_at") is not None,
-            merged_at=item.get("merged_at") or "",
+            merged_at=text_of(item.get("merged_at")),
         )
-        for item in json.loads(text)
+        for item in totaljson.rows(text)
     ]
 
 
@@ -109,13 +111,12 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
     Returns:
         The check runs.
     """
-    return [one_check(item) for item in json.loads(text)["check_runs"]]
+    return [one_check(item) for item in totaljson.rows(text, "check_runs")]
 
 
 def _login(item: Mapping[str, object]) -> str:
     # the author's login, empty when GitHub gives no user
-    user = item.get("user")
-    return text_of(user.get("login")) if isinstance(user, dict) else ""
+    return totaljson.name_at(item, "user", "login")
 
 
 def one_check(item: Mapping[str, object]) -> shapes.CheckRun:
@@ -153,7 +154,7 @@ def run_of(url: str | None) -> int:
         The id, or 0 when the URL names no run.
     """
     found = re.search(r"/actions/runs/(\d+)", url or "")
-    return int(found.group(1)) if found else 0
+    return int(found.string[found.start(1) : found.end(1)]) if found else 0
 
 
 def statuses(text: str) -> Sequence[shapes.CommitStatus]:
@@ -167,15 +168,15 @@ def statuses(text: str) -> Sequence[shapes.CommitStatus]:
     """
     return [
         shapes.CommitStatus(
-            context=item["context"],
-            succeeded=item["state"] == "success",
-            created_at=item.get("created_at") or "",
-            run=run_of(item.get("target_url")),
-            state=item["state"],
-            description=item.get("description") or "",
-            url=item.get("target_url") or "",
+            context=text_of(item.get("context")),
+            succeeded=item.get("state") == "success",
+            created_at=text_of(item.get("created_at")),
+            run=run_of(text_of(item.get("target_url"))),
+            state=text_of(item.get("state")),
+            description=text_of(item.get("description")),
+            url=text_of(item.get("target_url")),
         )
-        for item in json.loads(text)["statuses"]
+        for item in totaljson.rows(text, "statuses")
     ]
 
 
@@ -188,7 +189,7 @@ def run_path(text: str) -> str:
     Returns:
         Its ``path`` (``.github/workflows/text-lint.yml``).
     """
-    return str(json.loads(text).get("path") or "")
+    return totaljson.name_at(totaljson.read(text), "path")
 
 
 def failed_steps(text: str) -> Sequence[str]:
@@ -200,8 +201,10 @@ def failed_steps(text: str) -> Sequence[str]:
     Returns:
         The names of its steps that failed.
     """
-    steps = json.loads(text).get("steps") or []
-    return [step["name"] for step in steps if step.get("conclusion") == FAILURE]
+    steps = totaljson.rows(text, "steps")
+    return [
+        text_of(step.get("name")) for step in steps if step.get("conclusion") == FAILURE
+    ]
 
 
 def output_text(text: str) -> tuple[str, str]:
@@ -213,8 +216,11 @@ def output_text(text: str) -> tuple[str, str]:
     Returns:
         The title and the summary (empty when it has none).
     """
-    output = json.loads(text).get("output") or {}
-    return output.get("title") or "", output.get("summary") or ""
+    title, summary = (
+        totaljson.name_at(totaljson.read(text), "output", key)
+        for key in ("title", "summary")
+    )
+    return title, summary
 
 
 def annotations(text: str) -> Sequence[str]:
@@ -229,11 +235,11 @@ def annotations(text: str) -> Sequence[str]:
         Each as ``path:line: message``.
     """
     failures = [
-        item for item in json.loads(text) if item.get("annotation_level") == FAILURE
+        item for item in totaljson.rows(text) if item.get("annotation_level") == FAILURE
     ]
     return [
-        f"{item.get('path') or ''}:{item.get('start_line') or 0}:"
-        f" {item.get('message') or ''}"
+        f"{text_of(item.get('path'))}:{totaljson.count(item, 'start_line')}:"
+        f" {text_of(item.get('message'))}"
         for item in failures
     ]
 
@@ -249,13 +255,13 @@ def comments(text: str) -> Sequence[shapes.Comment]:
     """
     return [
         shapes.Comment(
-            body=item.get("body") or "",
-            author_association=item["author_association"],
-            created_at=item["created_at"],
-            url=item.get("html_url") or "",
+            body=text_of(item.get("body")),
+            author_association=text_of(item.get("author_association")),
+            created_at=text_of(item.get("created_at")),
+            url=text_of(item.get("html_url")),
             login=_login(item),
         )
-        for item in json.loads(text)
+        for item in totaljson.rows(text)
     ]
 
 
@@ -270,14 +276,14 @@ def reviews(text: str) -> Sequence[shapes.PullReview]:
     """
     return [
         shapes.PullReview(
-            state=item["state"],
-            commit_id=item["commit_id"],
-            author_association=item["author_association"],
-            submitted_at=item.get("submitted_at") or "",
+            state=text_of(item.get("state")),
+            commit_id=text_of(item.get("commit_id")),
+            author_association=text_of(item.get("author_association")),
+            submitted_at=text_of(item.get("submitted_at")),
             body=text_of(item.get("body")),
             login=_login(item),
         )
-        for item in json.loads(text)
+        for item in totaljson.rows(text)
     ]
 
 
@@ -291,8 +297,11 @@ def comparison(text: str) -> Sequence[shapes.Commit]:
         The commits of the comparison.
     """
     return [
-        shapes.Commit(sha=item["sha"], parents=len(item["parents"]))
-        for item in json.loads(text)["commits"]
+        shapes.Commit(
+            sha=text_of(item.get("sha")),
+            parents=len(totaljson.listing(item.get("parents"))),
+        )
+        for item in totaljson.rows(text, "commits")
     ]
 
 
@@ -307,15 +316,19 @@ def workflow_runs(text: str) -> Sequence[shapes.WorkflowRun]:
     """
     return [
         shapes.WorkflowRun(
-            id=item["id"],
-            status=item["status"],
-            conclusion=item.get("conclusion"),
-            finished=checkoutcome.finished(item["status"]),
-            created_at=item["created_at"],
-            head_branch=item.get("head_branch") or "",
+            id=totaljson.count(item, "id"),
+            status=text_of(item.get("status")),
+            conclusion=text_of(item.get("conclusion")) or None,
+            finished=checkoutcome.finished(text_of(item.get("status"))),
+            created_at=text_of(item.get("created_at")),
+            head_branch=text_of(item.get("head_branch")),
         )
-        for item in json.loads(text)["workflow_runs"]
+        for item in totaljson.rows(text, "workflow_runs")
     ]
+
+
+def _numbers(listed: object) -> tuple[int, ...]:
+    return tuple(totaljson.count(each, "number") for each in totaljson.records(listed))
 
 
 def window_runs(text: str) -> Sequence[shapes.WindowRun]:
@@ -327,20 +340,21 @@ def window_runs(text: str) -> Sequence[shapes.WindowRun]:
     Returns:
         The runs.
     """
-    return [
-        shapes.WindowRun(
-            id=item["id"],
-            url=item["html_url"],
-            conclusion=item.get("conclusion") or "",
-            created_at=item["created_at"],
-            branch=item.get("head_branch") or "",
-            head_sha=item["head_sha"],
-            pulls=tuple(pull["number"] for pull in item.get("pull_requests") or []),
-            event=item["event"],
-            updated_at=item["updated_at"],
-        )
-        for item in json.loads(text)["workflow_runs"]
-    ]
+    return [_window_run(item) for item in totaljson.rows(text, "workflow_runs")]
+
+
+def _window_run(item: totaljson.JsonMap) -> shapes.WindowRun:
+    return shapes.WindowRun(
+        id=totaljson.count(item, "id"),
+        url=text_of(item.get("html_url")),
+        conclusion=text_of(item.get("conclusion")),
+        created_at=text_of(item.get("created_at")),
+        branch=text_of(item.get("head_branch")),
+        head_sha=text_of(item.get("head_sha")),
+        pulls=_numbers(item.get("pull_requests")),
+        event=text_of(item.get("event")),
+        updated_at=text_of(item.get("updated_at")),
+    )
 
 
 def jobs_waiting(text: str) -> Sequence[bool]:
@@ -353,7 +367,8 @@ def jobs_waiting(text: str) -> Sequence[bool]:
         For each job, whether it is still queued.
     """
     return [
-        item["status"] in shapes.WAITING_STATUSES for item in json.loads(text)["jobs"]
+        text_of(item.get("status")) in shapes.WAITING_STATUSES
+        for item in totaljson.rows(text, "jobs")
     ]
 
 
@@ -368,7 +383,7 @@ def timeline_events(text: str) -> Sequence[shapes.TimelineEvent]:
     """
     return [
         shapes.TimelineEvent(
-            kind=item.get("event") or "", at=item.get("created_at") or ""
+            kind=text_of(item.get("event")), at=text_of(item.get("created_at"))
         )
-        for item in json.loads(text)
+        for item in totaljson.rows(text)
     ]

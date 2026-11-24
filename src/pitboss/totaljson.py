@@ -113,6 +113,44 @@ def name_at(value: object, *keys: str) -> str:
     return text(at(value, *keys))
 
 
+def read(text: str) -> object:
+    """JSON text read, as the value it holds, whatever it is.
+
+    Args:
+        text: the JSON text.
+
+    Returns:
+        The value.
+    """
+    value: object = json.loads(text)
+    return value
+
+
+def whole(text: str) -> JsonMap:
+    """The object a JSON text holds, or an empty one.
+
+    Args:
+        text: the JSON text.
+
+    Returns:
+        The object (empty when the text holds another shape).
+    """
+    return members(read(text))
+
+
+def rows(text: str, *keys: str) -> Sequence[JsonMap]:
+    """The objects of a JSON array, or of the array at a path in an object.
+
+    Args:
+        text: the JSON text.
+        *keys: the fields to the array, outermost first; none when it is the text.
+
+    Returns:
+        The objects of the array (none when it is not one).
+    """
+    return records(at(read(text), *keys))
+
+
 def lines_of(out: str) -> Sequence[object]:
     """The items of ``gh api --paginate --jq '.[]'``: a JSON value a line.
 

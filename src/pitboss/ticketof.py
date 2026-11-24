@@ -5,7 +5,7 @@ import re
 import subprocess
 from typing import Mapping
 
-from . import config, ghapi, ledger, pullnames
+from . import config, ghapi, ledger, pullnames, totaljson
 
 _FULL = re.compile(r"^(?P<owner>[\w.-]+)/(?P<name>[\w.-]+)#(?P<number>\d+)$")
 
@@ -16,7 +16,8 @@ def _unnamed(task: str, why: str) -> ledger.Refusal:
 
 def _read(github: ghapi.GitHub, path: str) -> Mapping[str, object] | None:
     try:
-        return dict(json.loads(ghapi.get(github, path)))
+        found: object = json.loads(ghapi.get(github, path))
+        return dict(totaljson.members(found))
     except subprocess.CalledProcessError:
         return None
 

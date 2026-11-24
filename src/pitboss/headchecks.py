@@ -1,6 +1,5 @@
 """The check runs and commit statuses of a PR's head (keyword: red-status)."""
 
-import json
 from typing import AbstractSet, NamedTuple, Sequence
 
 from . import (
@@ -13,6 +12,7 @@ from . import (
     parsing,
     shapes,
     supersede,
+    totaljson,
 )
 from . import pinsreading
 from .headsignals import HeadSignals as HeadSignals
@@ -60,8 +60,10 @@ def statuses(
 def _total_count(text: str) -> int:
     # the first page of check-runs says how many the commit has; a page that
     # says nothing is all there is
-    page = json.loads(text)
-    return int(page.get("total_count", len(page["check_runs"])))
+    page = totaljson.read(text)
+    runs = len(totaljson.listing(totaljson.field(page, "check_runs")))
+    total = totaljson.field(page, "total_count")
+    return runs if total is None else int(str(total))
 
 
 def runs_of(

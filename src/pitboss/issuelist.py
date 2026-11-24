@@ -1,6 +1,5 @@
 """The issues list holds PRs: its pages are counted by raw items (pitboss#391)."""
 
-import json
 from typing import Mapping, Sequence
 
 from . import shapes, totaljson
@@ -44,7 +43,8 @@ def listed(body: str) -> Sequence[shapes.Issue | None]:
         The issue of each item, or none for a PR (which the list includes), so
         that the length is the page's own.
     """
-    return [issue_of(item) for item in json.loads(body)]
+    items = totaljson.read(body)
+    return [issue_of(item) for item in totaljson.records(items)]
 
 
 def issues(body: str) -> Sequence[shapes.Issue]:

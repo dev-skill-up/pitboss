@@ -3,7 +3,6 @@
 import concurrent.futures
 import contextlib
 import dataclasses
-import json
 from typing import AbstractSet, Iterator, Sequence
 
 from . import (
@@ -41,6 +40,7 @@ from . import (
     totalschema,
     unreadableform,
 )
+from . import totaljson
 from .pullfacts import PullFacts as PullFacts
 from .pullfacts import PullRead as PullRead
 from .pullfacts import Read as Read
@@ -152,7 +152,9 @@ def _base_runs(source: Source, repo: config.Repo, base: str) -> None:
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
     pull = parsing.pull(text)
-    gated = pullobject.pull_object(json.loads(text), totalschema.schema())
+    gated = pullobject.pull_object(
+        totaljson.members(totaljson.read(text)), totalschema.schema()
+    )
     head = pull.head.sha
     queued = repo.slug in source.merge_queue
     seen, sent = _together(source, repo, pull, number)
