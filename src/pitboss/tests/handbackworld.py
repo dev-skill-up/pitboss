@@ -10,6 +10,7 @@ from .plancheckcomment import check_comment
 
 NUMBER = 7
 BASE = "repos/owner/project"
+ORIGIN = "https://github.com/owner/project.git"
 
 
 def git(tree: pathlib.Path, *words: str) -> str:
@@ -40,6 +41,8 @@ def _check(body: str) -> Mapping[str, str]:
 def _plant(
     here: world.World, tree: pathlib.Path, posted: Sequence[Mapping[str, str]]
 ) -> world.World:
+    # the PR is looked up in the repository the origin names (pitboss#526)
+    git(tree, "remote", "set-url", "origin", ORIGIN)
     head, branch = git(tree, "rev-parse", "HEAD"), git(tree, "branch", "--show-current")
     pull = {
         "number": NUMBER,
