@@ -8,7 +8,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 from .. import proofseeds, proofsource, selectorproofs, steps, workerselect
 from ..proofcase import Seed
 
-ROOT = pathlib.Path(workerselect.__file__).resolve().parents[2]
+ROOT = pathlib.Path(workerselect.__file__).parents[2]
 TEXTS = proofsource.read(ROOT)
 OTHER = "\nOTHER = steps.Next(\n    step=steps.Step.WORKER, task=steps.Task.FIX_CI\n)\n"
 
