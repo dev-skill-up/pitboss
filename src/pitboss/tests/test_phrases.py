@@ -6,7 +6,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_not
 
-from .. import phrases
+from .. import phrasefile, phrases
 from . import fakes
 from .linting import lines, lint, write_text
 from .says import ended, exits, says
@@ -124,10 +124,10 @@ class TestParse(unittest.TestCase):
     def test_load(self) -> None:
         """A file is read, and a missing file is an error that names it."""
         path = write_text("mine.tsv", PHRASE_FILE)
-        assert_that(phrases.load(pathlib.Path(path)), has_length(1))
+        assert_that(phrasefile.load(pathlib.Path(path)), has_length(1))
         missing = pathlib.Path(path).parent / "none.tsv"
         with self.assertRaises(phrases.PhraseError) as raised:
-            phrases.load(missing)
+            phrasefile.load(missing)
         assert_that(str(raised.exception), contains_string(f"{missing}: No such file"))
 
 

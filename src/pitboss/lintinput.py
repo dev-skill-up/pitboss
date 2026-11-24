@@ -5,7 +5,7 @@ import pathlib
 import sys
 from typing import Callable, NoReturn, Sequence, TypeVar
 
-from . import contradictions, phrases
+from . import contradictions, phrasefile, phrases
 
 USAGE_ERROR = 2
 _Rule = TypeVar("_Rule")
@@ -62,7 +62,7 @@ def phrase_rules(args: argparse.Namespace) -> Sequence[phrases.Phrase]:
         if args.no_default_phrases
         else phrases.parse(phrases.default_text(), "default phrases")
     )
-    return shipped_and_given(shipped, args.phrases, phrases.load)
+    return shipped_and_given(shipped, args.phrases, phrasefile.load)
 
 
 def pair_rules(args: argparse.Namespace) -> Sequence[contradictions.Pair]:
@@ -92,7 +92,7 @@ def read(name: str) -> str:
         Its text; a file that cannot be read ends the command with status 2.
     """
     try:
-        return phrases.read_text(pathlib.Path(name))
+        return phrasefile.read_text(pathlib.Path(name))
     except phrases.PhraseError as error:
         fail(str(error))
 

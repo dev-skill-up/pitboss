@@ -14,7 +14,6 @@ alternative is a line of its own.
 
 import dataclasses
 import importlib.resources
-import pathlib
 import re
 from typing import Callable, Sequence, TypeVar
 
@@ -191,39 +190,6 @@ def default_text() -> str:
         The text.
     """
     return shipped_text("phrases.tsv")
-
-
-def read_text(path: pathlib.Path) -> str:
-    """Read a UTF-8 file.
-
-    Args:
-        path: the file.
-
-    Returns:
-        Its text.
-
-    Raises:
-        PhraseError: when the file cannot be read or is not valid UTF-8.
-    """
-    try:
-        return path.read_text(encoding="utf-8")
-    except OSError as error:
-        raise PhraseError(f"{path}: {error.strerror}") from error
-    except UnicodeDecodeError as error:
-        raise PhraseError(f"{path}: not valid UTF-8 ({error.reason})") from error
-
-
-def load(path: pathlib.Path) -> Sequence[Phrase]:
-    """Read a project's phrase file.
-
-    Args:
-        path: the file.
-
-    Returns:
-        The phrases; a file that cannot be read or is not well formed is a
-        ``PhraseError``.
-    """
-    return parse(read_text(path), str(path))
 
 
 def _shown(line: str) -> str:

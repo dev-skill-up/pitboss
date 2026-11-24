@@ -5,11 +5,23 @@ import pathlib
 import tempfile
 import unittest
 
-from typing import AbstractSet, Iterator, Sequence
+from typing import AbstractSet, Iterator, Mapping, Sequence
 
 from hamcrest import assert_that, contains_exactly, equal_to, has_length
 
-from .. import capability
+from .. import capability, capabilityset
+
+
+def refusals(files: Mapping[str, str]) -> Sequence[str]:
+    """What the rule finds in some files.
+
+    Args:
+        files: the text of each file, by its path.
+
+    Returns:
+        The findings, as ``rule what``, sorted.
+    """
+    return sorted(f"{each.rule} {each.what}" for each in capability.check(files))
 
 
 def found(text: str, path: str = "src/pitboss/pure.py") -> Sequence[str]:
@@ -22,7 +34,7 @@ def found(text: str, path: str = "src/pitboss/pure.py") -> Sequence[str]:
     Returns:
         The findings, as ``rule what``.
     """
-    return sorted(f"{each.rule} {each.what}" for each in capability.check({path: text}))
+    return refusals({path: text})
 
 
 @contextlib.contextmanager
@@ -35,12 +47,12 @@ def capability_of(names: AbstractSet[str]) -> Iterator[None]:
     Yields:
         Nothing; the names are put back on leaving.
     """
-    before = capability.CAPABILITY
-    capability.CAPABILITY = names
+    before = capabilityset.LISTED
+    capabilityset.LISTED = {f"src/pitboss/{each}.py": "reader" for each in names}
     try:
         yield
     finally:
-        capability.CAPABILITY = before
+        capabilityset.LISTED = before
 
 
 class TestRules(unittest.TestCase):
@@ -115,13 +127,31 @@ class TestRules(unittest.TestCase):
             assert_that(found(text, "src/pitboss/reader.py"), equal_to([]))
             assert_that(found(text), has_length(1))
 
+    def test_a_listed_module_that_reaches_nothing_is_stale(self) -> None:
+        """A line of the list holds only while the module reaches the world."""
+        with capability_of(frozenset({"reader"})):
+            assert_that(
+                found("import enum\n", "src/pitboss/reader.py"),
+                equal_to(["E11 listed, and reaches nothing"]),
+            )
+
+    def test_an_actor_of_other_names_and_a_shared_import_are_clean(self) -> None:
+        """Only OWNER is refused; a module the decision reaches twice is read once."""
+        files = {
+            "src/pitboss/decide.py": "from . import a, b\n",
+            "src/pitboss/a.py": "from . import shared\n",
+            "src/pitboss/b.py": "from . import shared\n",
+            "src/pitboss/shared.py": "class Actor:\n    WORKER = 1\n    x: int\n",
+        }
+        assert_that(refusals(files), equal_to([]))
+
 
 class TestMain(unittest.TestCase):
     """The command reads every file under a root and says its count."""
 
     def test_the_exit_status_is_the_count(self) -> None:
         """A finding exits 1 and prints its line; a clean tree exits 0."""
-        with tempfile.TemporaryDirectory() as scratch:
+        with tempfile.TemporaryDirectory() as scratch, capability_of(frozenset()):
             root = pathlib.Path(scratch)
             (root / "build").mkdir()
             (root / "build" / "skipped.py").write_text("import requests\n")
@@ -129,3 +159,11 @@ class TestMain(unittest.TestCase):
             assert_that(capability.main(root), equal_to(0))
             (root / "bad.py").write_text("import requests\n")
             assert_that(capability.main(root), equal_to(1))
+
+    def test_a_listed_file_that_is_gone_is_a_finding(self) -> None:
+        """A line of the list names a file that is there."""
+        with (
+            tempfile.TemporaryDirectory() as scratch,
+            capability_of(frozenset({"gone"})),
+        ):
+            assert_that(capability.main(pathlib.Path(scratch)), equal_to(1))

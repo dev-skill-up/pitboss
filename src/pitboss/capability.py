@@ -17,153 +17,33 @@ import pathlib
 import sys
 from typing import AbstractSet, Callable, Iterator, Mapping, Sequence
 
-from . import importgraph
+from . import capabilityset, importgraph
+from .capabilitywords import (
+    ALLOWED,
+    BANNED_ATTRIBUTES,
+    BANNED_CALLS,
+    BANNED_METHODS,
+    FRAMEWORK,
+    MODULE_FILE,
+    WORLD_MODULES,
+)
 
-# the packages and modules that may reach the world; nothing else may
-CAPABILITY: AbstractSet[str] = frozenset()
-
-# modules whose every use is a value or syntax: nothing in them reads
-ALLOWED = frozenset(
-    {
-        "__future__",
-        "abc",
-        "argparse",
-        "ast",
-        "base64",
-        "collections",
-        "contextlib",
-        "dataclasses",
-        "decimal",
-        "enum",
-        "fnmatch",
-        "fractions",
-        "functools",
-        "hashlib",
-        "heapq",
-        "itertools",
-        "json",
-        "logging",
-        "math",
-        "pathlib",
-        "re",
-        "shlex",
-        "stat",
-        "statistics",
-        "string",
-        "textwrap",
-        "typing",
-        "unicodedata",
-        "urllib.parse",
-    }
+# the modules that may reach the world are ``capabilityset.LISTED``; nothing else may.
+# The decision (`decide`, the gate and the flow) is these modules and their imports:
+# none of those may be a listed module but the ones that read what pitboss ships.
+DECISION_ROOTS = (
+    "pitboss.decide",
+    "pitboss.gate",
+    "pitboss.flow",
+    "pitboss.gateverbs",
+    "pitboss.actdecide",
+    "pitboss.answer",
 )
-# modules that read or change the world, and the names of each that do neither
-WORLD_MODULES: Mapping[str, AbstractSet[str]] = {
-    "subprocess": frozenset(
-        {"CalledProcessError", "TimeoutExpired", "CompletedProcess", "SubprocessError"}
-    ),
-    "os": frozenset({"fspath", "sep", "linesep", "PathLike", "path"}),
-    "sys": frozenset({"stdout", "stderr", "exit", "version_info"}),
-    "datetime": frozenset(
-        {"datetime", "date", "time", "timedelta", "timezone", "UTC", "tzinfo"}
-    ),
-    "tomllib": frozenset({"loads", "TOMLDecodeError"}),
-    "yaml": frozenset({"safe_load", "YAMLError"}),
-    "gather.commands": frozenset({"add_argument", "set_parser", "ProcessRunner"}),
-    "gather.api": frozenset({"Wrapper", "unique"}),
-    "time": frozenset(),
-    "tempfile": frozenset(),
-    "shutil": frozenset(),
-    "threading": frozenset(),
-    "concurrent": frozenset(),
-    "importlib": frozenset(),
-    "urllib.request": frozenset(),
-    "zipfile": frozenset(),
-    "zoneinfo": frozenset(),
-    "random": frozenset(),
-    "unittest": frozenset(),
-    "gather": frozenset(),
-    "commander_data": frozenset(),
-}
-BANNED_CALLS = frozenset(
-    {
-        "open",
-        "exec",
-        "eval",
-        "compile",
-        "__import__",
-        "input",
-        "breakpoint",
-        "getattr",
-        "setattr",
-        "delattr",
-        "vars",
-        "globals",
-        "locals",
-        "dir",
-    }
+# the files pitboss ships (``phrases.shipped_text``, ``enumeration.shipped``: the
+# version pitboss is) and the package itself (its version and entry data)
+READS_FOR_THE_DECISION = frozenset(
+    {"pitboss.phrases", "pitboss.enumeration", "pitboss"}
 )
-# attributes of any object that no pure module may use
-BANNED_ATTRIBUTES = frozenset(
-    {
-        "__setattr__",
-        "__class__",
-        "__dict__",
-        "__globals__",
-        "__subclasses__",
-        "__builtins__",
-        "__members__",
-        "__replace__",
-        "attrgetter",
-        "itemgetter",
-        "methodcaller",
-        "parse_args",
-        "parse_known_args",
-        "parse_intermixed_args",
-    }
-)
-# methods that read or change the world when called (a field of the same name is data)
-BANNED_METHODS = frozenset(
-    {
-        "read_text",
-        "read_bytes",
-        "write_text",
-        "write_bytes",
-        "iterdir",
-        "glob",
-        "rglob",
-        "exists",
-        "is_file",
-        "is_dir",
-        "is_symlink",
-        "mkdir",
-        "unlink",
-        "rmdir",
-        "touch",
-        "stat",
-        "lstat",
-        "resolve",
-        "samefile",
-        "readlink",
-        "symlink_to",
-        "rename",
-        "open",
-        "cwd",
-        "home",
-        "expanduser",
-        "chmod",
-        "now",
-        "today",
-        "utcnow",
-        "isfile",
-        "isdir",
-        "islink",
-        "getsize",
-        "getmtime",
-        "realpath",
-        "abspath",
-    }
-)
-FRAMEWORK = frozenset({"world"})
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -242,7 +122,8 @@ def _attributes(path: str, node: ast.AST) -> Iterator[Finding]:
 
 def _dunder_strings(path: str, node: ast.AST) -> Iterator[Finding]:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        if "__" in node.value and node.value.strip("_") != "":
+        named = not MODULE_FILE.match(node.value)  # a path to a package's own file
+        if named and "__" in node.value and node.value.strip("_") != "":
             yield _made(path, node, "E3", "a string names a dunder")
 
 
@@ -287,11 +168,68 @@ def _uses(path: str, tree: ast.AST) -> Iterator[Finding]:
                 yield _made(path, node, "E1", f"uses {key}.{node.attr}")
 
 
+# each use of a banned builtin that is not a call (``reader = open``: an alias)
+def _aliases_of_banned(path: str, tree: ast.AST) -> Iterator[Finding]:
+    called = {
+        id(node.func)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            if node.id in BANNED_CALLS and id(node) not in called:
+                yield _made(path, node, "E3", f"names {node.id}")
+
+
+# E8: the owner is no actor (a ruling of the owner, 2026-11-23: nothing waits on them)
+def _owner(path: str, tree: ast.AST) -> Iterator[Finding]:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "Actor":
+            for member in node.body:
+                named = isinstance(member, ast.Assign) and any(
+                    isinstance(each, ast.Name) and each.id == "OWNER"
+                    for each in member.targets
+                )
+                if named:
+                    yield _made(path, member, "E8", "Actor has an OWNER")
+
+
 def _walk(path: str, tree: ast.AST) -> Iterator[Finding]:
     yield from _uses(path, tree)
+    yield from _aliases_of_banned(path, tree)
+    yield from _owner(path, tree)
     for node in ast.walk(tree):
         for rule in RULES:
             yield from rule(path, node)
+
+
+def _closure(edges: Mapping[str, AbstractSet[str]]) -> AbstractSet[str]:
+    # the modules of the decision and everything they import, directly or not
+    seen: set[str] = set()
+    todo = [each for each in DECISION_ROOTS if each in edges]
+    while todo:
+        module = todo.pop()
+        if module not in seen:
+            seen.add(module)
+            todo.extend(edges.get(module, ()))
+    return seen
+
+
+def _decision(texts: Mapping[str, str]) -> Iterator[Finding]:
+    # E12: a module the decision imports may not be one that reaches the world
+    graph = importgraph.build_graph(texts)
+    inside = _closure(graph.edges)
+    for path in sorted(capabilityset.LISTED):
+        module = importgraph.module_of(path)
+        if module in inside and module not in READS_FOR_THE_DECISION:
+            yield Finding(
+                path=path, line=1, rule="E12", what="in the imports of the decision"
+            )
+
+
+def _stale(path: str) -> Finding:
+    # E11: a listed module reaches the world somewhere, else the line is stale
+    return Finding(path=path, line=1, rule="E11", what="listed, and reaches nothing")
 
 
 def check(texts: Mapping[str, str]) -> Sequence[Finding]:
@@ -301,13 +239,16 @@ def check(texts: Mapping[str, str]) -> Sequence[Finding]:
         texts: the text of each file, by its path from the repository's root.
 
     Returns:
-        Each finding, in order, for the files outside the capability packages.
+        Each finding, in order, for the files not listed as capability, a stale
+        listing and a listed module in the decision's imports.
     """
     found: list[Finding] = []
     for path in sorted(texts):
-        if pathlib.PurePosixPath(path).stem in CAPABILITY:
-            continue
-        found.extend(_walk(path, ast.parse(texts[path], filename=path)))
+        mine = list(_walk(path, ast.parse(texts[path], filename=path)))
+        listed = path in capabilityset.LISTED
+        found.extend([] if listed else mine)
+        found.extend([_stale(path)] if listed and not mine else [])
+    found.extend(_decision(texts))
     return found
 
 
@@ -326,7 +267,14 @@ def main(root: pathlib.Path) -> int:
         if not {".venv", "build", ".git", "node_modules"}
         & set(path.relative_to(root).parts)
     }
-    found = check(texts)
+    found = [
+        *check(texts),
+        *(
+            Finding(path=each, line=1, rule="E11", what="listed, and no such file")
+            for each in sorted(capabilityset.LISTED)
+            if each not in texts
+        ),
+    ]
     for each in found:
         print(each)
     print(f"{len(found)} findings", file=sys.stderr)

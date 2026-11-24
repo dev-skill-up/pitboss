@@ -15,11 +15,11 @@ import subprocess
 import sys
 from typing import Callable, Sequence
 
-from . import acthub, actinputs, config, configrepos, gateform, gateread
+from . import acthub, actinputs, config, configrepos, gateform, gateread, givenfile
 from .actcore import Act, Controls, Owner, Questions, cap_of
 from .ghapi import GitHub
 from .running import Run
-from .totaljson import listing, members, read_file, text
+from .totaljson import listing, members, text
 
 OWNER = "owner.json"
 CONTROLS = Controls()
@@ -34,7 +34,7 @@ def owner_of(path: pathlib.Path) -> Owner:
     Returns:
         What it holds; nothing when the file is not there.
     """
-    found = members(read_file(path)) if path.exists() else {}
+    found = members(givenfile.json_file(path)) if path.exists() else {}
     dispositions = {
         key: text(value) for key, value in members(found.get("dispositions")).items()
     }

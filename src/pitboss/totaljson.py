@@ -5,7 +5,6 @@ row reads is read as empty, so the row that needs it stops; nothing here raises.
 """
 
 import json
-import pathlib
 from typing import Mapping, Sequence
 
 JsonMap = Mapping[str, object]
@@ -131,15 +130,3 @@ def lines_of(out: str) -> Sequence[object]:
             value = json.loads(line)
             found.extend(value if isinstance(value, list) else [value])
     return found
-
-
-def read_file(path: pathlib.Path) -> object:
-    """Read a JSON file.
-
-    Args:
-        path: the file.
-
-    Returns:
-        What it holds.
-    """
-    return json.loads(path.read_text(encoding="utf-8"))
