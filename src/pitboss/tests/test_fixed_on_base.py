@@ -206,18 +206,19 @@ class TestSweep(unittest.TestCase):
                 assert_that(found, equal_to((listed, read)))
 
 
-def exit_and_logs(base: Sequence[object]) -> tuple[int, bool]:
-    """Sweep a world whose only open PR of the project is the red PR 3.
+def exit_and_logs(number: int, base: Sequence[object]) -> tuple[int, bool]:
+    """Sweep a world whose only open PR of the project is a red one.
 
     Args:
+        number: the PR (2 is approved at its head, 3 has no review).
         base: the check runs of the base branch's tip.
 
     Returns:
         The sweep's exit code, and whether it read the failed job's log.
     """
     here = syncworld.make_synced(QUEUE).here
-    add_pull(here, (3, "behind"), base, (RED_RUN,))
-    here.bodies.update({test_commands.OPEN_PULLS: [{"number": 3}]})
+    add_pull(here, (number, "behind"), base, (RED_RUN,))
+    here.bodies.update({test_commands.OPEN_PULLS: [{"number": number}]})
     code = int(str(sweep(here).code))
     logs = [call for call in here.calls if "actions/jobs/8" in " ".join(call)]
     return code, bool(logs)
@@ -227,9 +228,16 @@ class TestExit(unittest.TestCase):
     """The exit status of ``pitboss sweep`` and the failure logs it reads."""
 
     def test_only_an_unanswered_failed_check_makes_it_exit_one(self) -> None:
-        """Answered: exit 0 and no log read; unanswered: exit 1 and the log read."""
-        found = [exit_and_logs(base) for base in ([BASE_PASSED], [])]
-        assert_that(found, equal_to([(0, False), (1, True)]))
+        """Answered: exit 0 and no log read; unanswered: exit 1 and the log read.
+
+        The base's pass answers only an approved PR's check (quire#1128): the
+        PR with no review is unanswered whatever the base has passed.
+        """
+        found = [
+            exit_and_logs(number, base)
+            for number, base in ((2, [BASE_PASSED]), (3, [BASE_PASSED]), (3, []))
+        ]
+        assert_that(found, equal_to([(0, False), (1, True), (1, True)]))
 
 
 class TestAnswers(unittest.TestCase):

@@ -31,19 +31,22 @@ class TestPlanNamesHead(unittest.TestCase):
     def test_a_push_that_only_moves_the_head_in_the_plan_is_no_edit(self) -> None:
         """Current at the new head; words edited at the same head are not.
 
-        The old digest cannot be rebuilt (a review keeps eight digits of the head),
-        so a Plan that names the head is the same Plan at a later head.
+        A review that wrote its whole head puts it back in the Plan, so the
+        words are compared; one that kept eight digits cannot be rebuilt.
         """
         now = PLAN.format(NEW)
         same = PLAN.format(OLD).replace("prints", "shows")
         quiet = PLAN.replace("{}", "x")
+        edited = now.replace("prints", "shows")
         found = [
             plannaming.current(recorded(), now, OLD[:8], NEW),
             plannaming.current(recorded(), same, OLD[:8], OLD),
             plannaming.current(recorded(), PLAN.format(OLD), OLD[:8], OLD),
             plannaming.current(recorded(), quiet, OLD[:8], NEW),
+            plannaming.current(recorded(), now, OLD, NEW),
+            plannaming.current(recorded(), edited, OLD, NEW),
         ]
-        assert_that(found, equal_to([True, False, True, False]))
+        assert_that(found, equal_to([True, False, True, False, True, False]))
 
 
 class TestRedHeadIsFixed(unittest.TestCase):
@@ -98,10 +101,15 @@ class TestReviewStatus(unittest.TestCase):
         assert_that(list(found), equal_to(wanted))
         assert_that(totalchecks.review_status_lines("close", statuses), equal_to([]))
 
-    def test_the_stop_is_the_reviews_and_the_status_is_no_red(self) -> None:
-        """The review route carries ``act review``; the same status is no red."""
-        statuses = [status("guidelines-lint", "failure", "review: no Race line")]
-        reads = gatestate.lists_of(statuses=statuses)
-        stops = gaterows.check_stops("merge", gatestate.state(reads=reads))
-        red = totalchecks.check_stops("merge", [], statuses, set())
-        assert_that((len(stops), stops[0].route, red), equal_to((1, Route.REVIEW, [])))
+    def test_the_stop_is_the_reviews_unless_a_check_is_red(self) -> None:
+        """The review route carries ``act review``; a red check comes first."""
+        review = status("guidelines-lint", "failure", "review: no Race line")
+        other = status("lint", "failure", "diff: a file")
+        found = []
+        for statuses in ([review], [review, other]):
+            reads = gatestate.lists_of(statuses=statuses)
+            stops = gaterows.check_stops("merge", gatestate.state(reads=reads))
+            found.append([each.route for each in stops])
+        red = totalchecks.check_stops("merge", [], [review], set())
+        wanted = [[Route.REVIEW], [Route.RED, Route.REVIEW]]
+        assert_that((found, red), equal_to((wanted, [])))

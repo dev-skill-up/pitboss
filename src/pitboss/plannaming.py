@@ -18,9 +18,24 @@ def current(recorded: str, now: str, reviewed: str, head: str) -> bool:
 
     Returns:
         True when ``expansion.current_for`` the Plan holds, or the head moved
-        since the review and the Plan section names the head it has now.
+        since the review and the Plan section names the head it has now: with
+        the reviewed head put back where it names the head, it is the Plan the
+        review read (a review that kept only some digits of its head cannot
+        be rebuilt, and the Plan naming the head passes).
     """
     subject = expansion.Subject
+    if expansion.current_for(subject.PLAN, recorded, now):
+        return True
     moved = not expansion.current_for(subject.HEAD, reviewed, head)
-    named = moved and bool(head) and head in now
-    return expansion.current_for(subject.PLAN, recorded, now) or named
+    if not (moved and head and head in now):
+        return False
+    return _rebuilt(recorded, now, reviewed, head)
+
+
+def _rebuilt(recorded: str, now: str, reviewed: str, head: str) -> bool:
+    # the review's full head put back where the Plan names the head: the same words
+    if len(reviewed) != len(head):
+        return True
+    return expansion.current_for(
+        expansion.Subject.PLAN, recorded, now.replace(head, reviewed)
+    )

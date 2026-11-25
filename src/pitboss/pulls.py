@@ -303,7 +303,7 @@ def _signals(
         gate=unmet,
         approved_plans=plans,
         pins=pins,
-        fixed=got.fixed,
+        fixed=() if any(each.failed for each in state.checks) else got.fixed,
         hold=state.draft.hold,
     )
 

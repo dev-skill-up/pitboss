@@ -115,14 +115,15 @@ def check_stops(action: str, state: GateState) -> Sequence[Stop]:
     runs, statuses = listed(state.reads.runs), listed(state.reads.statuses)
     required = state.repository.required_checks
     said = totalchecks.review_status_lines(action, statuses)  # review-status
+    # a red or running check comes first: the review is the stop of a green head
     return [
-        *(Stop(route=Route.REVIEW, line=line) for line in said),
         *(
             Stop(route=Route.RUNNING if running else Route.RED, line=line)
             for line, running in totalchecks.check_stops(
                 action, runs, statuses, required
             )
         ),
+        *(Stop(route=Route.REVIEW, line=line) for line in said),
     ]
 
 
