@@ -1,8 +1,8 @@
-"""The recorded PRs of the queue: each gets a step whose own work ends it (pitboss#526).
+"""The recorded PRs of the queue: each gets a step whose own work ends it (#526).
 
 ``corpus/`` holds what ``pitboss next`` read of every open PR of bats-lang on
-2026-11-24. For dom#140 and quire#1128 the record also holds ``was``, the task
-the decider of 8a36af1 gave them, a dead end.
+2026-11-24. For dom#140, quire#1125 and quire#1128 the record also holds ``was``,
+the task the decider gave them, a dead end.
 """
 
 import unittest
@@ -14,7 +14,7 @@ from .. import flow, flowstep, steps, workerselect
 from .. import witnesses
 from . import corpusreplay
 
-DEAD_ENDS = ("dom-140", "quire-1128")
+DEAD_ENDS = ("dom-140", "quire-1125", "quire-1128")
 
 
 def step_name(record: Mapping[str, object]) -> Mapping[str, object]:
@@ -73,7 +73,7 @@ class TestCorpus(unittest.TestCase):
         assert_that(checked > 3, equal_to(True))
 
     def test_the_old_dead_ends_have_another_step_now(self) -> None:
-        """dom#140 and quire#1128 were sent to a worker no edit could end."""
+        """dom#140, quire#1125 and quire#1128 were sent to a step no edit ends."""
         for name in DEAD_ENDS:
             record = corpusreplay.load(name)
             assert_that(record["recorded_dead_end"], equal_to(True))

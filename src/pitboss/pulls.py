@@ -208,23 +208,28 @@ def _needs_e2e(source: Source, repo: config.Repo, state: flow.PullState) -> bool
     return touched and not dispatchruns.completed(github, slug, pull.head.sha)
 
 
+def _relocked(source: Source, got: Fetched) -> bool:
+    return relock.is_relock(got.pull.head.branch, source.relock_prefix)
+
+
 def _handed(
     source: Source, got: Fetched, trusted: AbstractSet[str]
 ) -> handbacks.HandedBack:
     # keyword: standing: only a relock PR owes no hand-back
-    if relock.is_relock(got.pull.head.branch, source.relock_prefix):
+    if _relocked(source, got):
         return handbacks.NOT_REQUIRED
     return handbackderive.derive(got.pull, got.posted.comments, trusted)
 
 
 def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
     trusted = source.review.trusted
-    is_relock = relock.is_relock(got.pull.head.branch, source.relock_prefix)
+    is_relock = _relocked(source, got)
+    graded = reviews.recorded(source.review, repo.slug, got.posted)
     return flow.PullState(
         pull=got.pull,
         labels=got.labels,
-        checks=basefix.settle(got.checks, got.fixed),
-        graded=reviews.recorded(source.review, repo.slug, got.posted),
+        checks=_settled(source, got, graded),
+        graded=graded,
         comments=got.posted.comments,
         trusted=trusted,
         undraft_clear=got.pull.draft and source.undraft(),
@@ -233,12 +238,27 @@ def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullSta
             unchanged=frozenset(),
             handed=_handed(source, got, trusted),
         ),
-        draft=draftfacts.Draft(
-            needs_e2e=False,
-            plan_review_check=source.plan_review_check,
-            no_drafts=source.no_drafts(repo.slug),
-            hold=not source.undraft(),
-        ),
+        draft=_draft(source, repo),
+    )
+
+
+def _settled(
+    source: Source, got: Fetched, graded: Sequence[shapes.Graded]
+) -> Sequence[shapes.CheckRun]:
+    # keyword: red-never-reviewed: a relock has no change of its own to blame
+    kept = [
+        basefix.settle(got.checks, got.fixed),
+        basefix.settle_approved(got.checks, got.fixed, graded),
+    ]
+    return kept[not _relocked(source, got)]
+
+
+def _draft(source: Source, repo: config.Repo) -> draftfacts.Draft:
+    return draftfacts.Draft(
+        needs_e2e=False,
+        plan_review_check=source.plan_review_check,
+        no_drafts=source.no_drafts(repo.slug),
+        hold=not source.undraft(),
     )
 
 

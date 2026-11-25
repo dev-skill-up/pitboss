@@ -85,3 +85,31 @@ def _since(failed: shapes.CheckRun, passed: shapes.CheckRun) -> bool:
         and bool(failed.completed_at)
         and passed.completed_at > failed.completed_at
     )
+
+
+def settle_approved(
+    checks: Sequence[shapes.CheckRun],
+    found: Sequence[Answer],
+    graded: Sequence[shapes.Graded],
+) -> Sequence[shapes.CheckRun]:
+    """The checks, settled only for a PR whose Execution a review approved.
+
+    A passing run of the base says the base passes, not that the head's failure
+    is the base's (quire#1128: the head's own lock failed the link the base never
+    had), so a head with no approval is red and gets its CI fixed before any
+    review (keyword: red-never-reviewed); an approved one is enqueued (queue).
+    A relock PR is settled with ``settle`` (it has no change of its own to blame,
+    quire#1135).
+
+    Args:
+        checks: the head's check runs.
+        found: the answers of ``answers``.
+        graded: every review that counts.
+
+    Returns:
+        ``settle`` of them for an approved PR, else the checks as they are.
+    """
+    approved = any(
+        each.comment and each.execution is shapes.Verdict.APPROVED for each in graded
+    )
+    return settle(checks, found) if approved else checks

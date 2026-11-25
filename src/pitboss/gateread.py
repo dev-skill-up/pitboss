@@ -46,7 +46,9 @@ def _as_event(
 def _head(pull: pulls.PullRead) -> pullstate.Head:
     # the head's runs and statuses and the PR's events, as its own read typed them
     statuses = [
-        pullrecords.Status(context=each.context, state=each.state)
+        pullrecords.Status(
+            context=each.context, state=each.state, description=each.description
+        )
         for each in pull.posted.statuses
     ]
     return pull.checks, statuses, _events(pull.posted.sources)

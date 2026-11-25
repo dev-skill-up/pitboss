@@ -123,7 +123,7 @@ def lists_of(**changes: object) -> records.Reads:
     """
     made = records.Reads(
         runs=[GREEN_RUN],
-        statuses=[records.Status(context="text-lint", state="success")],
+        statuses=[records.Status(context="text-lint", state="success", description="")],
         files=[records.File(name="src/a.py", additions=3, deletions=1)],
         timeline=[REVIEW],
     )

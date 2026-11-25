@@ -146,7 +146,8 @@ CASES: Sequence[Case] = [
     (
         "behind, red, fixed on the base, no review",
         dict(pr=(3, "behind"), base=[BASE_PASSED]),
-        {REQUEST_3 + "grade Plan": True, FIX_CI_3: False, CONFLICT_3: False},
+        # quire#1128: the base passing says nothing of the PR's own failure
+        {REQUEST_3 + "grade Plan": False, FIX_CI_3: True, CONFLICT_3: False},
         True,
     ),
     (
@@ -259,7 +260,7 @@ def step_of(
     Returns:
         The step.
     """
-    checks = basefix.settle((RED,), found)
+    checks = basefix.settle_approved((RED,), found, recorded)
     return flow.next_step(
         test_flow.state(*recorded, checks=checks, mergeable_state=merge)
     )
@@ -269,14 +270,13 @@ class TestFlow(unittest.TestCase):
     """``flow.next_step`` of a red head the base has passed."""
 
     def test_the_step_is_the_one_a_green_head_gets(self) -> None:
-        """No review: the review; approved: the merge; a conflict: its resolution."""
+        """Reviewed or not, a red head is fixed; approved: the merge (queue)."""
         yes = test_flow.APPROVED
         approved = (test_flow.graded(yes, yes, 1),)
-        both = steps.Stage.PLAN_AND_EXECUTION
         resolve = steps.worker(steps.Task.RESOLVE_CONFLICT)
         cases = [
             ((), [], "clean", steps.worker(steps.Task.FIX_CI)),
-            ((), [ANSWER], "clean", reviewsteps.review(both)),
+            ((), [ANSWER], "clean", steps.worker(steps.Task.FIX_CI)),  # quire#1128
             (approved, [ANSWER], "clean", steps.merge()),
             ((), [ANSWER], "dirty", resolve),
         ]

@@ -114,8 +114,10 @@ class TestInputs(unittest.TestCase):
 
     def test_6_1_statuses_are_typed(self) -> None:
         """Plan 6.1: the head's statuses."""
-        given = [{"context": "text-lint", "state": "success"}]
-        want = pullrecords.Status(context="text-lint", state="success")
+        given = [{"context": "text-lint", "state": "success", "description": "ok"}]
+        want = pullrecords.Status(
+            context="text-lint", state="success", description="ok"
+        )
         assert_that(_state(statuses=given).reads.statuses, equal_to([want]))
 
     def test_6_1_files_give_the_diff_size(self) -> None:

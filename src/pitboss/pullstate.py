@@ -65,6 +65,7 @@ def _status(each: Raw) -> records.Status:
     return records.Status(
         context=pullobject.said_at(each, "context"),
         state=pullobject.said_at(each, "state"),
+        description=pullobject.said_at(each, "description"),
     )
 
 
