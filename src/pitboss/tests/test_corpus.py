@@ -1,7 +1,7 @@
 """The recorded PRs of the queue: each gets a step whose own work ends it (#526).
 
 ``corpus/`` holds what ``pitboss next`` read of every open PR of bats-lang on
-2026-11-24. For dom#140, quire#1125 and quire#1128 the record also holds ``was``,
+2026-11-24. For dom#140, quire#1125, #1128 and #1130 the record also holds ``was``,
 the task the decider gave them, a dead end.
 """
 
@@ -14,7 +14,7 @@ from .. import flow, flowstep, steps, workerselect
 from .. import witnesses
 from . import corpusreplay
 
-DEAD_ENDS = ("dom-140", "quire-1125", "quire-1128")
+DEAD_ENDS = ("dom-140", "quire-1125", "quire-1128", "quire-1130")
 
 
 def step_name(record: Mapping[str, object]) -> Mapping[str, object]:
@@ -53,33 +53,42 @@ class TestCorpus(unittest.TestCase):
         self,
     ) -> None:
         """Do what its task requires to the PR: the flow gives another step."""
-        checked = 0
-        for name in corpusreplay.names():
-            state = corpusreplay.read(corpusreplay.load(name)).state
-            found = flow.next_step(state)
-            if not isinstance(found, steps.Next) or found.task is None:
-                continue
-            required = workerselect.TABLE[found.task].required
-            # a body or a Plan the worker writes is not in a record
-            if not required & {
-                workerselect.Effect.EDIT_BODY,
-                workerselect.Effect.EDIT_PLAN,
-            }:
-                after = witnesses.applied(state, found.task)
-                checked += 1
-                assert_that(
-                    (name, flow.next_step(after)), is_not(equal_to((name, found)))
-                )
-        assert_that(checked > 3, equal_to(True))
+        writes = {workerselect.Effect.EDIT_BODY, workerselect.Effect.EDIT_PLAN}
+        states = {
+            name: corpusreplay.read(corpusreplay.load(name)).state
+            for name in corpusreplay.names()
+        }
+        found = {name: flow.next_step(state) for name, state in states.items()}
+        # a body or a Plan the worker writes is not in a record
+        worked = [
+            (name, state, step)
+            for (name, state), step in zip(states.items(), found.values())
+            if isinstance(step, steps.Next)
+            and step.task is not None
+            and not workerselect.TABLE[step.task].required & writes
+        ]
+        after = [
+            (name, flow.next_step(witnesses.applied(state, step.task)), step)
+            for name, state, step in worked
+            if step.task is not None
+        ]
+        assert_that(all(each[1] != each[2] for each in after), equal_to(True))
+        assert_that(len(after) > 3, equal_to(True))
 
     def test_the_old_dead_ends_have_another_step_now(self) -> None:
-        """dom#140, quire#1125 and quire#1128 were sent to a step no edit ends."""
+        """The dead ends were sent to a step no edit ends."""
         for name in DEAD_ENDS:
             record = corpusreplay.load(name)
             assert_that(record["recorded_dead_end"], equal_to(True))
             was = record["was"]
             assert_that(was is not None, equal_to(True))
             assert_that(step_name(record)["task"], is_not(equal_to(was)))
+
+    def test_a_red_status_about_the_review_is_the_reviews_stop(self) -> None:
+        """quire#1130: the merge's first stop is the review's, so ``act review``."""
+        record = corpusreplay.load("quire-1130")
+        found = corpusreplay.first_stop(record)
+        assert_that((found, record["gate"]), equal_to(("REVIEW", "REVIEW")))
 
     def test_a_task_the_corpus_cannot_do_is_a_ticket(self) -> None:
         """Filing a ticket changes nothing the flow reads."""

@@ -10,7 +10,7 @@ import json
 import pathlib
 from typing import Mapping, Sequence
 
-from .. import configfile, config, pullread, pulls
+from .. import config, configfile, gate, gateread, pullread, pulls, steps
 from . import fakes
 
 DIRECTORY = pathlib.Path(__file__).parent.joinpath("corpus")
@@ -59,3 +59,20 @@ def read(record: Mapping[str, object]) -> pulls.PullRead:
         fakes.github(dict(reads)), settings, lambda: True, repo
     )
     return pulls.fetch(source, repo, int(str(record["number"])))
+
+
+def first_stop(record: Mapping[str, object]) -> str:
+    """The route of the first stop of a recorded PR's merge, as ``act`` reads it.
+
+    Args:
+        record: the record, whose reads hold the gate's.
+
+    Returns:
+        The name of the route; empty when nothing stops the merge.
+    """
+    reads = record["reads"]
+    assert isinstance(reads, dict)
+    pull = read(record)
+    gated = gateread.reader(fakes.github(dict(reads)))(pull, [])
+    stops = gate.stops_of(steps.Step.MERGE, gated)
+    return stops[0].route.name if stops else ""

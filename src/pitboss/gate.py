@@ -34,11 +34,13 @@ def _found(action: str, state: GateState, policy: gatepolicy.Policy) -> Sequence
     # every row's stops, in the order act ran them
     kind = gaterows.kind_of(state)
     change = kind == totalbody.CHANGE
+    checks = gaterows.check_stops(action, state)
+    fields = gatefields.field_stops(state, action, policy.schema)
     return [
         *gaterows.read_stops(state),
-        *gatefields.field_stops(state, action, policy.schema),
+        *gaterows.unexplained(fields, checks),
         *gaterows.hold_stops(action, state),
-        *gaterows.check_stops(action, state),
+        *checks,
         *(gaterows.review_stops(action, state, policy) if change else ()),
         *gaterows.body_stops(state, policy),
         *gaterows.merge_stops(action, state),

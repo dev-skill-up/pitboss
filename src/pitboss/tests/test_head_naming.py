@@ -26,7 +26,7 @@ def recorded() -> str:
 
 
 class TestPlanNamesHead(unittest.TestCase):
-    """``expansion.plan_current``."""
+    """``plannaming.current``."""
 
     def test_a_push_that_only_moves_the_head_in_the_plan_is_no_edit(self) -> None:
         """Current at the new head; words edited at the same head are not.
