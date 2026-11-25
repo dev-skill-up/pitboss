@@ -9,12 +9,11 @@ repository-prototype PR that adds the line, or else for the open ticket that
 asks for it, which is offered in the PR's place (pitboss#448).
 """
 
-import json
 import re
 import subprocess
 from typing import Sequence
 
-from . import ghapi, pullfacts, pullref, shapes
+from . import ghapi, parsing, pullfacts, pullref, shapes, sharedstep, totaljson
 
 CHECK = "canonical-files"
 ALLOWLIST = "tools/pin-audit/allowlist.txt"
@@ -24,6 +23,7 @@ MISS = re.compile(
     + re.escape(ALLOWLIST)
 )
 NEXT = "the hash of this file as the next hash:"
+STAMP = re.compile(r"^\d{4}-\d\d-\d\dT[0-9:.]+Z\s+")  # a log line's own time
 
 
 def failed(pull: pullfacts.PullFacts) -> Sequence[shapes.CheckRun]:
@@ -54,7 +54,8 @@ def line_of(log: str) -> str:
     """
     missed = MISS.search(log)
     after = log[missed.end() :].partition(NEXT)[2] if missed else ""
-    return next((each.strip() for each in after.splitlines() if each.strip()), "")
+    lines = (STAMP.sub("", each.strip()) for each in after.splitlines())
+    return next((each for each in lines if each), "")
 
 
 def _read(
@@ -86,20 +87,16 @@ def wanted(github: ghapi.GitHub, pull: pullfacts.PullFacts) -> str:
     )
 
 
-def _numbers(text: str) -> Sequence[int]:
-    return [each["number"] for each in json.loads(text)]
-
-
 def _added(text: str, line: str) -> Sequence[bool]:
     # whether the patch of the allowlist adds the line (one entry for each raw file)
     return [
-        each["filename"] == ALLOWLIST
+        totaljson.text(each.get("filename")) == ALLOWLIST
         and any(
-            added[1:].split() == line.split()
-            for added in (each.get("patch") or "").splitlines()
+            added[1:].split()[:2] == line.split()[:2]
+            for added in totaljson.text(each.get("patch")).splitlines()
             if added.startswith("+")
         )
-        for each in json.loads(text)
+        for each in totaljson.rows(text)
     ]
 
 
@@ -114,7 +111,9 @@ def adding(github: ghapi.GitHub, slug: str, line: str) -> str:
     Returns:
         The PR as ``owner/name#N``, or empty when none adds it.
     """
-    for number in ghapi.pages(github, f"repos/{slug}/pulls?state=open", _numbers):
+    for number in ghapi.pages(
+        github, f"repos/{slug}/pulls?state=open", parsing.pull_numbers
+    ):
         files = ghapi.pages(
             github, f"repos/{slug}/pulls/{number}/files", lambda t: _added(t, line)
         )
@@ -125,8 +124,12 @@ def adding(github: ghapi.GitHub, slug: str, line: str) -> str:
 
 def _titles(text: str) -> Sequence[tuple[int, str, bool]]:
     return [
-        (each["number"], each.get("title") or "", "pull_request" in each)
-        for each in json.loads(text)
+        (
+            totaljson.count(each, "number"),
+            totaljson.text(each.get("title")),
+            "pull_request" in each,
+        )
+        for each in totaljson.rows(text)
     ]
 
 
@@ -173,3 +176,34 @@ def missing(
     slug = f"{pull.repo.owner}/{PROTOTYPE}"
     found = adding(github, slug, line) or asking(github, slug, line)
     return (line, [found]) if found else ("", [])
+
+
+def unowned(
+    github: ghapi.GitHub, pull: pullfacts.PullFacts
+) -> Sequence[sharedstep.Shared]:
+    """The red of a PR whose fix is outside it and that nothing open owns.
+
+    The PR's one ``canonical-files`` miss is repository-prototype's work, and no
+    open PR or ticket there asks for it, so the PR is its own group: its worker
+    files that ticket and names it in a ``Blocked-by:`` line (the step of a
+    shared red) rather than fixing the CI (keyword: outside-red, pitboss#531).
+
+    Args:
+        github: the API.
+        pull: the PR.
+
+    Returns:
+        One group with the PR as its only holder, or none when the log asks for
+        no line or something open owns it.
+    """
+    line = wanted(github, pull)
+    if not line or missing(github, pull)[1]:
+        return []
+    return [
+        sharedstep.Shared(
+            slug=pull.repo.slug,
+            check=CHECK,
+            line=line,
+            holders=[pullref.reference(pull)],
+        )
+    ]

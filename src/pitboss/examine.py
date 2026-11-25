@@ -25,6 +25,7 @@ from . import (
     ghapi,
     headchecks,
     listed,
+    ownedred,
     pullfacts,
     pullnames,
     pullrecords,
@@ -78,7 +79,7 @@ def _waits(
         refused = blockers.refusal_blockers(github, settings, me, ticket)
         # a ticket the PR works on never blocks it (keyword: plan-refusal)
         found += [each for each in refused if each not in waits]
-        found += _allowlist(github, facts)
+    found += _allowlist(github, facts)  # a PR naming no ticket has it too (#531)
     return [each for each in typedstd.unique(found) if each != me]
 
 
@@ -92,6 +93,11 @@ def _fixing(facts: pulls.PullFacts) -> bool:
     # whether the pull request's step is a fix of its CI
     step = facts.step
     return isinstance(step, steps.Next) and step.task is steps.Task.FIX_CI
+
+
+def _owned(github: ghapi.GitHub, facts: pulls.PullFacts) -> Sequence[str]:
+    # keyword: owned-red (pitboss#531): a red an open p0 ticket names is its
+    return ownedred.owners(github, facts) if _fixing(facts) else ()
 
 
 def _allowlist(github: ghapi.GitHub, facts: pulls.PullFacts) -> Sequence[str]:
@@ -120,7 +126,7 @@ def examine_pull(
     read = reading.pull(row)
     facts = flowstep.at_flow(read)  # the flow's step chooses the closures read
     blocked_by = blockedby.read_closure(github, facts)
-    waits = _waits(github, reading.settings, facts)
+    waits = [*_waits(github, reading.settings, facts), *_owned(github, facts)]
     blocked = blockedstep.open_named(blocked_by) or waits
     fixing = _fixing(facts)
     return world.PullRecord(
@@ -140,7 +146,10 @@ def _shared(
 ) -> Sequence[sharedstep.Shared]:
     # keyword: shared-red: read only for a red PR that names no blocker, the one
     # that is printed (plan 3.1(4))
-    return reading.closures.shared(facts, others) if _fixing(facts) else ()
+    if not _fixing(facts):
+        return ()
+    outside = allowlistmiss.unowned(reading.github, facts)  # keyword: outside-red
+    return [*reading.closures.shared(facts, others), *outside]
 
 
 def _gated(
