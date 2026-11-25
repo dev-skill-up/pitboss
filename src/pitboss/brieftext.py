@@ -151,7 +151,9 @@ TASK_RULING_STEPS = (
 TASK_RULING_AS_GIVEN = (
     "Task: PR {reference}: its newest `Opus ruling` comment rules to split, reshape"
     " or abandon. Do exactly what that ruling says to the ticket and the PR; it is"
-    " not checked against the one-ticket-one-PR rules."
+    " not checked against the one-ticket-one-PR rules. What it leaves of this PR is"
+    " a commit on its head (a split or a reshape), pushed, and handed back; an"
+    " abandoned PR is closed instead."
 )
 REVIEW = "Review: {reference}."
 SEPARATE = (

@@ -89,6 +89,13 @@ def _names(review: shapes.Graded, pr: Held, stage: steps.Stage, since: str) -> b
     )
 
 
+def _naming(pr: Held, stage: steps.Stage) -> Sequence[shapes.Graded]:
+    # the reviews of this stage that name this head and body, after the newest ruling
+    newest = _newest_ruling(pr.comments, pr.trusted)
+    since = newest.created_at if newest else ""
+    return [each for each in pr.graded if _names(each, pr, stage, since)]
+
+
 def of(pr: Held, stage: steps.Stage) -> steps.Standing | None:
     """The standing of a PR's head and body for a review of a stage.
 
@@ -106,10 +113,21 @@ def of(pr: Held, stage: steps.Stage) -> steps.Standing | None:
     )
     if not handbacks.covers(pr.handed, granted.head):
         return None
-    newest = _newest_ruling(pr.comments, pr.trusted)
-    since = newest.created_at if newest else ""
-    named = any(_names(each, pr, stage, since) for each in pr.graded)
-    return None if named else granted
+    return None if _naming(pr, stage) else granted
+
+
+def _answered(pr: Held, stage: steps.Stage) -> steps.Next | None:
+    # pitboss#526: a review already grades this state: approved, it is merged; rejected,
+    # the worker fixes what it found; no hand-back changes a review that stands
+    head = pr.pull.head.sha
+    covered = handbacks.covers(pr.handed, head)
+    grades = [(each.plan, each.execution) for each in _naming(pr, stage)] * covered
+    approved = shapes.Verdict.APPROVED
+    if (approved, approved) in grades:
+        return steps.merge()
+    rejects = any(shapes.Verdict.CHANGES_NEEDED in each for each in grades)
+    task = steps.Task.REVISE_PLAN if _alone(stage) else steps.Task.FIX_EXECUTION
+    return steps.worker(task) if rejects else None
 
 
 def reviewed(pr: Held, stage: steps.Stage) -> steps.Next:
@@ -125,5 +143,5 @@ def reviewed(pr: Held, stage: steps.Stage) -> steps.Next:
     """
     granted = of(pr, stage)
     if granted is None:
-        return steps.worker(steps.Task.HAND_BACK)
+        return _answered(pr, stage) or steps.worker(steps.Task.HAND_BACK)
     return steps.regular_review(granted)

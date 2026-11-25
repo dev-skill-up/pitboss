@@ -13,14 +13,65 @@ import pathlib
 import sys
 from typing import Mapping, Sequence
 
-from gather.api import Wrapper, unique
-from gather.commands import add_argument
-
-from . import cli_parser, config, mode, modecommand, modeproof, proofsource
-from .onepathproofs import CASES
-from .proofcase import Seed
+from . import blockedby, blockedstep, cli_parser, config, decide, flow, headsignals
+from . import listed, mode, modecommand, modeproof, modeseeds, onepathproofs
+from . import proofsource
+from . import pullfacts, reviews, rounds, steps, straycomments, witnesses
+from . import witnessproofs, witnessread, witnessstates, world
+from .proofcase import Case, Seed
 
 SOURCE = "src/pitboss/"
+# P4.1 to P4.4: what a command line varies (subcommand, choice, flag, positional)
+KINDS = ("subcommand", "choice", "flag", "positional")
+
+
+def _facts_of(pr: flow.PullState) -> pullfacts.PullFacts:
+    # the facts the settlers read of a PR, at the step the flow gives it
+    return pullfacts.PullFacts(
+        repo=config.make_repo("o", "r"),
+        pull=pr.pull,
+        checks=pr.checks,
+        review=None,
+        standing=reviews.Standing.NONE,
+        signals=headsignals.NONE,
+        unreadable=straycomments.NONE,
+        step=flow.next_step(pr),
+        review_rounds=rounds.NONE,
+        relock=False,
+    )
+
+
+def shipped_step(setting: witnesses.Setting) -> steps.Move | None:
+    """The step the shipped decider gives a PR and what its step is decided from.
+
+    P13.4 (keyword: witnesses) runs it on each worker task's witness; it is here
+    because only this module may import the decider (the depth of the package).
+
+    Args:
+        setting: the PR, the blockers its body names and its shared red.
+
+    Returns:
+        The step ``decide.facts_of`` gives it.
+    """
+    facts = _facts_of(setting.pr)
+    named = [setting.known[each] for each in blockedby.declared(facts)]
+    record = world.PullRecord(
+        row=listed.listed_row(facts.repo, "relock/", witnessstates.pull_json()),
+        facts=witnessread.read_of(facts, setting.pr),
+        blocked_by=blockedstep.Closure(found=named, looped=False),
+        shared=setting.groups,
+        waits=[],
+        stuck=[],
+        gated=None,
+        failures={},
+    )
+    return decide.facts_of(record).step
+
+
+CASES: Mapping[str, Case] = {
+    **onepathproofs.CASES,
+    **witnessproofs.cases(shipped_step),
+}
 
 # P4's static half: a match on a mode that does not end in assert_never
 UNMATCHED = Seed(
@@ -69,42 +120,6 @@ def other_modes(
     return next(iter(modecommand.Command))
 
 
-def new_flag(declared: cli_parser.Declared) -> cli_parser.Declared:
-    """P4's seeded table: a flag of ``next`` that ``ASKS_NOTHING`` does not list.
-
-    Args:
-        declared: the table the parser is built from.
-
-    Returns:
-        The table with ``--seeded`` added to ``next``.
-    """
-    registered = unique(declared)["next"]
-    extra: Sequence[object] = getattr(registered, "extra")
-    flag = add_argument("--seeded", action="store_true")
-    changed = Wrapper(original=getattr(registered, "original"), extra=[*extra, flag])
-    return {**declared, "next": [changed]}
-
-
-def refusing(kind: str) -> mode.ModeOf:
-    """P4's seeded parse: it refuses the command lines of one kind.
-
-    Args:
-        kind: what the line varies (subcommand, choice, flag or positional).
-
-    Returns:
-        A parse that exits on such a line and parses the others.
-    """
-
-    def parse(
-        args: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
-    ) -> mode.Mode:
-        if getattr(args, modeproof.KIND) == kind:
-            raise SystemExit(2)
-        return mode.parse(args, project, options)
-
-    return parse
-
-
 def seeded_runs(
     texts: Mapping[str, str], declared: cli_parser.Declared, seed_parse: mode.ModeOf
 ) -> Mapping[str, Sequence[str]]:
@@ -120,13 +135,13 @@ def seeded_runs(
     """
     unmatched = proofsource.of_texts(seeded(texts, UNMATCHED))
     return {
-        "P4.1": modeproof.images(refusing("subcommand"), declared),
-        "P4.2": modeproof.images(refusing("choice"), declared),
-        "P4.3": modeproof.images(refusing("flag"), declared),
-        "P4.4": modeproof.images(refusing("positional"), declared),
+        **{
+            f"P4.{number}": modeproof.images(modeseeds.refusing(kind), declared)
+            for number, kind in enumerate(KINDS, 1)
+        },
         "P4.5": modeproof.images(seed_parse, declared),
         "P4.6": modeproof.total_matches(unmatched),
-        "P4.7": modeproof.images(mode.parse, new_flag(declared)),
+        "P4.7": modeproof.images(mode.parse, modeseeds.new_flag(declared)),
         **{
             bullet: case.proof(proofsource.of_texts(seeded(texts, case.seed)))
             for bullet, case in CASES.items()

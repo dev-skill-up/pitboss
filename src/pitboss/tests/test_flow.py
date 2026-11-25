@@ -6,7 +6,6 @@ Each row of the owner's table goes through ``next_step`` on recorded PR data
 """
 
 import dataclasses
-import json
 import unittest
 from typing import AbstractSet, Sequence
 
@@ -16,11 +15,11 @@ from .. import (
     bodydigest,
     draftfacts,
     flow,
-    parsing,
     shapes,
     steps,
 )
-from . import blank, card, fakes, pullstates, scratch
+from . import blank, card, fakes, flowbody, scratch
+from .. import witnessstates
 from .checkcomment import clean_check
 from . import reviewsteps
 
@@ -34,7 +33,8 @@ REVIEW = dataclasses.replace(
     trusted=frozenset({"MEMBER"}),
     gated_form=dataclasses.replace(FORM, lines=("## Gated review", *FORM.lines[1:])),
 )
-BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
+BODY = flowbody.BODY
+pull_of = flowbody.pull_of
 GREEN = dataclasses.replace(
     blank.CHECK_RUN, id=1, name="build", finished=True, failed=False
 )
@@ -118,19 +118,6 @@ def ruling(
     )
 
 
-def pull_of(**changes: object) -> shapes.Pull:
-    """A PR as the API gives it, with a Plan and an Execution in its body.
-
-    Args:
-        **changes: changes to its JSON.
-
-    Returns:
-        The PR.
-    """
-    changes = {"body": BODY, **changes}
-    return parsing.pull(json.dumps(fakes.pull_body(1, **changes)))
-
-
 def state(
     *recorded: shapes.Graded,
     comments: Sequence[shapes.Comment] = (),
@@ -154,7 +141,7 @@ def state(
     """
     pull = pull_of(**changes)
     return dataclasses.replace(
-        pullstates.bare(pull),
+        witnessstates.bare(pull),
         labels=labels,
         checks=checks,
         graded=recorded,

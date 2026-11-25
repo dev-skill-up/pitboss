@@ -1,28 +1,11 @@
 """A clean ``plan-check`` comment for the tests (keyword: plan-check-always)."""
 
 import dataclasses
-from .. import bodydigest, expansion, plandigest, shapes, steps
+
+from .. import shapes, witnessplan
 from . import blank
 
-
-def clean_text(body: str) -> str:
-    """The text of a clean ``plan-check`` of a body's Plan (``plancheck.text``).
-
-    Args:
-        body: the PR body the check read.
-
-    Returns:
-        The text.
-    """
-    return "\n".join(
-        [
-            steps.PLAN_CHECK_FIRST_LINE,
-            bodydigest.PLAN_PREFIX
-            + expansion.section_digest(text=plandigest.section(body)),
-            steps.PLAN_CHECK_OK,
-            "",
-        ]
-    )
+clean_text = witnessplan.clean_text
 
 
 def clean_check(body: str) -> shapes.Comment:

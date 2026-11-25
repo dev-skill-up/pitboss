@@ -6,10 +6,11 @@ import pathlib
 from typing import Mapping, Sequence
 
 from . import repositories, world
-from .test_plan_check_step import check_comment
+from .plancheckcomment import check_comment
 
 NUMBER = 7
 BASE = "repos/owner/project"
+ORIGIN = "https://github.com/owner/project.git"
 
 
 def git(tree: pathlib.Path, *words: str) -> str:
@@ -37,9 +38,19 @@ def _check(body: str) -> Mapping[str, str]:
     return {**dataclasses.asdict(comment), "html_url": comment.url}
 
 
+def name_origin(tree: pathlib.Path) -> None:
+    """Point a worktree's origin at the project's GitHub repository (pitboss#526).
+
+    Args:
+        tree: the worktree.
+    """
+    git(tree, "remote", "set-url", "origin", ORIGIN)
+
+
 def _plant(
     here: world.World, tree: pathlib.Path, posted: Sequence[Mapping[str, str]]
 ) -> world.World:
+    name_origin(tree)
     head, branch = git(tree, "rev-parse", "HEAD"), git(tree, "branch", "--show-current")
     pull = {
         "number": NUMBER,

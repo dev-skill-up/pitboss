@@ -14,8 +14,7 @@ from typing import AbstractSet, Iterable, Iterator, Mapping, Sequence, TypeVar
 from . import importgraph
 
 PACKAGE = "pitboss"
-# the proofs name what they look for; their own text is not the package's
-PROOFS = frozenset(
+PROOFS = frozenset(  # their own text is not the package's
     {
         "pitboss.decideproofs",
         "pitboss.factproofs",
@@ -23,6 +22,9 @@ PROOFS = frozenset(
         "pitboss.pathproofs",
         "pitboss.proofseeds",
         "pitboss.doneproofs",
+        "pitboss.repoproofs",
+        "pitboss.progressproofs",
+        "pitboss.selectorproofs",
     }
 )
 Top = TypeVar("Top", ast.FunctionDef, ast.ClassDef)

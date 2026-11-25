@@ -12,7 +12,8 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import flow, handbacks, plancheckflow, shapes, steps
-from . import blank, pullstates, test_flow
+from . import blank, test_flow
+from .. import witnessstates
 from .derivedhand import held
 from .checkcomment import clean_text
 from .test_flow import expect, state
@@ -64,7 +65,7 @@ def ruled(
         The state.
     """
     both = state(*REJECTIONS, comments=[test_flow.ruling(3), *after], checks=checks)
-    return pullstates.with_recorded(both, handed=held)
+    return witnessstates.with_recorded(both, handed=held)
 
 
 class TestBodyOnlyRound(unittest.TestCase):
@@ -96,3 +97,50 @@ class TestBodyOnlyRound(unittest.TestCase):
         assert_that(plancheckflow.unchecked(ruled(check_after(OK))), equal_to(False))
         again = plancheckflow.review(refused, REVIEW)
         assert_that(again.step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
+
+
+UNCARRIED = (
+    "Opus ruling\nRuling: do these steps\n\n## Steps\n\n"
+    "1. body replace: a sentence the body never had => its new words, in no body\n"
+)
+
+
+def ruled_in_other_words(*after: shapes.Graded) -> flow.PullState:
+    """A ruling with a body edit that does not show literally, then reviews.
+
+    Args:
+        *after: the reviews of the head after the ruling.
+
+    Returns:
+        The state: handed back at the head, the body carrying the edit in words of
+        its own.
+    """
+    words = dataclasses.replace(test_flow.ruling(3), body=UNCARRIED)
+    both = state(*REJECTIONS, *after, comments=[words], checks=(test_flow.GREEN,))
+    return witnessstates.with_recorded(
+        both, handed=held(test_flow.HEAD, "2026-10-30T00:00:08Z")
+    )
+
+
+class TestRulingProgress(unittest.TestCase):
+    """pitboss#526 (bats-lang/dom#140): a step that no edit can end is not chosen."""
+
+    def test_a_review_of_the_handed_back_head_ends_a_ruling_the_text_cannot(
+        self,
+    ) -> None:
+        """The words differ and a later review approved the head: the merge."""
+        later = dataclasses.replace(
+            test_flow.graded(*test_flow.EVERYTHING_APPROVED, 9),
+            comment=True,
+        )
+        assert_that(
+            flow.next_step(ruled_in_other_words(later)),
+            equal_to(steps.merge()),
+        )
+
+    def test_no_review_after_it_leaves_the_worker_step(self) -> None:
+        """With no review the text decides: the ruling's own step."""
+        assert_that(
+            flow.next_step(ruled_in_other_words()),
+            equal_to(FIX),
+        )

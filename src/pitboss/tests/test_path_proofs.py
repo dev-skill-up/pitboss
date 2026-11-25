@@ -17,7 +17,6 @@ from .. import (
     config,
     mode,
     modeproof,
-    onepathproofs,
     proofseeds,
     proofsource,
     worldfields,
@@ -78,7 +77,7 @@ class TestThePackage(unittest.TestCase):
         assert_that(lines, has_item("seed P4.7: found"))
         assert_that(lines, has_item("seed P11.5: found"))
         assert_that(lines[-1], equal_to("seeds: ok"))
-        assert_that(len(lines), equal_to(1 + 7 + len(onepathproofs.CASES)))
+        assert_that(len(lines), equal_to(1 + 7 + len(proofseeds.CASES)))
 
     def test_p4_exits_zero_on_the_package(self) -> None:
         """``python -m pitboss.modeproof`` exits 0 at the repository's root."""

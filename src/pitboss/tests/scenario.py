@@ -15,7 +15,7 @@ import pathlib
 from typing import AbstractSet, Mapping, NamedTuple, NotRequired, Sequence, TypedDict
 
 from .. import capture, config, flow, parsing, reviews, shapes, steps, stepwords
-from . import pullstates
+from .. import witnessstates
 
 DIRECTORY = pathlib.Path(__file__).with_name("scenarios")
 HEADER = "Independent review (a separate reviewer agent, not the author) of head"
@@ -261,7 +261,7 @@ def state_at(data: Timeline, when: str, settled: bool = False) -> flow.PullState
     posted = _posted(data, when)
     pull = parsing.pull(_pull(data, when))
     return dataclasses.replace(
-        pullstates.bare(pull),
+        witnessstates.bare(pull),
         labels=labels_at(data, when),
         checks=_checks(data, pull.head.sha, when, settled),
         graded=reviews.recorded(REVIEW, data["slug"], posted),

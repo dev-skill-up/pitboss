@@ -9,8 +9,9 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import bodydigest, flow, flowquestions, handbacks, standing, steps
-from . import headed, pullstates, reviewsteps, test_flow
+from .. import bodydigest, flow, flowquestions, handbacks, shapes, standing, steps
+from . import headed, reviewsteps, test_flow
+from .. import witnessstates
 from .derivedhand import held
 from . import usedrounds
 from .test_flow import CHANGES, HEAD, OLDER, expect, graded, state
@@ -31,7 +32,7 @@ def worked(pr: flow.PullState, record: handbacks.HandedBack) -> flow.PullState:
     Returns:
         The same with that recorded.
     """
-    return pullstates.with_recorded(pr, handed=record)
+    return witnessstates.with_recorded(pr, handed=record)
 
 
 def has_standing(
@@ -165,3 +166,67 @@ class TestRounds(unittest.TestCase):
             for each in (twice, distinct, unhanded)
         ]
         assert_that(found, equal_to([1, 2, 1]))
+
+
+def naming(
+    plan: shapes.Verdict | None, execution: shapes.Verdict | None
+) -> shapes.Graded:
+    """A review of the PR's state.
+
+    Args:
+        plan: its plan grade.
+        execution: its execution grade.
+
+    Returns:
+        The review, recording the body as it stands.
+    """
+    return dataclasses.replace(graded(plan, execution, 1), body=BODY_DIGEST)
+
+
+def answer(
+    review: shapes.Graded, stage: steps.Stage, record: handbacks.HandedBack
+) -> steps.Next:
+    """The step of a PR whose state a review already grades.
+
+    Args:
+        review: the review.
+        stage: what the next review would grade.
+        record: what the PR shows of its hand-back.
+
+    Returns:
+        ``standing.reviewed`` of the PR.
+    """
+    return standing.reviewed(worked(state(review), record), stage)
+
+
+class TestAnsweredByTheReview(unittest.TestCase):
+    """pitboss#526: a review that stands answers a second review of its state."""
+
+    def test_a_rejection_of_the_state_is_fixed_not_handed_back_again(self) -> None:
+        """The worker's task follows the stage the rejection graded."""
+        both = steps.Stage.EXECUTION_AGAINST_PLAN
+        rejected = naming(test_flow.APPROVED, test_flow.CHANGES)
+        alone = naming(test_flow.CHANGES, None)
+        found = [
+            answer(rejected, both, held(HEAD)),
+            answer(alone, steps.Stage.PLAN_ONLY, held(HEAD)),
+        ]
+        fix, revise = steps.Task.FIX_EXECUTION, steps.Task.REVISE_PLAN
+        assert_that(found, equal_to([steps.worker(fix), steps.worker(revise)]))
+
+    def test_an_approval_of_the_state_is_merged(self) -> None:
+        """Both grades approve the head and body that stand."""
+        approved = naming(test_flow.APPROVED, test_flow.APPROVED)
+        found = answer(approved, steps.Stage.EXECUTION_AGAINST_PLAN, held(HEAD))
+        assert_that(found, equal_to(steps.merge()))
+
+    def test_a_head_not_handed_back_is_handed_back_first(self) -> None:
+        """The review stands, and the worker has still to hand the head back."""
+        rejected = naming(None, test_flow.CHANGES)
+        found = answer(rejected, steps.Stage.EXECUTION_AGAINST_PLAN, held())
+        assert_that(found, equal_to(HAND_BACK))
+
+    def test_a_review_with_no_grade_to_answer_leaves_the_hand_back(self) -> None:
+        """A named review that rejects nothing and approves nothing."""
+        found = answer(naming(None, None), steps.Stage.PLAN_ONLY, held(HEAD))
+        assert_that(found, equal_to(HAND_BACK))

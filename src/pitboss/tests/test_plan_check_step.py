@@ -7,7 +7,8 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, plancheck, plandigest, shapes, steps, stepwords
-from . import blank, checkcomment, fakes, worldcomments
+from . import checkcomment, fakes, worldcomments
+from .plancheckcomment import check_comment as check_comment
 from .test_flow import CHANGES, expect, graded
 from .test_flow import BODY
 from .test_flow import state as checked_state
@@ -41,26 +42,6 @@ def state(
     """
     pr = checked_state(*recorded, body=body, draft=draft, comments=comments)
     return dataclasses.replace(pr, comments=pr.comments[:-1])
-
-
-def check_comment(body: str, author: str = "MEMBER") -> shapes.Comment:
-    """The comment of a clean ``plan-check`` of a body's Plan.
-
-    Args:
-        body: the PR body the check read.
-        author: its author's association.
-
-    Returns:
-        The comment.
-    """
-    text = plancheck.text(plandigest.section(body), ["row 1: ran"], [])
-    return dataclasses.replace(
-        blank.COMMENT,
-        body=text,
-        author_association=author,
-        created_at="2026-10-30T00:00:01Z",
-        url="https://example.org/check/1",
-    )
 
 
 def refused_comment(body: str) -> shapes.Comment:

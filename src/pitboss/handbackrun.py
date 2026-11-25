@@ -61,10 +61,11 @@ def _jobs(args: argparse.Namespace) -> Sequence[str]:
 ORIGIN = re.compile(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$")
 
 
-def _slug(args: argparse.Namespace, settings: config.Config) -> str:
-    # case 31 (keyword: hand-back-origin): the repository is the worktree's origin
+def _slug(args: argparse.Namespace) -> str | None:
+    # case 31 (keyword: hand-back-origin): the repository is the worktree's origin, and
+    # never the configuration's (keyword: own-repository, pitboss#526)
     found = ORIGIN.search(git_out(args, "remote", "get-url", "origin"))
-    return found.group(1) if found else settings.project.repo.slug
+    return found.group(1) if found else None
 
 
 def _pushed(
@@ -72,7 +73,9 @@ def _pushed(
 ) -> handbackcheck.Pushed | str:
     # the PR the hand-back is for, or the line that says there is none
     github = ghclient.read_only(args.world.safe_run)
-    slug = _slug(args, settings)
+    slug = _slug(args)
+    if slug is None:
+        return f"refused: the origin of {args.repo} names no GitHub repository"
     number = args.pr
     if number is None:
         number = handbackcheck.branch_pull(

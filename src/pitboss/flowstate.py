@@ -280,6 +280,21 @@ def ruling_hold(pr: PullState) -> steps.Next | None:
     return restore if stood else steps.plan_edited()
 
 
+def e2e_step(pr: PullState) -> steps.Move | None:
+    """The e2e run of a draft (keyword: run-e2e, pitboss#199).
+
+    Args:
+        pr: the draft, whose Plan is approved.
+
+    Returns:
+        None when its diff touches no path the e2e suite runs on, else
+        ``steps.e2e_dispatch`` of its checks and branch.
+    """
+    if not pr.draft.needs_e2e:
+        return None
+    return steps.e2e_dispatch(pr.checks, pr.pull.head.branch)
+
+
 def ruling_address(pr: PullState) -> str:
     """The address of the newest Opus ruling comment.
 
@@ -297,7 +312,7 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     """The readable ruling no handed-back review and no push has followed.
 
     Applied once a review of a handed-back state or a push is newer (keyword:
-    standing); until then its own step is next (pitboss#294).
+    standing); until then its own step is next.
 
     Args:
         pr: the PR.
@@ -311,19 +326,28 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     posted, ruled = answered
     if not pr.handed.required:
         return None if _followed(pr, posted) else ruled
-    # keyword: ruling-typed: a body edit shows itself, and the body carries it
-    edited = _followed(pr, posted) or rulingtyped.edits_body(posted.body)
-    seen = handbacks.covers(pr.handed, pr.pull.head.sha) and edited
-    return None if seen and rulingtyped.carried(posted.body, pr.pull.body) else ruled
+    typed = rulingtyped.edits_body(posted.body)
+    covered = handbacks.covers(pr.handed, pr.pull.head.sha)
+    seen = covered and (_followed(pr, posted) or typed)
+    # keywords ruling-typed, ruling-progress (pitboss#526): a typed edit shows and the
+    # body carries it, or a review says it holds; an untyped one: the hand-back after
+    held = rulingtyped.carried(posted.body, pr.pull.body) or _reviewed(pr, posted)
+    after = (
+        covered and not typed and any(c > posted.created_at for c in pr.handed.checked)
+    )
+    return None if after or (seen and held) else ruled
 
 
 def _followed(pr: PullState, posted: shapes.Comment) -> bool:
-    reviewed = (
+    return _reviewed(pr, posted) or pushed_since(pr, posted)
+
+
+def _reviewed(pr: PullState, posted: shapes.Comment) -> bool:
+    return any(
         each.when > posted.created_at and handbacks.covers_review(pr.handed, each)
         for each in pr.graded
         if each.comment
     )
-    return any(reviewed) or pushed_since(pr, posted)
 
 
 def pushed_since(pr: PullState, posted: shapes.Comment) -> bool:
@@ -359,30 +383,6 @@ def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
     if due and not checkoutcome.all_passed(draftfacts.of_name(pr.checks, name)):
         return steps.Idle.CI_RUN
     return step
-
-
-def e2e_step(pr: PullState) -> steps.Move | None:
-    """The step of a draft whose changed e2e suite has run in no check run.
-
-    A draft's CI skips the e2e jobs, so an approval of it reads no e2e result
-    (keyword: run-e2e, pitboss#199). The check workflow is dispatched on its
-    branch, and its run is the check run the approval waits for. A draft's own
-    completed run does not end the step (it skipped e2e, the case of the
-    ticket); only a dispatched run of ``check.yml`` at the head that completed does.
-
-    Args:
-        pr: the draft, whose Plan is approved.
-
-    Returns:
-        None when its diff touches no path the e2e suite runs on or a
-        dispatched run of the head completed; the wait for CI when a check run
-        of the head has started and not finished (it is not dispatched again);
-        else the dispatch.
-    """
-    if not pr.draft.needs_e2e:
-        return None
-    running = [each for each in pr.checks if not each.finished]
-    return steps.Idle.CI_RUN if running else steps.run_e2e(pr.pull.head.branch)
 
 
 def ruling_applied(pr: PullState) -> bool:

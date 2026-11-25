@@ -12,8 +12,11 @@ from . import (
     answerproofs,
     doneproofs,
     gateproofs,
+    progressproofs,
     pureproofs,
     readproofs,
+    repoproofs,
+    selectorproofs,
     retryproofs,
     rulingproofs,
 )
@@ -24,8 +27,11 @@ CASES: Mapping[str, Case] = {
     **actproofs.CASES,
     **doneproofs.CASES,
     **gateproofs.CASES,
+    **progressproofs.CASES,
     **pureproofs.CASES,
     **readproofs.CASES,
+    **repoproofs.CASES,
+    **selectorproofs.CASES,
     **retryproofs.CASES,
     **rulingproofs.CASES,
 }

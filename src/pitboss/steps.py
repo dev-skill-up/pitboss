@@ -6,7 +6,11 @@ gives one; ``describe`` says it in a line.
 
 import dataclasses
 import enum
-from typing import AbstractSet
+from typing import AbstractSet, Protocol, Sequence
+
+from . import workerselect
+
+Task = workerselect.Task
 
 IMPOSSIBLE_FIRST_LINE = "Impossible state"  # keyword: impossible-state
 RULING_FIRST_LINE = "Opus ruling"
@@ -53,58 +57,6 @@ class Step(enum.Enum):
     SEND_BACK_PLAN_CHECK = enum.auto()
     RUN_E2E = enum.auto()
     MERGE = enum.auto()
-
-
-class Task(enum.Enum):
-    """What a worker is told to do; the value is the text.
-
-    Attributes:
-        FIRST_ROUND: the first work on a PR with no Plan and Execution body.
-        FIX_CI: the head's CI is red.
-        REVISE_PLAN: the plan alone, no code.
-        RESTORE_PLAN: put the approved Plan back, an Opus ruling already stands.
-        RESOLVE_CONFLICT: the head conflicts with the base.
-        FIX_EXECUTION: the execution, against the approved plan.
-        RULING_STEPS: exactly the steps of an Opus ruling.
-        RULING_AS_GIVEN: what an Opus ruling says to the ticket and the PR.
-        RUN_PLAN: run the commands of a Plan approved alone (plan-alone).
-        ADD_CI_QUOTES: the body lacks the Plan's CI quotes (keyword: ci-quotes).
-        FIX_ROUND: findings name a file of the tree (fix-round-kind).
-        REFRESH_BODY: the body names an older head (keyword: stale-head, quire#1115).
-        SHARED_RED: file ONE ticket for a check red on several PRs (shared-red).
-        FIX_BLOCKED_BY: a Blocked-by line names a loop or a closed blocker.
-        AFTER_BLOCKER: the blockers merged since the red check (keyword: blocked-by).
-        FINISH_PARTIAL: a worker handed back a PR unfinished (keyword: finish-partial).
-        HAND_BACK: the head and body were not handed back (keyword: standing).
-    """
-
-    FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
-    FIX_CI = "fix CI on the head (a red CI is never a rejection)"
-    REVISE_PLAN = "revise the PLAN only, change no code"
-    RESTORE_PLAN = "restore the approved Plan in the body, change no code"
-    RESOLVE_CONFLICT = "resolve the conflict"
-    FIX_EXECUTION = "fix the execution against the approved plan"
-    RULING_STEPS = "do exactly the steps of the Opus ruling"
-    RULING_AS_GIVEN = (
-        "do exactly what the Opus ruling says to the ticket and the PR (split,"
-        " reshape or abandon); it is not checked against the one-ticket-one-PR rules"
-    )
-    RUN_PLAN = "run the approved Plan's commands as written and fill the Execution"
-    ADD_CI_QUOTES = "add the CI quotes to the body"
-    FIX_ROUND = "fix round: fix the findings, each one (code, doc, test, Plan)"
-    REFRESH_BODY = (
-        "rewrite the body's Head line and stale Evidence for the head:"
-        " `pitboss body-head`, `pitboss expand`; `pitboss lint pr-body` must print ok"
-    )
-    SHARED_RED = "file one ticket against the shared cause of the red check; fix no PR"
-    FIX_BLOCKED_BY = "correct the Blocked-by lines (a loop, or a blocker closed)"
-    AFTER_BLOCKER = "the blockers merged: merge the base into the branch, check, push"
-    FINISH_PARTIAL = "finish this PR, handed back unfinished"
-    HAND_BACK = (
-        "hand this head and body back: run `pitboss hand-back-check` on the current"
-        " head and body (every check it makes must pass); no review is offered"
-        " before"
-    )
 
 
 class Stage(enum.Enum):
@@ -171,7 +123,7 @@ REFRESHED = frozenset({Step.REGULAR_REVIEW, Step.UNDRAFT, Step.MERGE})
 
 
 def worker(task: Task, comment: str = "") -> Next:
-    """A worker round.
+    """A worker round, built from the table's entry for the task (worker-select).
 
     Args:
         task: what the worker does.
@@ -180,7 +132,7 @@ def worker(task: Task, comment: str = "") -> Next:
     Returns:
         The step.
     """
-    return Next(step=Step.WORKER, task=task, comment=comment)
+    return Next(step=Step.WORKER, task=workerselect.TABLE[task].task, comment=comment)
 
 
 def undraft() -> Next:
@@ -371,3 +323,37 @@ def step_of(move: Move) -> Step | None:
         The step, or None for an idle PR.
     """
     return move.step if isinstance(move, Next) else None
+
+
+class Run(Protocol):
+    """A check run, as the dispatch of the e2e suite reads it."""
+
+    @property
+    def finished(self) -> bool:
+        """Whether the run has ended.
+
+        Returns:
+            True when it has.
+        """
+        ...
+
+
+def e2e_dispatch(checks: Sequence[Run], branch: str) -> Move:
+    """The step of a draft whose changed e2e suite has run in no check run.
+
+    A draft's CI skips the e2e jobs, so an approval of it reads no e2e result. The
+    check workflow is dispatched on its branch, and its run is the check run the
+    approval waits for. A draft's own completed run does not end the step (it
+    skipped e2e); only a dispatched run of ``check.yml`` at the head that
+    completed does.
+
+    Args:
+        checks: the check runs of the head.
+        branch: the head branch.
+
+    Returns:
+        The wait for CI when a check run of the head has started and not
+        finished (it is not dispatched again); else the dispatch.
+    """
+    running = [each for each in checks if not each.finished]
+    return Idle.CI_RUN if running else run_e2e(branch)

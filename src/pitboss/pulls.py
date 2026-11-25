@@ -23,6 +23,7 @@ from . import (
     headchecks,
     ghapi,
     mergesonly,
+    missed,
     parsing,
     pinsask,
     pullfacts,
@@ -241,6 +242,15 @@ def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullSta
     )
 
 
+def _rounds(state: flowstate.PullState, merges_only: bool) -> rounds.Rounds:
+    # the review rounds of a PR (keyword: all-findings, pitboss#169)
+    ruling = flowstate.newest_ruling(state)
+    before, after = missed.split(state.graded, ruling.created_at if ruling else "")
+    return rounds.Rounds(
+        merges_only=merges_only, missed_before=before, missed_after=after
+    )
+
+
 def _unreadable(
     source: Source,
     repo: config.Repo,
@@ -307,7 +317,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullRead:
         standing=standing,
         signals=signals,
         unreadable=_unreadable(source, repo, got, (found, state)),
-        review_rounds=rounds.of(state, merged),
+        review_rounds=_rounds(state, merged),
         state=state,
         posted=_posted(got),
     )

@@ -11,6 +11,7 @@ judges the change against that goal, and its scope is exclusive.
 import dataclasses
 from typing import Mapping, Sequence
 
+from . import workerselect
 from . import (
     briefconfig,
     briefpost,
@@ -84,10 +85,6 @@ APPROVED_PLAN_WORKERS = frozenset(
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
 DRAFTS = {True: text.DRAFT, False: text.READY}
-PUSHLESS: Mapping[Kind, Sequence[str]] = {
-    Kind.REVISE_PLAN: [brieftextfolded.BODY_ONLY],
-    Kind.RESTORE_PLAN: [brieftextfolded.BODY_ONLY],
-}
 CHECKOUTS = {True: text.NEW_PR_CHECKOUT, False: text.PR_CHECKOUT}
 
 
@@ -271,7 +268,10 @@ def _ruling(spec: Spec) -> list[str]:
 def _push_lines(kind: Kind, project: briefconfig.Brief) -> Sequence[str]:
     # keyword: plan-revision (quire#1120): a body-only revision pushes nothing
     pushes = [brieftextdraft.PUSHES[(project.holds, project.drafts)], text.NO_WAITING]
-    return PUSHLESS.get(kind, pushes)
+    by_name = {each.name: entry for each, entry in workerselect.TABLE.items()}
+    entry = by_name.get(kind.name)
+    pushless = entry is not None and workerselect.Effect.PUSH not in entry.allowed
+    return [brieftextfolded.BODY_ONLY] if pushless else pushes
 
 
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:

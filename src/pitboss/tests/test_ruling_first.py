@@ -12,7 +12,8 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import flow, shapes, steps
-from . import pullstates, test_flow, test_flow_sweep as scenes
+from . import test_flow, test_flow_sweep as scenes
+from .. import witnessstates
 from . import usedrounds
 from .suggestions import kind_of_third
 from .test_commands import sweep
@@ -36,7 +37,7 @@ def unmoved(pr: flow.PullState) -> flow.PullState:
     Returns:
         The PR with that recorded.
     """
-    return pullstates.with_recorded(
+    return witnessstates.with_recorded(
         pr, unchanged=frozenset(each.sha for each in pr.graded)
     )
 
