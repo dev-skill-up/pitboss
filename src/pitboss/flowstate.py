@@ -11,9 +11,9 @@ from typing import AbstractSet, Sequence
 from . import (
     checkoutcome,
     draftfacts,
-    expansion,
     handbacks,
     plandigest,
+    plannaming,
     rulingtyped,
     rulingwords,
     sessionurl,
@@ -205,8 +205,7 @@ def plan_edited_without_ruling(pr: PullState) -> bool:
     if newest is None:
         return False
     now = plandigest.section(pr.pull.body)
-    # keyword: plan-digest-collapse (pitboss#358, #399): an older digest still counts
-    if expansion.current_for(expansion.Subject.PLAN, newest.plan_digest, now):
+    if plannaming.current(newest.plan_digest, now, newest.sha, pr.pull.head.sha):
         return False
     trusted = (each for each in pr.comments if each.author_association in pr.trusted)
     dated = [(each.created_at, read_ruling(each.body)) for each in trusted]

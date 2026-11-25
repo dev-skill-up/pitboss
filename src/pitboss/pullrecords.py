@@ -138,10 +138,12 @@ class Status:
     Attributes:
         context: its name.
         state: success, pending, failure or error.
+        description: the text the poster gave it, empty when none.
     """
 
     context: str
     state: str
+    description: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

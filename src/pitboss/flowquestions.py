@@ -7,7 +7,7 @@ recorded of the PR.
 from typing import AbstractSet, Protocol, Sequence
 
 from . import bodydigest, checkoutcome, draftfacts, expansion, handbacks
-from . import plandigest, shapes, typedstd
+from . import plandigest, plannaming, shapes, typedstd
 
 current_for = expansion.current_for
 Subject = expansion.Subject
@@ -94,7 +94,7 @@ def plan_approved(pr: PullState) -> bool:
         each
         for each in regular_reviews(pr)
         if each.plan is Verdict.APPROVED
-        and current_for(Subject.PLAN, each.plan_digest, section)
+        and plannaming.current(each.plan_digest, section, each.sha, pr.pull.head.sha)
     ]
     recorded = any(each.plan_digest for each in regular_reviews(pr))
     return any(each.plan_digest or not recorded for each in approving)

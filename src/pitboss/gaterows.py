@@ -114,10 +114,36 @@ def check_stops(action: str, state: GateState) -> Sequence[Stop]:
     """
     runs, statuses = listed(state.reads.runs), listed(state.reads.statuses)
     required = state.repository.required_checks
+    said = totalchecks.review_status_lines(action, statuses)  # review-status
+    # a red or running check comes first: the review is the stop of a green head
     return [
-        Stop(route=Route.RUNNING if running else Route.RED, line=line)
-        for line, running in totalchecks.check_stops(action, runs, statuses, required)
+        *(
+            Stop(route=Route.RUNNING if running else Route.RED, line=line)
+            for line, running in totalchecks.check_stops(
+                action, runs, statuses, required
+            )
+        ),
+        *(Stop(route=Route.REVIEW, line=line) for line in said),
     ]
+
+
+def unexplained(fields: Sequence[Stop], checks: Sequence[Stop]) -> Sequence[Stop]:
+    """The field stops, but the unstable state a review status explains.
+
+    GitHub says ``unstable`` for any failed status; when that status is the
+    newest review's (``review:``), the review is the stop, so the red to triage
+    is no stop of its own (keyword: review-status, quire#1130).
+
+    Args:
+        fields: the stops of the PR's own fields.
+        checks: the stops of the head's checks and statuses.
+
+    Returns:
+        The field stops, with the unstable one left out when a check stop is
+        the review's.
+    """
+    said = any(each.route is Route.REVIEW for each in checks)
+    return [each for each in fields if not (said and each.route is Route.UNSTABLE)]
 
 
 def hold_stops(action: str, state: GateState) -> Sequence[Stop]:

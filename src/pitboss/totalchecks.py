@@ -19,6 +19,8 @@ from .totalanswer import GATED_ACTIONS
 SELF = "pitboss-gate"
 PENDING_STATES = frozenset({"pending"})
 OK_STATES = frozenset({"success"})
+# keyword: review-status (quire#1130): a lint's status about the newest review
+REVIEW_SAID = "review:"
 MERGING = frozenset({"merge"})
 MARKUP = re.compile(r"\.(md|rst)$")
 WORKFLOWS = ".github/workflows/"
@@ -83,7 +85,9 @@ def _status_lines(statuses: Sequence[Status]) -> Sequence[tuple[str, bool]]:
             continue
         if each.state in PENDING_STATES:
             found.append((f"status {each.context} is pending", True))
-        elif each.state not in OK_STATES:
+        elif each.state not in OK_STATES and not each.description.startswith(
+            REVIEW_SAID
+        ):
             found.append(
                 (f"status {each.context}={each.state}: a failed status", False)
             )
@@ -121,6 +125,30 @@ def check_stops(
     found = [*_run_lines(current), *_status_lines(statuses), *missing]
     merging = action in MERGING
     return [(line, waits) for line, waits in found if merging or not waits]
+
+
+def review_status_lines(action: str, statuses: Sequence[Status]) -> Sequence[str]:
+    """The failed statuses whose text is about the newest review.
+
+    A lint that reads the review says ``review: <what is wrong>``; only a new
+    review clears it, so it is a stop of the review's route, not a red to triage
+    (keyword: review-status, quire#1130).
+
+    Args:
+        action: the action asked.
+        statuses: the head's statuses.
+
+    Returns:
+        A line for each (merge, arm, undraft).
+    """
+    return [
+        f"status {each.context}={each.state}: {each.description}"
+        for each in statuses
+        if action in GATED_ACTIONS
+        and each.context != SELF
+        and each.state not in OK_STATES | PENDING_STATES
+        and each.description.startswith(REVIEW_SAID)
+    ]
 
 
 def markup_lines(files: Sequence[File]) -> Sequence[str]:

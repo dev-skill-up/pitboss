@@ -137,6 +137,7 @@ module = [
     "pitboss.planbody",
     "pitboss.plancheckflow",
     "pitboss.plandigest",
+    "pitboss.plannaming",
     "pitboss.plansection",
     "pitboss.project",
     "pitboss.pullfacts",
