@@ -1,7 +1,0 @@
-Every daily relock that moves the `check-aggregate` pin changes the bytes of bats's `.github/workflows/check.yml`, which the audit allowlists by hash (`tools/pin-audit/allowlist.txt` line 15, `# bats#482`), so the bats relock PR is red on `canonical-files` until a next-hash line is merged here first (bats#645, repository-prototype#666's predecessor line). The same was done for quire's check.yml (the open branch fix-651, commit 5a95cce, #651).
-
-## Done when
-
-1. `tools/pin-audit/templates/check-bats.yml` equals bats's `.github/workflows/check.yml` at bats main with the holes filled (`@@COMMIT@@` for each pin line and `@@COMMENT@@` for its comment, as `tools/pin-audit/templates/README.md` states).
-2. The allowlist line 15 (`bats/.github/workflows/check.yml`) is removed, since a file that is both listed and a template fails the audit.
-3. `uvx`-free check: `pin_audit --repository bats` exits 0 after the change (the audit's own command, run at the root of this checkout after `bats build`), and `bats test` in `tools/pin-audit` has the fixture of the new template.

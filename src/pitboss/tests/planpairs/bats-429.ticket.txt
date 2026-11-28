@@ -1,9 +1,0 @@
-Found by the independent review of bats-lang/quire#726 (the cache key becomes a locator, #622): quire drops every hand-made key part and relies on bats to judge a restored `build/`. The review found three inputs the stamp does not judge: the system headers (bats#338), the system libraries patsopt and the native link load (bats#380), and `bats.toml`: it is not in the stamp (`build/.bats_stamp` has the `bats`, `patsopt`, `cc`, `flags` and `mark` lines), and the rules name only its version/constraints (lock.md), the `unsafe` flag (validated.md) and its dependencies. Which of its other fields reach the build outputs (the `kind`, the targets, `trunk`, the `[dependencies]` constraints, a `[test]` or `[build]` table if one exists) is not written down.
-
-## Do
-
-1. Read `src/` and list every field of `bats.toml` that bats reads (grep the toml reads in `src/*.bats`), and for each say what it changes in `build/` (the emitted modules, the C, the objects, the link) and which freshness mechanism judges it today: the stamp, a content key, the memo's closure, or none.
-2. For a field that changes the build and is judged by none: judge it, by content (the sha256 of the file or of the field's text in a stamp line or a memo key), with a test in the style of `tests/build-stamp` and `tests/check-memo` that fails on main's compiler first (a changed field, same sources, makes a restored `build/` be dropped or the modules made again).
-3. Write the list in the area notes (`.claude/rules/build-freshness.md`) as a fact: field, effect, judged by.
-
-Priority p0 (a wrong cache is p0). Refs quire#622, bats#338, bats#380.

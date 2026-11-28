@@ -1,7 +1,0 @@
-Owner ruling (Moshe, 2026-11-06 18:01Z to 18:06Z), for pitboss#301, true "mutatis mutandis, for bats too": docs that become outdated by code are removed, not fixed; documents that stay are high level and point to the command's help text (`bats <command> --help`) for anything below high level; the help text comes from the code and is the authority; docstrings and comments next to the code are updated with the code. "We need to stop with the bs 'update docs' in bats too."
-
-Scope: `CLAUDE.md` and `.claude/rules/*.md` of this repository. What a note keeps: a decision, the research behind it, and what is proved apart from what is tested (the CLAUDE.md index says so); that stays. What goes: any passage that restates what the code does (a command's flags, output or check behavior, a list of modules, a table of rules) and so goes stale when the code changes.
-
-Done-when: each file of `CLAUDE.md` and `.claude/rules/` is examined; each passage that restates code is removed or replaced by a pointer to `bats <command> --help`; a rule found only in a note and not in the help text moves into the help text (in the code); a report in the PR lists each file and what became of it (kept as a decision, pointer, removed). The CLAUDE.md index is updated for any removed file. The bootstrap/c rule applies if `src/` changes (help text moved into code).
-
-Not in scope: the Area-notes comment convention (a comment names its area by keyword) stays; it points at notes that remain.

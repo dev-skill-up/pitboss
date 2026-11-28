@@ -1,6 +1,0 @@
-Priority p0: every relock that moves the pin of canonical-files-check.yml gets `NOT OK` from `bats pins-check` and so needs an agent review, though it is a pure pin move (bats#648, 2026-11-11: `NOT OK: the diff: .github/workflows/canonical-files.yml is not a pin file (only .github/bats-version, .github/repository-version, bats.lock, .github/workflows/relock.yml, .github/workflows/publish.yml, .github/workflows/check.yml, .github/workflows/deploy.yml, .github/workflows/mutation.yml and .github/workflows/text-lint.yml are)`). The reviewer of bats#648 found only pins in the diff and said the list lacks the file.
-
-## Done when
-
-1. `bats pins-check BASE HEAD` accepts a diff whose `.github/workflows/canonical-files.yml` hunks change only a commit in a `uses:` line, its version comment, or a `tools-ref` copy of the same commit, as it does for `text-lint.yml`. A fixture under `tests/pins-check` plants such a diff and shows `OK`.
-2. It still refuses a diff in that file that changes anything else (a step, a permission). A fixture plants one line of a step changed and shows `NOT OK`.
