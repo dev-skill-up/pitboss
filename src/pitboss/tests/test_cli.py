@@ -65,12 +65,28 @@ class TestVerbs(unittest.TestCase):
             (["file-ticket", "o/r", "--text", "t"], 0),
             (["pr-create", "o/r", "4", "--text", "b"], 0),
             (["pr-create", "o/r", "3", "--text", "b"], 1),
-            (["review", "o/r", "7"], 1),
-            (["plan-check", "o/r", "7"], 1),
+            (["review", "o/r", "7", "--verdict", "approved"], 1),
+            (["plan-check", "o/r", "7", "--verdict", "ok"], 1),
             (["ruling", "o/r", "7"], 1),
+            (["review", "o/r", "10", "--verdict", "ok"], 1),
+            (["review", "o/r", "10", "--verdict", "approved"], 0),
+            (["plan-check", "o/r", "9", "--verdict", "ok"], 0),
         ]
         got = [say(argv, world.Runner())[0] for argv, _ in cases]
         assert_that(got, equal_to([want for _, want in cases]))
+
+    def test_composed_comments(self) -> None:
+        """A review and a plan check are posted in the form the queue reads."""
+        review, check = world.Runner(), world.Runner()
+        argv = ["review", "o/r", "10", "--verdict", "approved", "--text", "a\nb"]
+        say(argv, review)
+        say(["plan-check", "o/r", "9", "--verdict", "ok"], check)
+        first = review.seen()[-1][-1]
+        who = "a separate reviewer agent, not the author"
+        want = f"body=Independent review ({who}) of head {world.SHA}: approved"
+        assert_that(first.startswith(want), equal_to(True))
+        assert_that(first.endswith("\n\na\nb"), equal_to(True))
+        assert_that(check.seen()[-1][-1], equal_to("body=Plan check\nPlan check: ok"))
 
     def test_pr_create_fields(self) -> None:
         """A PR is made as a draft from the branch named."""

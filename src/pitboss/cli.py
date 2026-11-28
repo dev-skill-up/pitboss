@@ -114,6 +114,7 @@ def command_line() -> argparse.ArgumentParser:
         one.add_argument("number", type=int, nargs="?", default=0)
         if word != "next":
             one.add_argument("--text", default="")
+            one.add_argument("--verdict", default="")
     return top
 
 
@@ -142,7 +143,7 @@ def main(
             )
         )
         return 0
-    ask = actions.Ask(verb=options.command, text=options.text)
+    ask = actions.Ask(verb=options.command, text=options.text, verdict=options.verdict)
     result = act(ask, (call, git), (options.repo, options.number, gates))
     print(result)
     return 0 if isinstance(result, actions.Done) else 1

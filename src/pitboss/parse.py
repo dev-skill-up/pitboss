@@ -66,11 +66,13 @@ class Body:
         closes: the tickets it fixes.
         sections: whether it has a Plan section and an Execution section.
         digests: the digests a review may record for its Plan section, empty with none.
+        whole: the digest of the whole body.
     """
 
     closes: Sequence[int]
     sections: bool
     digests: Sequence[str]
+    whole: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -236,6 +238,7 @@ def body_of(text: str) -> Body:
         closes=[int(n) for n in CLOSES.findall(text)],
         sections=bool(PLAN_SECTION.search(text)) and "## Execution" in text,
         digests=digests_of(text),
+        whole=text_digest(text),
     )
 
 
