@@ -12,6 +12,7 @@ fails when one is not listed, and fails on a line that is neither.
 READERS = frozenset(
     {
         "pitboss.actread",
+        "pitboss.allowlistmiss",
         "pitboss.blockedby",
         "pitboss.earlyreview",
         "pitboss.examine",

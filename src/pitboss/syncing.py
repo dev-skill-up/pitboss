@@ -126,6 +126,11 @@ def _publish(
     message = f"pitboss sync: {len(changed)} file(s) changed"
     commit = (*COMMITTER, *NO_SIGNING, "commit", "--quiet", "-m", message)
     _git(run, sync, commit, ("push", "--quiet", "origin", f"HEAD:{BRANCH}"))
+    # keyword: landed: the remote shows the commit, not the push's exit
+    head = git(run, sync.checkout, "rev-parse", "HEAD").strip()
+    shown = git(run, sync.checkout, "ls-remote", "origin", f"refs/heads/{BRANCH}")
+    if shown.split()[:1] != [head]:
+        raise OSError(f"the remote's {BRANCH} is not {head[:12]} after the push")
     return [f"{Marker.SYNCED.text} {path}" for path in changed]
 
 

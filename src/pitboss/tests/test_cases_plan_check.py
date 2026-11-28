@@ -12,7 +12,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import pullfile
-from . import checkcomment, fakes, refused, world
+from . import checkcomment, fakes, forgetting, refused, world
 from .linting import write_text
 from .repositories import IDENTITY, run_git
 from .test_plan_check_remote import (
@@ -117,13 +117,29 @@ class TestPrior(unittest.TestCase):
         assert_that((done.code, said), equal_to((2, True)))
 
 
+def posting_world() -> world.World:
+    """A world whose approved PR 7 answers the post of a comment.
+
+    Returns:
+        The world.
+    """
+    here, _ = approved_world()
+    here.bodies[POSTED] = {"id": 9, "html_url": URL}
+    return here
+
+
 class TestPost(unittest.TestCase):
     """I14: the output is posted by the command."""
 
+    def test_a_comment_github_does_not_show_is_not_landed(self) -> None:
+        """The POST returned, no comment is there: exit 2 and ``NOT LANDED``."""
+        here = forgetting.forgetful(posting_world())
+        words = ("plan-check", write_text("body.txt", "## Plan\nx\n"), "--post")
+        forgetting.not_landed(world.invoke(here, *words, "owner/project#7"))
+
     def test_i14_the_comment_is_the_output_with_its_heading(self) -> None:
         """First line `Plan check`, last `Plan check: ok`."""
-        here, _ = approved_world()
-        here.bodies[POSTED] = {"id": 9, "html_url": URL}
+        here = posting_world()
         shown = lines_of(here, "--post", "owner/project#7")
         posted = refused.bodies(here)
         assert_that(posted[0].splitlines()[0], equal_to("Plan check"))

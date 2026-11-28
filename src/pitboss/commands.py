@@ -31,6 +31,7 @@ from . import (
     ghclient,
     ghmemo,
     headchecks,
+    landed,
     ledger,
     ledgerowner,
     localsections,
@@ -158,6 +159,14 @@ def _reading(args: argparse.Namespace) -> KeywordRun:
     return ghmemo.memoized(tried) if asks & {"next", "dispatch-next"} else tried
 
 
+def _github(args: argparse.Namespace) -> ghclient.GitHub:
+    # keyword: landed: a change is read back only when it is really made
+    run = _reading(args)
+    really = bool(getattr(args, "no_dry_run", False))
+    write = args.world.run
+    return ghclient.GitHub(run=run, mutate=landed.checked(run, write, really))
+
+
 def load_context(args: argparse.Namespace) -> Context:
     """Load the configuration and set up the API.
 
@@ -169,7 +178,7 @@ def load_context(args: argparse.Namespace) -> Context:
     """
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
-    github = ghclient.GitHub(run=_reading(args), mutate=args.world.run)
+    github = _github(args)
     start = working_directory(args)
     given = configfile.named(args)
     access = repoaccess.read(

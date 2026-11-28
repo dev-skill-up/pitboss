@@ -10,7 +10,18 @@ import json
 import pathlib
 from typing import Mapping, Sequence
 
-from .. import config, configfile, gate, gateread, pullread, pulls, steps
+from .. import (
+    allowlistmiss,
+    config,
+    configfile,
+    flowstep,
+    gate,
+    gateread,
+    ghapi,
+    ownedred,
+    pullread,
+)
+from .. import pulls, steps
 from . import fakes
 
 DIRECTORY = pathlib.Path(__file__).parent.joinpath("corpus")
@@ -76,3 +87,36 @@ def first_stop(record: Mapping[str, object]) -> str:
     gated = gateread.reader(fakes.github(dict(reads)))(pull, [])
     stops = gate.stops_of(steps.Step.MERGE, gated)
     return stops[0].route.name if stops else ""
+
+
+def _read_with(record: Mapping[str, object]) -> tuple[ghapi.GitHub, pulls.PullFacts]:
+    # the fake API a record's reads give, and the PR read through it
+    reads = record["reads"]
+    assert isinstance(reads, dict)
+    return fakes.github(dict(reads)), flowstep.at_flow(read(record))
+
+
+def owners(record: Mapping[str, object]) -> Sequence[str]:
+    """The open tickets that own a recorded PR's red, as ``examine`` reads them.
+
+    Args:
+        record: the record, whose reads hold the ticket lists the read asks.
+
+    Returns:
+        The tickets as ``owner/name#N``.
+    """
+    github, facts = _read_with(record)
+    return ownedred.owners(github, facts)
+
+
+def outside(record: Mapping[str, object]) -> Sequence[str]:
+    """The allowlist lines a recorded PR's red asks for that nothing open owns.
+
+    Args:
+        record: the record, whose reads hold the log and the lists the read asks.
+
+    Returns:
+        The line of each group ``allowlistmiss.unowned`` gives the PR.
+    """
+    github, facts = _read_with(record)
+    return [each.line for each in allowlistmiss.unowned(github, facts)]

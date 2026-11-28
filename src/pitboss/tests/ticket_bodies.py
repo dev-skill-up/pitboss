@@ -24,7 +24,11 @@ def pull_issue(number: int) -> Mapping[str, object]:
     }
 
 
+# keyword: owned-red (pitboss#531): no p0 ticket names a red, unless a test says so
+P0_NONE = "/issues?state=open&labels=p0&per_page=100&page=1"
 ISSUES: Mapping[str, object] = {
+    PROJECT + P0_NONE: [],
+    LIBRARY + P0_NONE: [],
     f"{PROJECT}/issues/9": {"state": "open", "title": "A ticket"},
     f"{PROJECT}/issues/50": {"state": "open", "title": "A ticket no list offers"},
     f"{PROJECT}/issues/3": {

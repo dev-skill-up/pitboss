@@ -5,9 +5,9 @@ to the log are here, below it, so the tests reach them without the command.
 """
 
 import dataclasses
-from typing import Mapping, Sequence
+from typing import Mapping
 
-from . import actback, actcore, actions, actrun, ghapi, logline, totaljson
+from . import actcore, actrun, logline, totaljson
 from .textparts import split_at
 
 
@@ -78,32 +78,3 @@ def ledger_event(act: actcore.Act, done: Done, now: str) -> logline.Event | None
         what=f"{recorded} {target.repo}#{target.number} {branch} at act",
         head=totaljson.text(head.get("sha")),
     )
-
-
-# the writes whose fact the PR shows, read back after a live verb
-READ_BACK = {
-    "label": actions.Action.LABEL,
-    "undraft": actions.Action.UNDRAFT,
-    "merge": actions.Action.MERGE,
-    "arm": actions.Action.ARM,
-}
-
-
-def read_back(github: ghapi.GitHub, done: Done) -> Sequence[str]:
-    """The ``act NOT LANDED`` line of a live write GitHub does not show.
-
-    Args:
-        github: the API.
-        done: the verb that ran, on a PR (the label's ``name`` option; ``remove``
-            claims no label).
-
-    Returns:
-        The line, or none when the PR shows the write or the verb claims no fact
-        of the PR (keyword: claim-readback).
-    """
-    action = READ_BACK.get(done.verb)
-    if action is None or done.options.get("remove"):
-        return []
-    target = done.target
-    where = actrun.Target(slug=target.repo, number=target.number, branch="", head="")
-    return actback.lines(github, where, action, [done.options.get("name", "")])

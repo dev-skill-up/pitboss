@@ -9,7 +9,7 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import allowlistmiss, pulls, shapes
 from . import blank, fakes, rankworld, test_flow, test_work, world
@@ -22,6 +22,7 @@ MISS = (
     f"not canonical: its sha256 {HASH} is not listed for it in"
     f" {allowlistmiss.ALLOWLIST}"
 )
+NEXT_TEXT = "the hash of this file as the next hash:"
 LOG = f"x\n{MISS}\nadd the hash of this file as the next hash: {LINE}\nmore\n"
 CHECK = {
     "id": 21,
@@ -60,6 +61,17 @@ def missing_world(log: str = LOG) -> world.World:
             f"{PROTOTYPE}/issues/5": five,
         }
     )
+    return here
+
+
+def unasked() -> world.World:
+    """The world of ``missing_world`` where no repository-prototype ticket asks.
+
+    Returns:
+        The world.
+    """
+    here = missing_world()
+    here.bodies.update({fakes.page(f"{PROTOTYPE}/issues?state=open"): []})
     return here
 
 
@@ -183,8 +195,7 @@ class TestMissing(unittest.TestCase):
 
     def test_no_ticket_and_no_pull_request(self) -> None:
         """Nothing is named, so the PR keeps its step."""
-        here = missing_world()
-        here.bodies.update({fakes.page(f"{PROTOTYPE}/issues?state=open"): []})
+        here = unasked()
         assert_that(waits_for(here), equal_to(("", [])))
 
     def test_a_log_that_asks_for_nothing(self) -> None:
@@ -217,6 +228,26 @@ class TestRanking(unittest.TestCase):
         assert_that(TICKET in starts(here), equal_to(False))
         assert_that(mentioning(output, "owner/project#3"), equal_to([]))
 
+    def test_a_pull_request_naming_no_ticket_waits_too(self) -> None:
+        """A bump with no ticket in its body waits for the PR that adds the line."""
+        here = missing_world()
+        adding(here)
+        rankworld.fixing(here, 3, "A bump")
+        output = next_output(here)
+        assert_that(mentioning(output, "owner/project#3"), equal_to([]))
+
+    def test_a_miss_nothing_asks_for_is_one_ticket_to_file_and_name(self) -> None:
+        """quire#1127: the step files ONE ticket and names it in ``Blocked-by:``."""
+        output = next_output(unasked())
+        step = mentioning(output, "owner/project#3: file one ticket")
+        task = mentioning(output, "Task: PR owner/project#3: its failed check")
+        assert_that(step, has_length(1))
+        assert_that(
+            task[0], contains_string("file ONE ticket against the shared cause")
+        )
+        assert_that(task[0], contains_string("add a `Blocked-by: <that ticket>` line"))
+        assert_that(mentioning(output, "owner/project#3: fix CI"), equal_to([]))
+
     def test_another_failed_check_is_still_fix_the_ci(self) -> None:
         """A PR with no miss in its log keeps its worker line."""
         output = next_output(missing_world("a different failure\n"))
@@ -224,3 +255,47 @@ class TestRanking(unittest.TestCase):
         assert_that(
             output, contains_string("WORKER: owner/project#3: fix CI on the head")
         )
+
+
+def unowned_in(here: world.World) -> Sequence[tuple[str, Sequence[str]]]:
+    """The groups of the red PR 3 that nothing open owns.
+
+    Args:
+        here: the world.
+
+    Returns:
+        Each group's line and holders.
+    """
+    found = allowlistmiss.unowned(fakes.github(here.bodies), red_pull())
+    return [(each.line, list(each.holders)) for each in found]
+
+
+class TestUnowned(unittest.TestCase):
+    """A miss nothing open owns is the PR's own shared-red group (pitboss#531)."""
+
+    def test_nothing_open_asks_for_the_line(self) -> None:
+        """The PR is the one holder of a group, so its step files the ticket."""
+        found = unowned_in(unasked())
+        assert_that(found, equal_to([(LINE, ["owner/project#3"])]))
+
+    def test_an_owner_or_no_miss_is_no_group(self) -> None:
+        """A ticket that asks, or a log with no miss, leaves nothing to file."""
+        for here in (missing_world(), missing_world("fine\n")):
+            assert_that(unowned_in(here), equal_to([]))
+
+
+class TestAsGitHubPrints(unittest.TestCase):
+    """The log carries a time before each line, and the line a ticket to fill."""
+
+    def test_the_time_is_not_the_line_and_the_ticket_is_not_compared(self) -> None:
+        """A merged line has its own ticket: the path and the hash name it."""
+        stamp = "2026-11-25T14:49:34.3735937Z "
+        log = f"{stamp}{MISS}\n{stamp}{NEXT_TEXT}\n{stamp}{LINE} # <ticket>\n"
+        found = allowlistmiss.line_of(log)
+        assert_that(found, equal_to(f"{LINE} # <ticket>"))
+        here = missing_world()
+        adding(here)
+        asked = allowlistmiss.adding(
+            fakes.github(here.bodies), "owner/repository-prototype", found
+        )
+        assert_that(asked, equal_to("owner/repository-prototype#8"))

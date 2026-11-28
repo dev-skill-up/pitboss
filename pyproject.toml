@@ -186,6 +186,7 @@ module = [
     "pitboss.workerselect",
     "pitboss.world",
     "pitboss.actread",
+    "pitboss.allowlistmiss",
     "pitboss.blockedby",
     "pitboss.earlyreview",
     "pitboss.examine",

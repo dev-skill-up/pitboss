@@ -2,7 +2,10 @@
 
 ``corpus/`` holds what ``pitboss next`` read of every open PR of bats-lang on
 2026-11-24. For dom#140, quire#1125, #1128 and #1130 the record also holds ``was``,
-the task the decider gave them, a dead end.
+the task the decider gave them, a dead end. quire-1128-flake is quire#1128 at
+a second head, whose red an open p0 ticket owns (``waits``, pitboss#531);
+quire-1127-miss is quire#1127, whose red repository-prototype's allowlist fixes and
+nothing open asks for (``outside``).
 """
 
 import unittest
@@ -15,6 +18,8 @@ from .. import witnesses
 from . import corpusreplay
 
 DEAD_ENDS = ("dom-140", "quire-1125", "quire-1128", "quire-1130")
+OWNED = "quire-1128-flake"
+OUTSIDE = "quire-1127-miss"
 
 
 def step_name(record: Mapping[str, object]) -> Mapping[str, object]:
@@ -34,8 +39,8 @@ class TestCorpus(unittest.TestCase):
     """Every recorded PR, replayed through the shipped reader and flow."""
 
     def test_the_corpus_is_every_pr_it_names(self) -> None:
-        """39 open PRs of the queue, each with its reads."""
-        assert_that(corpusreplay.names(), has_length(39))
+        """39 open PRs of the queue and quire#1128 and quire#1127 at a second head."""
+        assert_that(corpusreplay.names(), has_length(41))
 
     def test_each_pr_gets_the_step_recorded_for_it(self) -> None:
         """The reads replayed give the recorded step and task."""
@@ -89,6 +94,22 @@ class TestCorpus(unittest.TestCase):
         record = corpusreplay.load("quire-1130")
         found = corpusreplay.first_stop(record)
         assert_that((found, record["gate"]), equal_to(("REVIEW", "REVIEW")))
+
+    def test_a_red_an_open_ticket_names_is_that_tickets(self) -> None:
+        """quire#1128's red is the flake of quire#1137: the PR waits for it."""
+        record = corpusreplay.load(OWNED)
+        assert_that(record["recorded_dead_end"], equal_to(True))
+        found = corpusreplay.owners(record)
+        assert_that(list(found), equal_to(["bats-lang/quire#1137"]))
+        assert_that(list(found), equal_to(record["waits"]))
+
+    def test_a_red_whose_fix_is_outside_and_unowned_is_a_ticket_to_file(self) -> None:
+        """quire#1127: a canonical-files miss no open item asks for is a group."""
+        record = corpusreplay.load(OUTSIDE)
+        assert_that(record["recorded_dead_end"], equal_to(True))
+        found = corpusreplay.outside(record)
+        assert_that(list(found), has_length(1))
+        assert_that(list(found), equal_to(record["outside"]))
 
     def test_a_task_the_corpus_cannot_do_is_a_ticket(self) -> None:
         """Filing a ticket changes nothing the flow reads."""

@@ -77,6 +77,7 @@ LISTED: Mapping[str, str] = {
     "src/pitboss/headfindings.py": "reader",
     "src/pitboss/hook_commands.py": "shell",
     "src/pitboss/importgraph.py": "reader",
+    "src/pitboss/landed.py": "reader",
     "src/pitboss/ledger.py": "reader",
     "src/pitboss/ledgerowner.py": "reader",
     "src/pitboss/lint_commands.py": "shell",

@@ -124,9 +124,6 @@ def act(args: argparse.Namespace) -> None:
 
 
 def _recorded(found: Context, world: actcore.Act, done: actledger.Done) -> None:
-    # the ledger's record of a write, then the PR read after it (keyword:
-    # claim-readback, quire#1115)
+    # the ledger's record of a write; GitHub's showing it is read in ``landed``
     if event := actledger.ledger_event(world, done, found.now.isoformat()):
         logline.record(found.settings.slots.log, event)
-    for line in actledger.read_back(found.github, done):
-        _refuse(line)

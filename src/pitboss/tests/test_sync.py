@@ -83,12 +83,14 @@ class TestSync(unittest.TestCase):
         syncworld.normalize_on_origin(synced)
         nothing_to_commit(synced)
 
-    def test_a_failing_diff_is_still_reported(self) -> None:
-        """A git that fails to diff (status 128, not 1) is COULD NOT SYNC."""
-        synced = syncworld.after_first_sync()
-        syncworld.break_diff(synced)
-        synced.notes.write_text("second notes\n")
-        cleanworld.same(result_of(synced.here), FAILED)
+    def test_a_failing_diff_or_an_unshown_push_is_still_reported(self) -> None:
+        """A diff that fails (128, not 1), or a push the remote does not show."""
+        for breaking in (syncworld.break_diff, syncworld.push_elsewhere):
+            with self.subTest(breaking.__name__):
+                synced = syncworld.after_first_sync()
+                breaking(synced)
+                synced.notes.write_text("second notes\n")
+                cleanworld.same(result_of(synced.here), FAILED)
 
     def test_only_the_file_that_changed_is_copied(self) -> None:
         """A later sync updates the changed file in a new commit."""

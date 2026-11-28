@@ -4,7 +4,6 @@ import functools
 from typing import Callable, Mapping, Sequence, TypeVar
 
 from . import config, evidencesplit, ghapi, parsing, shapes, totaljson
-from .running import Run
 
 DRY_RUN_URL = "(dry run: no URL yet)"
 Item = TypeVar("Item")
@@ -117,19 +116,17 @@ def set_body(github: ghapi.GitHub, path: str, body: str) -> None:
     send(github, "PATCH", path, body)
 
 
-def store_of(runners: tuple[Run, Run], slug: str, pull: int) -> evidencesplit.Store:
+def store_of(github: ghapi.GitHub, slug: str, pull: int) -> evidencesplit.Store:
     """The store of one pull request, through ``gh api``.
 
     Args:
-        runners: the runner reads go through and the runner changes go through
-            (a dry run unless asked).
+        github: the API (its changes are a dry run unless asked).
         slug: the repository's ``owner/name``.
         pull: the pull request's number.
 
     Returns:
         The store.
     """
-    github = ghapi.GitHub(run=runners[0], mutate=runners[1])
     comments = f"repos/{slug}/issues/{pull}/comments"
     every = f"repos/{slug}/issues/comments"
     return evidencesplit.Store(

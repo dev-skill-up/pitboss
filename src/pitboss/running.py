@@ -5,7 +5,7 @@ failure, and (``run`` only) do nothing in a dry run; tests pass fakes.
 """
 
 import dataclasses
-from typing import Callable, Protocol, Sequence
+from typing import Callable, NoReturn, Protocol, Sequence
 
 
 class Output(Protocol):
@@ -111,11 +111,35 @@ class GitHub:
 
     Attributes:
         run: the runner reads go through.
-        mutate: the runner changes go through (a dry run unless asked).
+        mutate: the runner changes go through (a dry run unless asked); it is
+            ``landed.checked``'s, which reads each change back (P14.1).
     """
 
     run: Run
     mutate: Run
+
+
+class NotLanded(RuntimeError):  # noqa: SLD504,SLD401
+    """GitHub does not show a change that was made (keyword: landed)."""
+
+
+class ReadOnlyApi(Exception):  # noqa: SLD504,SLD401
+    """A change was asked of an API made for reading."""
+
+
+def refused(cmdargs: Sequence[str], /) -> NoReturn:
+    """The runner of an API that only reads: it changes nothing.
+
+    Args:
+        cmdargs: the command line asked.
+
+    Returns:
+        Nothing: it raises.
+
+    Raises:
+        ReadOnlyApi: always.
+    """
+    raise ReadOnlyApi(f"a read-only API was asked to run {' '.join(cmdargs)}")
 
 
 def read_only(run: Run) -> GitHub:
@@ -125,6 +149,6 @@ def read_only(run: Run) -> GitHub:
         run: the runner reads go through.
 
     Returns:
-        The API, whose changes go through the same runner.
+        The API, whose changes are refused (``ReadOnlyApi``).
     """
-    return GitHub(run=run, mutate=run)
+    return GitHub(run=run, mutate=refused)

@@ -13,7 +13,7 @@ import datetime
 import subprocess
 from typing import AbstractSet, Sequence
 
-from . import checkoutcome, ghapi, parsing, pullparse, scratchconfig, shapes
+from . import checkoutcome, ghapi, landed, parsing, pullparse, scratchconfig, shapes
 from .markers import Marker
 from .running import Run
 
@@ -48,7 +48,7 @@ def source_of(
     Returns:
         The source.
     """
-    github = ghapi.GitHub(run=run, mutate=run)
+    github = ghapi.GitHub(run=run, mutate=landed.checked(run, run, True))
     return Source(github=github, scratch=scratch, now=now)
 
 

@@ -39,7 +39,7 @@ def read(run: running.Run, settings: config.Config, name: str) -> RepoForm:
     """
     repo = repoarg.named_repo(name, settings)
     try:
-        gate = gates.read(ghapi.GitHub(run=run, mutate=run), repo)
+        gate = gates.read(running.read_only(run), repo)
     except subprocess.CalledProcessError as error:
         status = ghapi.status_of(error)
         raise SystemExit(f"cannot read {gates.WORKFLOW} of {repo.slug}: {status}")

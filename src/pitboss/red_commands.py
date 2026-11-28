@@ -11,12 +11,12 @@ from . import (
     ENTRY_DATA,
     config,
     configrepos,
-    ghclient,
     red,
     redrender,
     redreport,
     redtranscripts,
     repoarg,
+    running,
 )
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
 from .commands import load_settings
@@ -39,7 +39,7 @@ def _sources(
     args: argparse.Namespace, settings: config.Config, repo: config.Repo
 ) -> redreport.Sources:
     reader = args.world.safe_run
-    github = ghclient.GitHub(run=reader, mutate=reader)
+    github = running.read_only(reader)
     wanted = _repos(settings, repo)
     failures = redreport.unreadable(github, wanted)
     if repo.slug in failures:

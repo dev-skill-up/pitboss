@@ -8,8 +8,8 @@ from typing import MutableMapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import evidencesplit, expansion, ghstore
-from . import fakes, world
+from .. import evidencesplit, expansion, ghapi, ghstore
+from . import fakes, forgetting, world
 from .memorystore import OTHER, URL, Memory, comments, store_of
 from .repositories import IDENTITY, commit_file, run_git
 
@@ -251,7 +251,7 @@ class TestStore(unittest.TestCase):
             {"id": 3, "html_url": URL + "3", "body": None}
         ]
         api = fakes.github(bodies)
-        store = ghstore.store_of((api.run, api.mutate), "o/p", 7)
+        store = ghstore.store_of(ghapi.GitHub(run=api.run, mutate=api.mutate), "o/p", 7)
         listed = store.comments()
         posted = store.post("text")
         edited = store.edit(55, "more")
@@ -268,21 +268,26 @@ class TestStore(unittest.TestCase):
     def test_dry_run_answers_nothing(self) -> None:
         """A change that a dry run did not make has no URL yet."""
         silent = fakes.github({"POST repos/o/p/issues/7/comments": ""})
-        store = ghstore.store_of((silent.run, silent.mutate), "o/p", 7)
+        store = ghstore.store_of(
+            ghapi.GitHub(run=silent.run, mutate=silent.mutate), "o/p", 7
+        )
         posted = store.post("text")
         assert_that([posted.number, posted.url], equal_to([0, ghstore.DRY_RUN_URL]))
 
 
-def routed(bodies: MutableMapping[str, object]) -> fakes.Processes:
+def routed(
+    bodies: MutableMapping[str, object], applies: bool = True
+) -> fakes.Processes:
     """Processes that answer ``gh`` from bodies and run the rest for real.
 
     Args:
         bodies: the canned GitHub.
+        applies: whether a write changes the bodies (not: GitHub keeps nothing).
 
     Returns:
         The runner.
     """
-    fake = fakes.FakeProcesses(bodies=bodies)
+    fake = fakes.FakeProcesses(bodies=bodies, applies=applies)
 
     def runner(cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
         if cmdargs[0] == "gh":
@@ -294,17 +299,18 @@ def routed(bodies: MutableMapping[str, object]) -> fakes.Processes:
     return runner
 
 
-def invoked(template: str, *options: str) -> world.Result:
+def invoked(template: str, *options: str, applies: bool = True) -> world.Result:
     """Run ``pitboss expand`` on a template, with ``gh`` answered by a fake.
 
     Args:
         template: the template's text.
         *options: the options after the file.
+        applies: whether the fake GitHub keeps what it is told.
 
     Returns:
         What it did.
     """
-    here = dataclasses.replace(world.make_world(), processes=routed(canned()))
+    here = dataclasses.replace(world.make_world(), processes=routed(canned(), applies))
     path = fakes.directory() / "t.md"
     fakes.write(path, template)
     # a directory that is no checkout, so no merge notice (merge-head) is said
@@ -362,6 +368,11 @@ class TestCommand(unittest.TestCase):
             [done.code, cited, done.out.endswith(FOOTER)],
             equal_to([0, True, True]),
         )
+
+    def test_a_change_github_does_not_show_is_not_landed(self) -> None:
+        """The comment and the body are written, GitHub keeps neither: exit 2."""
+        options = ["--pr", "o/p#7", "--limit", "5000", "--no-dry-run"]
+        forgetting.not_landed(invoked("Top\n", *options, applies=False))
 
     def test_the_overflow_is_said_to_be_by_design(self) -> None:
         """Done-when (pitboss#317): the output and the body say it; a fit does not."""
