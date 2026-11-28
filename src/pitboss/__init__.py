@@ -1,1 +1,5 @@
-"""Sweep a project's pull requests and tickets: a parser, a state machine, actions."""
+"""The pitboss package."""
+
+import importlib.metadata
+
+__version__ = importlib.metadata.version(__name__)

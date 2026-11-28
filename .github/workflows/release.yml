@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - trunk
+
+permissions: # added using https://github.com/step-security/secure-workflows
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+
+      - uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b
+        with:
+          python-version: "3.x"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: deps
+        run: python -m pip install -U build
+
+      - name: env
+        run: env
+
+      - name: build
+        run: python -m build
+
+      - name: Upload built packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-packages
+          path: ./dist/
+          if-no-files-found: warn
+
+  release-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      # Used to authenticate to PyPI via OIDC.
+      id-token: write
+    steps:
+      - name: Download artifacts directories # goes to current working directory
+        uses: actions/download-artifact@v4
+
+      - name: publish
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          packages-dir: built-packages/

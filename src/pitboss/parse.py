@@ -1,120 +1,254 @@
 """Parser: GitHub REST JSON (already paginated) into plain values. No I/O."""
 
 import dataclasses
+import hashlib
 import re
-from typing import Any, Mapping, Sequence
+from collections.abc import Sequence, Set
 
-Json = Mapping[str, Any]
+from . import jsonish as j
 
 REVIEWED = re.compile(r"^Independent review .* of head ([0-9a-f]{7,40}):", re.M)
 VERDICT = re.compile(r"^Verdict: (approved|changes needed)\b", re.M)
 PLAN = re.compile(r"^Plan: (approved|changes needed)\b", re.M)
 EXECUTION = re.compile(r"^Execution: (approved|changes needed)\b", re.M)
 RULING = re.compile(r"^Ruling: (.+)$", re.M)
-FIXES = re.compile(r"\b(?:fixes|closes|resolves) #(\d+)", re.I)
+PLAN_SECTION = re.compile(r"^## Plan\n(.*?)(?=^## |\Z)", re.M | re.S)
+PLAN_DIGEST = re.compile(r"^Plan-digest: ([0-9a-f]+)$", re.M)
+CLOSES = re.compile(r"\b(?:fixes|closes|resolves) #(\d+)", re.I)
+GREEN = ("success", "neutral", "skipped")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Review:
-    """One review comment: the head it names and what it grades."""
+    """One review comment: the head it names and what it grades.
+
+    Attributes:
+        sha: the head it names, possibly abbreviated.
+        plan: what its ``Plan:`` line grades, None with no such line.
+        execution: its verdict, None with no verdict line.
+        plan_digest: the digest of the Plan it records, empty when none.
+    """
 
     sha: str
     plan: str | None
     execution: str | None
+    plan_digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Thread:
+    """What the trusted comments of a PR say, in order.
+
+    Attributes:
+        reviews: its reviews.
+        rulings: the words after each ``Ruling:``.
+        order: the kind of each comment that is one of the forms.
+    """
+
+    reviews: Sequence[Review]
+    rulings: Sequence[str]
+    order: Sequence[str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Body:
+    """What the body of a PR says.
+
+    Attributes:
+        closes: the tickets it fixes.
+        sections: whether it has a Plan section and an Execution section.
+        digest: the digest of its Plan section, empty with none.
+    """
+
+    closes: Sequence[int]
+    sections: bool
+    digest: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Pull:
-    """A PR as read."""
+    """A PR as read.
+
+    Attributes:
+        number: its number.
+        head: its head sha.
+        draft: whether it is a draft.
+        conflict: whether it conflicts with its base.
+        labels: its labels.
+        checks: the state of each check run of the head, as a word.
+        files: the paths it changes.
+        body: what its body says.
+        thread: what its trusted comments say.
+    """
 
     number: int
     head: str
     draft: bool
     conflict: bool
-    labels: frozenset[str]
-    checks: tuple[str, ...]
-    reviews: tuple[Review, ...]
-    rulings: tuple[str, ...]
-    fixes: tuple[int, ...]
+    labels: Set[str]
+    checks: Sequence[str]
+    files: Sequence[str]
+    body: Body
+    thread: Thread
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Ticket:
-    """A ticket as read."""
+    """A ticket as read.
+
+    Attributes:
+        number: its number.
+        is_open: whether it is open.
+        labels: its labels.
+        done_when: the bullets under its ``Done when`` heading.
+    """
 
     number: int
-    open: bool
-    labels: frozenset[str]
-    done_when: tuple[str, ...]
+    is_open: bool
+    labels: Set[str]
+    done_when: Sequence[str]
 
 
-def review_of(body: str) -> Review | None:
+def review_of(text: str) -> Review | None:
     """Read one comment as a review.
 
     Args:
-        body: the comment text.
+        text: the comment text.
 
     Returns:
         The review, None when the comment names no head.
     """
-    head = REVIEWED.search(body)
+    head = REVIEWED.search(text)
     if head is None:
         return None
-    plan, verdict = PLAN.search(body), EXECUTION.search(body) or VERDICT.search(body)
+    verdict = EXECUTION.search(text) or VERDICT.search(text)
+    pinned = PLAN_DIGEST.search(text)
+    plan = PLAN.search(text)
     return Review(
         sha=head.group(1),
         plan=plan.group(1) if plan else None,
         execution=verdict.group(1) if verdict else None,
+        plan_digest=pinned.group(1) if pinned else "",
     )
 
 
-def check_state(run: Json) -> str:
+def check_state(check: j.JsonObject) -> str:
     """Say a check run as green, red or pending.
 
     Args:
-        run: a check run.
+        check: a check run.
 
     Returns:
         ``green``, ``red`` or ``pending``.
     """
-    if run.get("status") != "completed":
+    if check.get("status") != "completed":
         return "pending"
-    ok = run.get("conclusion") in ("success", "neutral", "skipped")
-    return "green" if ok else "red"
+    return "green" if check.get("conclusion") in GREEN else "red"
 
 
-def pull(
-    data: Json, runs: Sequence[Json], comments: Sequence[Json], trusted: frozenset[str]
+def kind_of(text: str) -> str:
+    """Say what a trusted comment is, by its first line.
+
+    Args:
+        text: the comment text.
+
+    Returns:
+        ``review``, ``ruling``, ``ruling-unreadable``, ``plancheck-ok``,
+        ``plancheck-refused`` or ``other``.
+    """
+    if review_of(text) is not None:
+        return "review"
+    if text.startswith("Opus ruling"):
+        return "ruling" if RULING.search(text) else "ruling-unreadable"
+    if text.startswith("Plan check"):
+        return "plancheck-ok" if "Plan check: ok" in text else "plancheck-refused"
+    return "other"
+
+
+def digest_of(text: str) -> str:
+    """Digest the Plan section of a PR body.
+
+    Args:
+        text: the PR body.
+
+    Returns:
+        Sixteen hex digits of the section's SHA-256, empty with no Plan section.
+    """
+    found = PLAN_SECTION.search(text)
+    if found is None:
+        return ""
+    return hashlib.sha256(found.group(1).strip().encode()).hexdigest()[:16]
+
+
+def body_of(text: str) -> Body:
+    """Read the body of a PR.
+
+    Args:
+        text: the body.
+
+    Returns:
+        What it says.
+    """
+    return Body(
+        closes=[int(n) for n in CLOSES.findall(text)],
+        sections=bool(PLAN_SECTION.search(text)) and "## Execution" in text,
+        digest=digest_of(text),
+    )
+
+
+def thread_of(comments: Sequence[j.JsonObject], trusted: Set[str]) -> Thread:
+    """Read the trusted comments of a PR.
+
+    Args:
+        comments: its issue comments.
+        trusted: the author associations whose comments count.
+
+    Returns:
+        What they say, in order.
+    """
+    words = [
+        j.text(c.get("body"))
+        for c in comments
+        if j.text(c.get("author_association")) in trusted
+    ]
+    return Thread(
+        reviews=[r for r in map(review_of, words) if r is not None],
+        rulings=[m.group(1).strip() for w in words for m in [RULING.search(w)] if m],
+        order=[k for k in map(kind_of, words) if k != "other"],
+    )
+
+
+def pull_from(
+    data: j.JsonObject,
+    checks: Sequence[j.JsonObject],
+    thread: Thread,
+    paths: Sequence[str],
 ) -> Pull:
     """Parse a PR.
 
     Args:
         data: the PR.
-        runs: the check runs of its head.
-        comments: its issue comments.
-        trusted: the author associations whose comments count.
+        checks: the check runs of its head.
+        thread: its trusted comments.
+        paths: the paths it changes.
 
     Returns:
         The PR.
     """
-    words = [
-        c["body"] for c in comments if c.get("author_association") in trusted
-    ]
-    reviews = [r for r in map(review_of, words) if r is not None]
     return Pull(
-        number=data["number"],
-        head=data["head"]["sha"],
-        draft=bool(data.get("draft")),
+        number=j.number(data),
+        head=j.text(j.obj(data.get("head")).get("sha")),
+        draft=j.flag(data.get("draft")),
         conflict=data.get("mergeable_state") == "dirty",
-        labels=frozenset(x["name"] for x in data.get("labels", [])),
-        checks=tuple(check_state(r) for r in runs),
-        reviews=tuple(reviews),
-        rulings=tuple(m.group(1).strip() for w in words for m in [RULING.search(w)] if m),
-        fixes=tuple(int(n) for n in FIXES.findall(data.get("body") or "")),
+        labels=j.labels(data),
+        checks=[check_state(c) for c in checks],
+        files=paths,
+        body=body_of(j.text(data.get("body"))),
+        thread=thread,
     )
 
 
-def ticket(data: Json) -> Ticket:
+def ticket_from(data: j.JsonObject) -> Ticket:
     """Parse a ticket.
 
     Args:
@@ -123,12 +257,12 @@ def ticket(data: Json) -> Ticket:
     Returns:
         The ticket; its Done-when bullets are the lines under ``Done when``.
     """
-    lines = (data.get("body") or "").splitlines()
-    tail = lines[next((i + 1 for i, x in enumerate(lines) if x.lower().startswith("## done")), len(lines)) :]
-    bullets = tuple(x[2:] for x in tail if x.startswith("- "))
+    lines = j.text(data.get("body")).splitlines()
+    marks = [i + 1 for i, x in enumerate(lines) if x.lower().startswith("## done")]
+    tail = lines[marks[0] :] if marks else []
     return Ticket(
-        number=data["number"],
-        open=data["state"] == "open",
-        labels=frozenset(x["name"] for x in data.get("labels", [])),
-        done_when=bullets,
+        number=j.number(data),
+        is_open=data.get("state") == "open",
+        labels=j.labels(data),
+        done_when=[x[2:] for x in tail if x.startswith("- ")],
     )

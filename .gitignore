@@ -1,5 +1,6 @@
-__pycache__/
-*.egg-info/
-build/
-.nox/
-.coverage
+.ipynb_checkpoints
+*.egg-info
+__pycache__
+/dist
+/build
+/git-log-head
