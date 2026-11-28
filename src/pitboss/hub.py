@@ -23,6 +23,20 @@ class Runner(Protocol):
         """
 
 
+def call_program(program: str, args: Sequence[str]) -> str:
+    """Run a program and return what it printed.
+
+    Args:
+        program: ``gh`` or ``git``.
+        args: the arguments after the program.
+
+    Returns:
+        Standard output.
+    """
+    done = subprocess.run([program, *args], check=True, capture_output=True, text=True)
+    return done.stdout
+
+
 def call_gh(args: Sequence[str]) -> str:
     """Run ``gh`` and return what it printed.
 
@@ -32,8 +46,19 @@ def call_gh(args: Sequence[str]) -> str:
     Returns:
         Standard output.
     """
-    done = subprocess.run(["gh", *args], check=True, capture_output=True, text=True)
-    return done.stdout
+    return call_program("gh", args)
+
+
+def call_git(args: Sequence[str]) -> str:
+    """Run ``git`` and return what it printed.
+
+    Args:
+        args: the arguments after ``git``.
+
+    Returns:
+        Standard output.
+    """
+    return call_program("git", args)
 
 
 def get(run: Runner, path: str) -> j.JsonValue:
@@ -184,3 +209,19 @@ class Github:
             number: the PR.
         """
         ACTS[ask.verb](self._run, self._repo, ask, number)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Git:
+    """The write of ``push``: the checked-out head to the PR's branch, never forced."""
+
+    _run: Runner = call_git
+
+    def write(self, ask: actions.Ask, number: int) -> None:
+        """Push the head to the branch named in the ask.
+
+        Args:
+            ask: the verb ``push`` and the branch name.
+            number: the PR.
+        """
+        self._run(["push", "origin", f"HEAD:{ask.text}"])

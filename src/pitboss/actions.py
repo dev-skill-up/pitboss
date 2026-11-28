@@ -67,6 +67,13 @@ STEPS: Mapping[str, Set[machine.Step]] = {
     "close": set(),
     "label": set(),
     "comment": set(),
+    "push": {
+        machine.Step.WORKER,
+        machine.Step.FIX_CI,
+        machine.Step.FIX_CONFLICT,
+        machine.Step.RULING_STEPS,
+        machine.Step.PLAN_EDITED,
+    },
     "review": {machine.Step.REVIEW},
     "plan-check": {machine.Step.PLAN_CHECK},
     "ruling": {machine.Step.OPUS_RULING},

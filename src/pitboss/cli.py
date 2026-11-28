@@ -69,20 +69,25 @@ def lines(call: hub.Runner, repo: str, gates: machine.Gates) -> Sequence[str]:
 
 
 def act(
-    ask: actions.Ask, call: hub.Runner, target: tuple[str, int, machine.Gates]
+    ask: actions.Ask,
+    runners: tuple[hub.Runner, hub.Runner],
+    target: tuple[str, int, machine.Gates],
 ) -> actions.Outcome:
     """Run one verb on its subject: a new ticket, a ticket or a PR.
 
     Args:
         ask: the verb and its text.
-        call: runs ``gh``.
+        runners: runs ``gh`` and runs ``git``.
         target: the repository, the number of the ticket or PR, and the gates.
 
     Returns:
         What happened.
     """
+    call, git = runners
     repo, number, gates = target
     github = hub.Github(_repo=repo, _run=call)
+    if ask.verb == "push":
+        return actions.run(ask, hub.Git(_run=git), read_pull(call, repo, number), gates)
     if ask.verb == actions.NEW:
         return actions.file_ticket(ask, github)
     if ask.verb in actions.TICKET_STEPS:
@@ -112,12 +117,17 @@ def command_line() -> argparse.ArgumentParser:
     return top
 
 
-def main(argv: Sequence[str] | None = None, call: hub.Runner = hub.call_gh) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    call: hub.Runner = hub.call_gh,
+    git: hub.Runner = hub.call_git,
+) -> int:
     """Run a command.
 
     Args:
         argv: the arguments, ``sys.argv`` by default.
         call: runs ``gh``.
+        git: runs ``git``.
 
     Returns:
         The exit status.
@@ -128,7 +138,7 @@ def main(argv: Sequence[str] | None = None, call: hub.Runner = hub.call_gh) -> i
         print("\n".join(lines(call, options.repo, gates)))
         return 0
     ask = actions.Ask(verb=options.command, text=options.text)
-    result = act(ask, call, (options.repo, options.number, gates))
+    result = act(ask, (call, git), (options.repo, options.number, gates))
     print(result)
     return 0 if isinstance(result, actions.Done) else 1
 

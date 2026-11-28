@@ -11,19 +11,22 @@ from .. import actions, cli, hub
 from . import world
 
 
-def say(argv: Sequence[str], call: hub.Runner) -> tuple[int, str]:
+def say(
+    argv: Sequence[str], call: hub.Runner, git: hub.Runner = world.Runner()
+) -> tuple[int, str]:
     """Run a command and capture its output.
 
     Args:
         argv: the arguments.
         call: the fake ``gh``.
+        git: the fake ``git``.
 
     Returns:
         The status and what was printed.
     """
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
-        status = cli.main(argv, call)
+        status = cli.main(argv, call, git)
     return status, out.getvalue()
 
 
@@ -74,6 +77,24 @@ class TestVerbs(unittest.TestCase):
         assert_that(call.seen()[-1][-2:], equal_to(["-f", "draft=true"]))
 
 
+class TestPush(unittest.TestCase):
+    """``push``: only where the state says the worker pushes."""
+
+    def test_push_at_worker(self) -> None:
+        """A PR at WORKER is pushed, never forced; one at MERGE is refused."""
+        git = world.Runner()
+        sent = [
+            say(["push", "o/r", n, "--text", "b"], world.Runner(), git)[0]
+            for n in ("8", "7")
+        ]
+        assert_that(sent, equal_to([0, 1]))
+        assert_that(git.seen(), equal_to([["push", "origin", "HEAD:b"]]))
+
+    def test_git_runs_a_process(self) -> None:
+        """The real git runner returns what the program printed."""
+        assert_that(hub.call_git(["--version"]), contains_string("git version"))
+
+
 class TestHub(unittest.TestCase):
     """``hub.Github`` writes."""
 
@@ -81,7 +102,7 @@ class TestHub(unittest.TestCase):
         """Each verb is one REST call, or the few it needs."""
         call = world.Runner()
         github = hub.Github(_repo="o/r", _run=call)
-        for verb in actions.STEPS:
+        for verb in [v for v in actions.STEPS if v != "push"]:
             github.write(actions.Ask(verb=verb, text="t"), 7)
         paths = [c[3] for c in call.seen() if c[:2] == ["api", "-X"]]
         want = [
