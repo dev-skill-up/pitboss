@@ -278,6 +278,9 @@ class TestChanges(unittest.TestCase):
         for remove in [False, True]:
             if remove:
                 del here.bodies[CANCEL]
+                here.bodies.pop(
+                    f"{world.PROJECT}/actions/runs/11", None
+                )  # not cancelled
             outputs.append(world.again(here, "cancel-stale-runs", "--no-dry-run").out)
         found = (posts, missing("".join(outputs), CANCEL_LINES, here))
         assert_that(found, equal_to(([], [])))

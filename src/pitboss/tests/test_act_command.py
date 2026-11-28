@@ -3,6 +3,7 @@
 The keyword is act-verbs, pitboss#444.
 """
 
+import dataclasses
 import json
 import subprocess
 import sys
@@ -126,9 +127,18 @@ def _here() -> world.World:
     return here
 
 
+def _forgetful() -> world.World:
+    # a GitHub that keeps nothing it is told: a write of its is not shown
+    here = _here()
+    kept = here.processes
+    assert isinstance(kept, fakes.FakeProcesses)
+    return dataclasses.replace(here, processes=dataclasses.replace(kept, applies=False))
+
+
 def _shown(here: world.World, label: str) -> None:
     pull = here.bodies["repos/owner/project/pulls/3"]
     pull["labels"] = [{"name": label}]  # type: ignore[index]
+    here.bodies["repos/owner/project/issues/3"] = {**pull}  # type: ignore[dict-item]
 
 
 def _act(here: world.World, *words: str) -> world.Result:
@@ -162,11 +172,16 @@ class TestCommand(unittest.TestCase):
 
     def test_c29_a_live_action_whose_pr_did_not_change_is_refused(self) -> None:
         """The fake GitHub applies no label: the write is made, then refused."""
-        here = _here()
+        here = _forgetful()
         done = _act(here, "label", PULL, f"name={HOLD}", "--no-dry-run")
-        errs(done, 2, "act NOT LANDED")
+        errs(done, 2, "NOT LANDED")
         _shown(here, HOLD)
         exits(_act(here, "label", PULL, f"name={HOLD}", "--no-dry-run"), 0)
+
+    def test_a_removed_label_is_shown_gone(self) -> None:
+        """A removal is read back too: the label is no longer on the PR."""
+        here = _here()
+        _shown(here, HOLD)
         here.bodies[f"DELETE repos/owner/project/issues/3/labels/{HOLD}"] = []
         removed = _act(
             here, "label", PULL, f"name={HOLD}", "remove=yes", "--no-dry-run"

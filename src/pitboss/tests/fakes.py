@@ -17,7 +17,8 @@ from typing import (
 )
 
 from .. import config, configfile, ghapi
-from . import captured, fullpull, headed, repositories, worldreads
+from . import captured, fakeapply, fullpull, headed, repositories, worldreads
+from .fakeapply import page as page
 
 HEAD = "a" * 40
 PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -82,6 +83,8 @@ class FakeProcesses:
             directory of the test process.
         path: the ``PATH`` they run with; None is the machine's (a test of a
             machine with no git gives a directory with no programs).
+        applies: whether a write changes the bodies as GitHub does (a read after it
+            shows it; ``landed``); false is a GitHub that keeps nothing.
     """
 
     bodies: MutableMapping[str, object]
@@ -89,6 +92,7 @@ class FakeProcesses:
     answers: Mapping[str, int] = dataclasses.field(default_factory=dict)
     cwd: pathlib.Path | None = None
     path: str | None = None
+    applies: bool = True
 
     def __call__(
         self, cmdargs: Sequence[str], /, *args: object, **kwargs: object
@@ -102,22 +106,27 @@ class FakeProcesses:
 
         Returns:
             The finished process.
-
-        Raises:
-            subprocess.CalledProcessError: for a path with no body.
         """
         command = list(cmdargs)
         self.calls.append(command)
-        if command[0] in self.answers:
-            return answer(self.answers[command[0]], command)
-        if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
-            return run_for_real(command, self.cwd, self.path)
-        path, body = canned(self.bodies, command)
-        if body is None or body is REFUSED:
-            raise subprocess.CalledProcessError(
-                1, command, output="", stderr=f"gh: not found: {path} (HTTP 404)\n"
-            )
-        return Output(stdout=body if isinstance(body, str) else json.dumps(body))
+        done = _answered(self, command)
+        if self.applies:
+            fakeapply.apply(self.bodies, command)
+        return done
+
+
+def _answered(world: FakeProcesses, command: Sequence[str]) -> Output:
+    # what the world answers a command, before its change is applied
+    if command[0] in world.answers:
+        return answer(world.answers[command[0]], command)
+    if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
+        return run_for_real(command, world.cwd, world.path)
+    path, body = canned(world.bodies, command)
+    if body is None or body is REFUSED:
+        raise subprocess.CalledProcessError(
+            1, command, output="", stderr=f"gh: not found: {path} (HTTP 404)\n"
+        )
+    return Output(stdout=body if isinstance(body, str) else json.dumps(body))
 
 
 def canned(bodies: Mapping[str, object], command: Sequence[str]) -> tuple[str, object]:
@@ -194,20 +203,6 @@ def github(bodies: MutableMapping[str, object]) -> ghapi.GitHub:
     """
     fake = FakeProcesses(bodies=bodies)
     return ghapi.GitHub(run=fake, mutate=fake)
-
-
-def page(path: str, number: int = 1) -> str:
-    """The path ``ghapi.pages`` asks for.
-
-    Args:
-        path: the list's path.
-        number: the page.
-
-    Returns:
-        The paged path.
-    """
-    separator = "&" if "?" in path else "?"
-    return f"{path}{separator}per_page=100&page={number}"
 
 
 def listed_row(

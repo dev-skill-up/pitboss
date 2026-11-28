@@ -8,7 +8,7 @@ from typing import MutableMapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import evidencesplit, expansion, ghstore
+from .. import evidencesplit, expansion, ghapi, ghstore
 from . import fakes, world
 from .memorystore import OTHER, URL, Memory, comments, store_of
 from .repositories import IDENTITY, commit_file, run_git
@@ -251,7 +251,7 @@ class TestStore(unittest.TestCase):
             {"id": 3, "html_url": URL + "3", "body": None}
         ]
         api = fakes.github(bodies)
-        store = ghstore.store_of((api.run, api.mutate), "o/p", 7)
+        store = ghstore.store_of(ghapi.GitHub(run=api.run, mutate=api.mutate), "o/p", 7)
         listed = store.comments()
         posted = store.post("text")
         edited = store.edit(55, "more")
@@ -268,7 +268,9 @@ class TestStore(unittest.TestCase):
     def test_dry_run_answers_nothing(self) -> None:
         """A change that a dry run did not make has no URL yet."""
         silent = fakes.github({"POST repos/o/p/issues/7/comments": ""})
-        store = ghstore.store_of((silent.run, silent.mutate), "o/p", 7)
+        store = ghstore.store_of(
+            ghapi.GitHub(run=silent.run, mutate=silent.mutate), "o/p", 7
+        )
         posted = store.post("text")
         assert_that([posted.number, posted.url], equal_to([0, ghstore.DRY_RUN_URL]))
 

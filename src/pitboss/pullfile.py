@@ -13,7 +13,7 @@ from typing import Callable, NoReturn
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, ghapi, ghstore
+from . import ENTRY_DATA, ghapi, ghstore, landed
 
 USAGE_ERROR = 2
 PULL = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
@@ -81,7 +81,8 @@ def github_of(args: argparse.Namespace) -> ghapi.GitHub:
     Returns:
         The API, whose reads and changes both go through the safe runner.
     """
-    return ghapi.GitHub(mutate=args.world.safe_run, run=args.world.safe_run)
+    run = args.world.safe_run
+    return ghapi.GitHub(run=run, mutate=landed.checked(run, run, True))
 
 
 def comment(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:

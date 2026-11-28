@@ -15,7 +15,7 @@ import sys
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, evidencesplit, expansion, ghstore
+from . import ENTRY_DATA, evidencesplit, expansion, ghstore, landed, running
 
 USAGE_ERROR = 2
 PULL = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
@@ -124,8 +124,11 @@ def _body(args: argparse.Namespace) -> str:
     found = PULL.match(args.pr)
     if not found:
         raise _fail(f"{args.pr}: not OWNER/NAME#NUMBER")
-    runners = (args.world.safe_run, args.world.run)
-    store = ghstore.store_of(runners, found.group(1), int(found.group(2)))
+    read, write = args.world.safe_run, args.world.run
+    github = running.GitHub(
+        run=read, mutate=landed.checked(read, write, bool(args.no_dry_run))
+    )
+    store = ghstore.store_of(github, found.group(1), int(found.group(2)))
     try:
         done = evidencesplit.place(store, text, args.limit)
     except evidencesplit.TooLong as error:

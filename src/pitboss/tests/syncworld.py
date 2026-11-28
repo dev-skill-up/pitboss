@@ -162,6 +162,17 @@ def allow_pushes(synced: Synced) -> None:
     (synced.origin / "hooks" / "pre-receive").unlink()
 
 
+def push_elsewhere(synced: Synced) -> None:
+    """Make a push go to another repository than the one ``origin`` reads from.
+
+    Args:
+        synced: the world, synced once (it has a clone).
+    """
+    elsewhere = synced.here.workspace / "elsewhere.git"
+    fakes.run_git(synced.here.workspace, "init", "-q", "--bare", str(elsewhere))
+    fakes.run_git(synced.checkout, "config", "remote.origin.pushurl", str(elsewhere))
+
+
 def lose_origin(synced: Synced) -> None:
     """Point the table's ``url`` at a directory that is no repository (clone: 128).
 

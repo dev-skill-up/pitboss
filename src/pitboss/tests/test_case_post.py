@@ -22,7 +22,6 @@ BODY = (
 )
 NEW = "1. New, demonstrated by a test.\n2. Newer, demonstrated by a test.\n"
 CASE = "Case 1 (2026-11-12): a thing happened.\n"
-EDITABLE = {TICKET: {"body": BODY}, PATCH: {}}
 REPO = config.make_repo("owner", "project")
 
 
@@ -35,7 +34,13 @@ def case_world(pulls: Sequence[object]) -> world.World:
     Returns:
         The world.
     """
-    return refused.world_of({**EDITABLE, LISTED: list(pulls)})
+    return refused.world_of(
+        {
+            TICKET: {"body": BODY},
+            PATCH: {},
+            LISTED: list(pulls),
+        }  # fresh: a write changes it
+    )
 
 
 def post(here: world.World, text: str, *options: str) -> world.Result:

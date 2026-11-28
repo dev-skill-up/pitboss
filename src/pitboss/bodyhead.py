@@ -10,7 +10,7 @@ import dataclasses
 import re
 from typing import Sequence
 
-from . import bodydigest, ghapi, ghstore, headline, parsing, shapes
+from . import bodydigest, ghapi, ghstore, headline, landed, parsing, shapes
 from .running import Run
 
 LINE = headline.LINE
@@ -90,22 +90,23 @@ class Moved:
     reviewed: str = ""
 
 
-def _api(read: Run, write: Run) -> ghapi.GitHub:
-    return ghapi.GitHub(run=read, mutate=write)
+def _api(read: Run, write: Run, verify: bool) -> ghapi.GitHub:
+    return ghapi.GitHub(run=read, mutate=landed.checked(read, write, verify))
 
 
-def move(read: Run, write: Run, path: str) -> Moved | None:
+def move(read: Run, write: Run, path: str, verify: bool = False) -> Moved | None:
     """Put the PR's head in its body.
 
     Args:
         read: the runner reads go through.
         write: the runner changes go through.
         path: the pull request's path.
+        verify: whether a change is read back (``landed``).
 
     Returns:
         What it gave; None when the body has no ``Head:`` line.
     """
-    github = _api(read, write)
+    github = _api(read, write, verify)
     pull = parsing.pull(ghapi.get(github, path))
     old = last_head(pull.body)
     new = with_head(pull.body, pull.head.sha) if old else pull.body

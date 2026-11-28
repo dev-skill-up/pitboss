@@ -18,7 +18,7 @@ from typing import Protocol, runtime_checkable
 
 from gather import commands as gather_commands
 
-from . import ENTRY_DATA, commanddoc, commandscan, configsettle, disk, retrying
+from . import ENTRY_DATA, commanddoc, commandscan, configsettle, disk, retrying, running
 
 
 @runtime_checkable
@@ -50,11 +50,16 @@ class Entered:
             args: the parsed arguments.
 
         Raises:
-            SystemExit: a read failed: status 1, the request on standard error.
+            SystemExit: a read failed: status 1, the request on standard error; a
+                change GitHub does not show: status 2.
             subprocess.CalledProcessError: a command other than a read failed.
         """
         try:
             self.command(args=args)
+        except running.NotLanded as unseen:
+            # keyword: landed: a change GitHub does not show is not progress
+            print(f"NOT LANDED: {unseen}", file=sys.stderr)
+            raise SystemExit(2) from unseen
         except retrying.ReadFailed as failed:
             print(f"READ FAILED: {failed}", file=sys.stderr)
             raise SystemExit(1) from failed

@@ -27,6 +27,7 @@ WRITE = (
 FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
 WRITER_NAMES = frozenset({"mutate", "store_of"})
 STORE_NAMES = frozenset({"store_of"})
+FUNNELS = frozenset({"landed"})
 ACT_COMMAND = frozenset({"act"})
 ROUTE: Mapping[str, str] = {
     "body-head": "pr-edit",
@@ -163,6 +164,12 @@ def _writes(function: ast.AST) -> bool:
     return any(_writes_here(node) for node in ast.walk(function))
 
 
+def _site(module: str, function: ast.AST) -> bool:
+    # landed carries every write, so its callers are the sites, not landed
+    name = getattr(function, "name", "")
+    return module not in FUNNELS and name != "mutate" and _writes(function)
+
+
 def _writes_here(node: ast.AST) -> bool:
     # a use of the store's writer, by attribute or by name
     if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
@@ -204,7 +211,7 @@ def call_graph(source: pathlib.Path) -> Graph:
             me = (path.stem, function.name)
             calls[me].update(_references(path.stem, function, _imports(tree)))
             registered.update((name, me) for name in _registered(function))
-            writers.update([me] if _writes(function) and me[1] != "mutate" else [])
+            writers.update([me] if _site(path.stem, function) else [])
         for kind, methods in _methods(path.stem, tree):
             calls[kind].update(methods)
     return Graph(calls=calls, writers=writers, registered=registered)
