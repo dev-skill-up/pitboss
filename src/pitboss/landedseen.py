@@ -23,6 +23,9 @@ Shown = Callable[[GitHub, Words, object], bool]
 GET = ("gh", "api")
 GONE = object()
 PAGE = 100
+CARET = {
+    code: "^" + chr(code ^ 64) for code in (*range(9), 11, 12, *range(14, 32), 127)
+}
 QUERY = (
     "query($id: ID!) { node(id: $id) { ... on PullRequest"
     " { mergeQueueEntry { id } } } }"
@@ -94,7 +97,8 @@ def same(left: object, right: str) -> bool:
     """
 
     def plain(each: str) -> str:
-        return each.replace("\r\n", "\n").strip()
+        # the host may write a control character as ``^[`` (caret notation)
+        return each.translate(CARET).replace("\r\n", "\n").strip()
 
     return plain(text(left)).startswith(plain(right))
 

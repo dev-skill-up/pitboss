@@ -87,6 +87,10 @@ class TestSame(unittest.TestCase):
         ]
         assert_that(found, equal_to([True, True, False, False]))
 
+    def test_a_control_character_the_host_writes_in_caret_notation(self) -> None:
+        """An escape sent as itself is held as ``^[``."""
+        assert_that(landedseen.same("ok ^[[1mx", "ok \x1b[1mx"), equal_to(True))
+
 
 class TestFakeApply(unittest.TestCase):
     """The fake GitHub changes what a write says it changes."""
