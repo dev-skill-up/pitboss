@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import actions, cli, hub
+from .. import actions, cli, hub, parse
 from . import world
 
 
@@ -28,6 +28,21 @@ def say(
     with contextlib.redirect_stdout(out):
         status = cli.main(argv, call, git)
     return status, out.getvalue()
+
+
+def posted(argv: Sequence[str]) -> tuple[int, str]:
+    """Run a command that posts a comment.
+
+    Args:
+        argv: the arguments.
+
+    Returns:
+        The status and the body of the last comment posted, empty for none.
+    """
+    call = world.Runner()
+    status = say(argv, call)[0]
+    sent = [c[-1] for c in call.seen() if c[-1].startswith("body=")]
+    return status, sent[-1][len("body=") :] if sent else ""
 
 
 class TestCli(unittest.TestCase):
@@ -65,11 +80,11 @@ class TestVerbs(unittest.TestCase):
             (["file-ticket", "o/r", "--text", "t"], 0),
             (["pr-create", "o/r", "4", "--text", "b"], 0),
             (["pr-create", "o/r", "3", "--text", "b"], 1),
-            (["review", "o/r", "7", "--verdict", "approved"], 1),
+            (["review", "o/r", "7", "--plan", "approved"], 1),
             (["plan-check", "o/r", "7", "--verdict", "ok"], 1),
             (["ruling", "o/r", "7"], 1),
-            (["review", "o/r", "10", "--verdict", "ok"], 1),
-            (["review", "o/r", "10", "--verdict", "approved"], 0),
+            (["review", "o/r", "10", "--plan", "ok"], 1),
+            (["review", "o/r", "10", "--plan", "approved"], 0),
             (["plan-check", "o/r", "9", "--verdict", "ok"], 0),
         ]
         got = [say(argv, world.Runner())[0] for argv, _ in cases]
@@ -77,16 +92,32 @@ class TestVerbs(unittest.TestCase):
 
     def test_composed_comments(self) -> None:
         """A review and a plan check are posted in the form the queue reads."""
-        review, check = world.Runner(), world.Runner()
-        argv = ["review", "o/r", "10", "--verdict", "approved", "--text", "a\nb"]
-        say(argv, review)
-        say(["plan-check", "o/r", "9", "--verdict", "ok"], check)
-        first = review.seen()[-1][-1]
+        first = posted(["review", "o/r", "10", "--plan", "approved", "--text", "a\nb"])[
+            1
+        ]
+        check = posted(["plan-check", "o/r", "9", "--verdict", "ok"])[1]
         who = "a separate reviewer agent, not the author"
-        want = f"body=Independent review ({who}) of head {world.SHA}: approved"
+        want = f"Independent review ({who}) of head {world.SHA}: approved"
+        ticket = f"\nTicket: o/r#3 {parse.text_digest(world.BODY)}\n"
         assert_that(first.startswith(want), equal_to(True))
+        assert_that(first, contains_string(ticket))
         assert_that(first.endswith("\n\na\nb"), equal_to(True))
-        assert_that(check.seen()[-1][-1], equal_to("body=Plan check\nPlan check: ok"))
+        assert_that(check, equal_to("Plan check\nPlan check: ok"))
+
+    def test_plan_approved_execution_rejected(self) -> None:
+        """A review grades the Plan and the Execution apart; bad grades are Invalid."""
+        both = ["--plan", "approved", "--execution", "changes needed"]
+        status, text = posted(["review", "o/r", "10", *both])
+        grades = ["Plan: approved", "Execution: changes needed"]
+        assert_that(
+            (status, text.splitlines()[1:4]),
+            equal_to((0, [*grades, "Verdict: changes needed"])),
+        )
+        bad = ["review", "o/r", "10", "--plan", "approved", "--execution", "fine"]
+        assert_that(posted(bad)[0], equal_to(1))
+        assert_that(
+            posted(["plan-check", "o/r", "9", "--verdict", "x"])[0], equal_to(1)
+        )
 
     def test_pr_create_fields(self) -> None:
         """A PR is made as a draft from the branch named."""

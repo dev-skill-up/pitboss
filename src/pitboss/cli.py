@@ -1,6 +1,7 @@
 """Commands: ``next`` and one command for each action verb."""
 
 import argparse
+import dataclasses
 import sys
 from collections.abc import Sequence
 
@@ -86,7 +87,7 @@ def act(
     call, git = runners
     repo, number, gates = target
     github = hub.Github(_repo=repo, _run=call)
-    if ask.verb == "push":
+    if ask.verb in actions.GIT:
         return actions.run(ask, hub.Git(_run=git), read_pull(call, repo, number), gates)
     if ask.verb == actions.NEW:
         return actions.file_ticket(ask, github)
@@ -95,7 +96,30 @@ def act(
         listed = rows_at(call, f"repos/{repo}/pulls?state=open")
         pulls = [read_pull(call, repo, j.number(p)) for p in listed]
         return actions.run_ticket(ask, github, parse.ticket_from(issue), pulls)
-    return actions.run(ask, github, read_pull(call, repo, number), gates)
+    pr = read_pull(call, repo, number)
+    if ask.verb in actions.CITES:
+        ask = dataclasses.replace(ask, tickets=ticket_lines(call, repo, pr.body.refs))
+    return actions.run(ask, github, pr, gates)
+
+
+def ticket_lines(call: hub.Runner, repo: str, refs: Sequence[str]) -> Sequence[str]:
+    """The ``Ticket: <ref> <digest>`` lines of a review, in the order of the refs.
+
+    Args:
+        call: runs ``gh``.
+        repo: ``owner/name`` of the PR.
+        refs: the tickets its body fixes, as written.
+
+    Returns:
+        One line for each ticket: its ref in full and the digest of its body.
+    """
+    full = sorted(f"{repo}{r}" if r.startswith("#") else r for r in refs)
+    out = []
+    for each in full:
+        slug, number = each.split("#")
+        issue = j.obj(hub.get(call, f"repos/{slug}/issues/{number}"))
+        out.append(f"Ticket: {each} {parse.text_digest(j.text(issue.get('body')))}")
+    return out
 
 
 def command_line() -> argparse.ArgumentParser:
@@ -115,7 +139,22 @@ def command_line() -> argparse.ArgumentParser:
         if word != "next":
             one.add_argument("--text", default="")
             one.add_argument("--verdict", default="")
+            one.add_argument("--plan", default="")
+            one.add_argument("--execution", default="")
     return top
+
+
+def show(shown: Sequence[str], number: int) -> str:
+    """Pick the lines of one item, or all of them for number 0.
+
+    Args:
+        shown: the lines of ``lines``.
+        number: the item, 0 for all.
+
+    Returns:
+        The lines, one on each line.
+    """
+    return "\n".join(x for x in shown if f"#{number}:" in x or not number)
 
 
 def main(
@@ -136,14 +175,15 @@ def main(
     options = command_line().parse_args(argv)
     gates = machine.Gates(hold=options.hold, pressure=options.pressure)
     if options.command == "next":
-        shown = lines(call, options.repo, gates)
-        print(
-            "\n".join(
-                x for x in shown if f"#{options.number}:" in x or not options.number
-            )
-        )
+        print(show(lines(call, options.repo, gates), options.number))
         return 0
-    ask = actions.Ask(verb=options.command, text=options.text, verdict=options.verdict)
+    ask = actions.Ask(
+        verb=options.command,
+        text=options.text,
+        verdict=options.verdict,
+        plan=options.plan,
+        execution=options.execution,
+    )
     result = act(ask, (call, git), (options.repo, options.number, gates))
     print(result)
     return 0 if isinstance(result, actions.Done) else 1

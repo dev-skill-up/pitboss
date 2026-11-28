@@ -26,13 +26,18 @@ class Ask:
     Attributes:
         verb: a key of ``STEPS``.
         text: a comment body, a label name or the grounds of a review.
-        verdict: ``approved`` or ``changes needed`` for a review, ``ok`` or
-            ``refused`` for a plan check.
+        verdict: ``ok`` or ``refused`` for a plan check.
+        plan: the grade of a review of the Plan, ``approved`` or ``changes needed``.
+        execution: the grade of a review of the Execution, empty for none.
+        tickets: the ``Ticket: <ref> <digest>`` lines a review records.
     """
 
     verb: str
     text: str = ""
     verdict: str = ""
+    plan: str = ""
+    execution: str = ""
+    tickets: Sequence[str] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,10 +79,11 @@ class Invalid:
 
 Outcome = Done | Refused | Invalid
 
-VERDICTS: Mapping[str, Set[str]] = {
-    "review": {"approved", "changes needed"},
-    "plan-check": {"ok", "refused"},
-}
+
+GIT = {"push"}
+CITES = {"review"}
+GRADES = {"approved", "changes needed"}
+VERDICTS: Mapping[str, Set[str]] = {"plan-check": {"ok", "refused"}}
 
 STEPS: Mapping[str, Set[machine.Step]] = {
     "merge": {machine.Step.MERGE},
@@ -126,32 +132,75 @@ def settle(
     return Done(verb=ask.verb)
 
 
-def composed(ask: Ask, pr: parse.Pull) -> Ask:
-    """Write the comment a review or a plan check posts, in the form the queue reads.
+def plan_check_text(ask: Ask, pr: parse.Pull) -> str:
+    """The comment of a plan check.
 
     Args:
-        ask: the verb, its verdict and its grounds.
+        ask: the verb and its verdict.
+        pr: the PR.
+
+    Returns:
+        ``Plan check`` and its verdict line.
+    """
+    return f"Plan check\nPlan check: {ask.verdict}"
+
+
+def review_text(ask: Ask, pr: parse.Pull) -> str:
+    """The comment of a review, in the form the queue reads.
+
+    Args:
+        ask: the grades, the ticket lines and the grounds.
+        pr: the PR.
+
+    Returns:
+        The comment: head and verdict, grades, digests, tickets, then the grounds.
+    """
+    who = "a separate reviewer agent, not the author"
+    graded = {ask.plan, ask.execution or ask.plan}
+    overall = "approved" if graded == {"approved"} else "changes needed"
+    execution = [f"Execution: {ask.execution}"] if ask.execution else []
+    plan = pr.body.digests[0] if pr.body.digests else ""
+    lines = [
+        f"Independent review ({who}) of head {pr.head}: {overall}",
+        f"Plan: {ask.plan}",
+        *execution,
+        f"Verdict: {overall}",
+        f"Body: {pr.body.whole}",
+        f"Plan-digest: {plan}",
+        *ask.tickets,
+        "",
+        ask.text,
+    ]
+    return "\n".join(lines)
+
+
+TEXTS = {"review": review_text, "plan-check": plan_check_text}
+
+
+def composed(ask: Ask, pr: parse.Pull) -> Ask:
+    """Write the comment a review or a plan check posts.
+
+    Args:
+        ask: the verb and what it carries.
         pr: the PR.
 
     Returns:
         The ask with the comment as its text; other verbs are as they are.
     """
-    who = "a separate reviewer agent, not the author"
-    plan = pr.body.digests[0] if pr.body.digests else ""
-    forms = {
-        "plan-check": ["Plan check", f"Plan check: {ask.verdict}"],
-        "review": [
-            f"Independent review ({who}) of head {pr.head}: {ask.verdict}",
-            f"Plan: {ask.verdict}",
-            f"Verdict: {ask.verdict}",
-            f"Body: {pr.body.whole}",
-            f"Plan-digest: {plan}",
-            "",
-            ask.text,
-        ],
-    }
-    lines = forms.get(ask.verb)
-    return dataclasses.replace(ask, text="\n".join(lines)) if lines else ask
+    make = TEXTS.get(ask.verb)
+    return dataclasses.replace(ask, text=make(ask, pr)) if make else ask
+
+
+def graded(ask: Ask) -> bool:
+    """Say whether a review's grades are grades.
+
+    Args:
+        ask: the verb and its grades.
+
+    Returns:
+        True when the Plan grade is one and the Execution grade is one or empty.
+    """
+    return ask.plan in GRADES and (not ask.execution or ask.execution in GRADES)
 
 
 def run(ask: Ask, hub: Hub, pr: parse.Pull, gates: machine.Gates) -> Outcome:
@@ -169,6 +218,8 @@ def run(ask: Ask, hub: Hub, pr: parse.Pull, gates: machine.Gates) -> Outcome:
     allowed = VERDICTS.get(ask.verb, {ask.verdict})
     if ask.verdict not in allowed:
         return Invalid(verb=ask.verb, allowed=allowed)
+    if ask.verb in CITES and not graded(ask):
+        return Invalid(verb=ask.verb, allowed=GRADES)
     at = (pr.number, machine.pull_step(pr, gates))
     return settle(composed(ask, pr), hub, at, STEPS[ask.verb])
 
