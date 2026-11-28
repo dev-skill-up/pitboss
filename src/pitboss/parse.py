@@ -12,8 +12,16 @@ VERDICT = re.compile(r"^Verdict: (approved|changes needed)\b", re.M)
 PLAN = re.compile(r"^Plan: (approved|changes needed)\b", re.M)
 EXECUTION = re.compile(r"^Execution: (approved|changes needed)\b", re.M)
 RULING = re.compile(r"^Ruling: (.+)$", re.M)
-PLAN_SECTION = re.compile(r"^## Plan\n(.*?)(?=^## |\Z)", re.M | re.S)
-PLAN_DIGEST = re.compile(r"^Plan-digest: ([0-9a-f]+)$", re.M)
+PLAN_SECTION = re.compile(r"^## Plan\n.*?(?=^## |\Z)", re.M | re.S)
+PLAN_DIGEST = re.compile(r"^Plan[ -]digest: ([0-9a-f]+)$", re.M)
+EXPANDED = re.compile(
+    r"^(?P<fence>`{3,})pitboss-expand sha256=(?P<digest>[0-9a-f]{16})"
+    r"(?: head=[0-9a-f]{40})?[ \t]*\n(?P<inside>(?:.*\n)*?)(?P=fence)[ \t]*$",
+    re.M,
+)
+RUN_ADDRESS = re.compile(
+    r"(https://github\.com/[\w.-]+/[\w.-]+)/actions/runs/\d+(?:/job/\d+)?"
+)
 CLOSES = re.compile(r"\b(?:fixes|closes|resolves) #(\d+)", re.I)
 GREEN = ("success", "neutral", "skipped")
 
@@ -57,12 +65,12 @@ class Body:
     Attributes:
         closes: the tickets it fixes.
         sections: whether it has a Plan section and an Execution section.
-        digest: the digest of its Plan section, empty with none.
+        digests: the digests a review may record for its Plan section, empty with none.
     """
 
     closes: Sequence[int]
     sections: bool
-    digest: str
+    digests: Sequence[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -165,19 +173,54 @@ def kind_of(text: str) -> str:
     return "other"
 
 
-def digest_of(text: str) -> str:
-    """Digest the Plan section of a PR body.
+def text_digest(text: str) -> str:
+    """Digest a text: line endings as ``\\n``, no trailing white space.
+
+    Args:
+        text: the text.
+
+    Returns:
+        The first 16 hex digits of its SHA-256.
+    """
+    plain = re.sub(r"\r\n?", "\n", text).rstrip()
+    return hashlib.sha256(plain.encode()).hexdigest()[:16]
+
+
+def collapse(block: re.Match[str]) -> str:
+    """Say a block ``expand`` produced as its command line.
+
+    Args:
+        block: a fenced block that names a digest.
+
+    Returns:
+        The ``$ command`` line when the block's contents have that digest, else
+        the block as it is.
+    """
+    inside = block.group("inside")
+    if inside.startswith("$ ") and text_digest(inside) == block.group("digest"):
+        return inside.split("\n", 1)[0]
+    return block.group(0)
+
+
+def digests_of(text: str) -> Sequence[str]:
+    """Digest the Plan section of a PR body, the heading included.
 
     Args:
         text: the PR body.
 
     Returns:
-        Sixteen hex digits of the section's SHA-256, empty with no Plan section.
+        The digests a review may record: each expanded block as its command and the
+        run and job ids of Actions addresses dropped, then the same with the ids
+        kept. Empty when the body has no Plan section.
     """
     found = PLAN_SECTION.search(text)
     if found is None:
-        return ""
-    return hashlib.sha256(found.group(1).strip().encode()).hexdigest()[:16]
+        return []
+    collapsed = EXPANDED.sub(collapse, found.group(0))
+    return [
+        text_digest(RUN_ADDRESS.sub(r"\1/actions/runs", collapsed)),
+        text_digest(collapsed),
+    ]
 
 
 def body_of(text: str) -> Body:
@@ -192,7 +235,7 @@ def body_of(text: str) -> Body:
     return Body(
         closes=[int(n) for n in CLOSES.findall(text)],
         sections=bool(PLAN_SECTION.search(text)) and "## Execution" in text,
-        digest=digest_of(text),
+        digests=digests_of(text),
     )
 
 

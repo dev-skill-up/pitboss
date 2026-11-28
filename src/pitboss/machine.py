@@ -167,7 +167,7 @@ def _step(pr: parse.Pull) -> Step:
     if not mine:
         return Step.REVIEW
     pinned = mine[-1].plan_digest
-    if pinned and pinned != pr.body.digest:
+    if pinned and pinned not in pr.body.digests:
         return Step.PLAN_EDITED
     return _graded(pr, mine[-1])
 

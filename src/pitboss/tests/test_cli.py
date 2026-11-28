@@ -48,10 +48,12 @@ class TestCli(unittest.TestCase):
         assert_that(status, equal_to(1))
         assert_that(text, contains_string("Refused"))
 
-    def test_hold_flag(self) -> None:
-        """``--hold`` turns the merge step into HELD."""
-        text = say(["next", "o/r", "--hold"], world.Runner())[1]
-        assert_that(text, contains_string("PR #7: HELD"))
+    def test_next_options(self) -> None:
+        """``next REPO NUMBER`` lists one item; ``--hold`` holds the merge."""
+        cases = [(["3"], "ticket #3: WAIT_FOR_PR"), (["--hold"], "PR #7: HELD")]
+        got = [say(["next", "o/r", *extra], world.Runner())[1] for extra, _ in cases]
+        for text, (_, line) in zip(got, cases, strict=True):
+            assert_that(text, contains_string(line))
 
 
 class TestVerbs(unittest.TestCase):
