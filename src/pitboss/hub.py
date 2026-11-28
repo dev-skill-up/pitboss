@@ -80,17 +80,21 @@ def get(run: Runner, path: str) -> j.JsonValue:
     return first
 
 
-ROUTES: Mapping[str, tuple[str, str, str]] = {
-    "merge": ("PUT", "pulls/{n}/merge", "merge_method=merge"),
-    "close": ("PATCH", "pulls/{n}", "state=closed"),
-    "update-branch": ("PUT", "pulls/{n}/update-branch", ""),
-    "comment": ("POST", "issues/{n}/comments", "body={text}"),
-    "label": ("POST", "issues/{n}/labels", "labels[]={text}"),
-    "review": ("POST", "issues/{n}/comments", "body={text}"),
-    "plan-check": ("POST", "issues/{n}/comments", "body={text}"),
-    "ruling": ("POST", "issues/{n}/comments", "body={text}"),
-    "pr-create": ("POST", "pulls", "head={text}\nbase=main\ntitle={text}\ndraft=true"),
-    "file-ticket": ("POST", "issues", "title={text}"),
+ROUTES: Mapping[str, tuple[str, str, Sequence[str]]] = {
+    "merge": ("PUT", "pulls/{n}/merge", ("merge_method=merge",)),
+    "close": ("PATCH", "pulls/{n}", ("state=closed",)),
+    "update-branch": ("PUT", "pulls/{n}/update-branch", ()),
+    "comment": ("POST", "issues/{n}/comments", ("body={text}",)),
+    "label": ("POST", "issues/{n}/labels", ("labels[]={text}",)),
+    "review": ("POST", "issues/{n}/comments", ("body={text}",)),
+    "plan-check": ("POST", "issues/{n}/comments", ("body={text}",)),
+    "ruling": ("POST", "issues/{n}/comments", ("body={text}",)),
+    "pr-create": (
+        "POST",
+        "pulls",
+        ("head={text}", "base=main", "title={text}", "draft=true"),
+    ),
+    "file-ticket": ("POST", "issues", ("title={text}",)),
 }
 READY = (
     "mutation($id:ID!){markPullRequestReadyForReview"
@@ -116,17 +120,17 @@ def pull_field(call: Runner, repo: str, number: int, *path: str) -> str:
     return j.text(value)
 
 
-def send(call: Runner, repo: str, route: tuple[str, str, str]) -> None:
+def send(call: Runner, repo: str, route: tuple[str, str, Sequence[str]]) -> None:
     """Write one REST call.
 
     Args:
         call: runs ``gh``.
         repo: ``owner/name``.
-        route: the method, the path under the repository and a ``key=value`` field.
+        route: the method, the path under the repository and the ``key=value`` fields.
     """
-    method, path, field = route
+    method, path, fields = route
     base = ["api", "-X", method, f"repos/{repo}/{path}"]
-    call([*base, *[x for f in field.splitlines() for x in ("-f", f)]])
+    call([*base, *[x for f in fields for x in ("-f", f)]])
 
 
 def undraft(call: Runner, repo: str, ask: actions.Ask, number: int) -> None:
@@ -156,7 +160,7 @@ def rerun(call: Runner, repo: str, ask: actions.Ask, number: int) -> None:
     for each in j.rows(found.get("workflow_runs")):
         if each.get("conclusion") == "failure":
             ident = j.count(each.get("id"))
-            send(call, repo, ("POST", f"actions/runs/{ident}/rerun-failed-jobs", ""))
+            send(call, repo, ("POST", f"actions/runs/{ident}/rerun-failed-jobs", ()))
 
 
 def dispatch(call: Runner, repo: str, ask: actions.Ask, number: int) -> None:
@@ -169,7 +173,9 @@ def dispatch(call: Runner, repo: str, ask: actions.Ask, number: int) -> None:
         number: the PR.
     """
     ref = pull_field(call, repo, number, "head", "ref")
-    send(call, repo, ("POST", "actions/workflows/check.yml/dispatches", f"ref={ref}"))
+    send(
+        call, repo, ("POST", "actions/workflows/check.yml/dispatches", (f"ref={ref}",))
+    )
 
 
 def routed(call: Runner, repo: str, ask: actions.Ask, number: int) -> None:
@@ -181,9 +187,9 @@ def routed(call: Runner, repo: str, ask: actions.Ask, number: int) -> None:
         ask: the verb and its text.
         number: the PR.
     """
-    method, path, field = ROUTES[ask.verb]
+    method, path, fields = ROUTES[ask.verb]
     path = path.format(n=number)
-    send(call, repo, (method, path, field.format(text=ask.text)))
+    send(call, repo, (method, path, [f.format(text=ask.text) for f in fields]))
 
 
 ACTS = {

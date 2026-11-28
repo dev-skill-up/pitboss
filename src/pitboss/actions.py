@@ -25,11 +25,14 @@ class Ask:
 
     Attributes:
         verb: a key of ``STEPS``.
-        text: a comment body or a label name, empty otherwise.
+        text: a comment body, a label name or the grounds of a review.
+        verdict: ``approved`` or ``changes needed`` for a review, ``ok`` or
+            ``refused`` for a plan check.
     """
 
     verb: str
     text: str = ""
+    verdict: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -56,7 +59,25 @@ class Refused:
     found: machine.Step
 
 
-Outcome = Done | Refused
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Invalid:
+    """The verb was given a verdict it does not take.
+
+    Attributes:
+        verb: the verb.
+        allowed: the verdicts it takes.
+    """
+
+    verb: str
+    allowed: Set[str]
+
+
+Outcome = Done | Refused | Invalid
+
+VERDICTS: Mapping[str, Set[str]] = {
+    "review": {"approved", "changes needed"},
+    "plan-check": {"ok", "refused"},
+}
 
 STEPS: Mapping[str, Set[machine.Step]] = {
     "merge": {machine.Step.MERGE},
@@ -105,6 +126,34 @@ def settle(
     return Done(verb=ask.verb)
 
 
+def composed(ask: Ask, pr: parse.Pull) -> Ask:
+    """Write the comment a review or a plan check posts, in the form the queue reads.
+
+    Args:
+        ask: the verb, its verdict and its grounds.
+        pr: the PR.
+
+    Returns:
+        The ask with the comment as its text; other verbs are as they are.
+    """
+    who = "a separate reviewer agent, not the author"
+    plan = pr.body.digests[0] if pr.body.digests else ""
+    forms = {
+        "plan-check": ["Plan check", f"Plan check: {ask.verdict}"],
+        "review": [
+            f"Independent review ({who}) of head {pr.head}: {ask.verdict}",
+            f"Plan: {ask.verdict}",
+            f"Verdict: {ask.verdict}",
+            f"Body: {pr.body.whole}",
+            f"Plan-digest: {plan}",
+            "",
+            ask.text,
+        ],
+    }
+    lines = forms.get(ask.verb)
+    return dataclasses.replace(ask, text="\n".join(lines)) if lines else ask
+
+
 def run(ask: Ask, hub: Hub, pr: parse.Pull, gates: machine.Gates) -> Outcome:
     """Run a verb on a PR when the PR is at a step the verb is for.
 
@@ -117,8 +166,11 @@ def run(ask: Ask, hub: Hub, pr: parse.Pull, gates: machine.Gates) -> Outcome:
     Returns:
         ``Done``, or ``Refused`` with nothing written.
     """
-    wanted = STEPS[ask.verb]
-    return settle(ask, hub, (pr.number, machine.pull_step(pr, gates)), wanted)
+    allowed = VERDICTS.get(ask.verb, {ask.verdict})
+    if ask.verdict not in allowed:
+        return Invalid(verb=ask.verb, allowed=allowed)
+    at = (pr.number, machine.pull_step(pr, gates))
+    return settle(composed(ask, pr), hub, at, STEPS[ask.verb])
 
 
 def run_ticket(

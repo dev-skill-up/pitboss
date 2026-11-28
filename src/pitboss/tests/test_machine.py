@@ -145,3 +145,27 @@ class TestTicket(unittest.TestCase):
         assert_that(machine.ticket_step(ticket, []), equal_to(Step.OPEN_PR))
         assert_that(machine.ticket_step(shut, []), equal_to(Step.DONE))
         assert_that(shut.done_when, equal_to([]))
+
+
+class TestDigest(unittest.TestCase):
+    """The digest a review records for a Plan section."""
+
+    def test_expanded_block_and_run_ids(self) -> None:
+        """A block is its command, and an Actions address drops its ids."""
+        inside = "$ echo hi\nhi\n"
+        mark = "```pitboss-expand sha256=" + parse.text_digest(inside)
+        run = "https://github.com/o/r/actions/runs/12/job/34"
+        first = f"## Plan\n{mark}\n{inside}```\n{run}\n## Execution\n"
+        second = "## Plan\n$ echo hi\nhttps://github.com/o/r/actions/runs\n"
+        edited = first.replace("hi\n```", "bye\n```")
+        digests = parse.digests_of(first)
+        assert_that(digests[0], equal_to(parse.text_digest(second)))
+        assert_that(parse.digests_of(edited)[0] == digests[0], equal_to(False))
+        assert_that(parse.digests_of("no plan"), equal_to([]))
+
+    def test_review_records_either_prefix(self) -> None:
+        """``Plan digest:`` and ``Plan-digest:`` both name the digest."""
+        text = f"{world.HEAD}: approved\nPlan digest: {world.DIGEST}"
+        review = parse.review_of(text)
+        assert review is not None
+        assert_that(review.plan_digest, equal_to(world.DIGEST))

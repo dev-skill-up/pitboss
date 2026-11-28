@@ -111,9 +111,10 @@ def command_line() -> argparse.ArgumentParser:
         one.add_argument("repo")
         one.add_argument("--hold", action="store_true")
         one.add_argument("--pressure", action="store_true")
+        one.add_argument("number", type=int, nargs="?", default=0)
         if word != "next":
-            one.add_argument("number", type=int, nargs="?", default=0)
             one.add_argument("--text", default="")
+            one.add_argument("--verdict", default="")
     return top
 
 
@@ -135,9 +136,14 @@ def main(
     options = command_line().parse_args(argv)
     gates = machine.Gates(hold=options.hold, pressure=options.pressure)
     if options.command == "next":
-        print("\n".join(lines(call, options.repo, gates)))
+        shown = lines(call, options.repo, gates)
+        print(
+            "\n".join(
+                x for x in shown if f"#{options.number}:" in x or not options.number
+            )
+        )
         return 0
-    ask = actions.Ask(verb=options.command, text=options.text)
+    ask = actions.Ask(verb=options.command, text=options.text, verdict=options.verdict)
     result = act(ask, (call, git), (options.repo, options.number, gates))
     print(result)
     return 0 if isinstance(result, actions.Done) else 1
