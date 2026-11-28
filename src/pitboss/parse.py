@@ -6,10 +6,11 @@ from typing import Any, Mapping, Sequence
 
 Json = Mapping[str, Any]
 
-REVIEWED = re.compile(r"^Reviewed: ([0-9a-f]{7,40})$", re.M)
-VERDICT = re.compile(r"^Verdict: (approved|changes needed)$", re.M)
-PLAN = re.compile(r"^Plan: (approved|changes needed)$", re.M)
-RULING = re.compile(r"^Ruling: (approved|changes needed|escalate)$", re.M)
+REVIEWED = re.compile(r"^Independent review .* of head ([0-9a-f]{7,40}):", re.M)
+VERDICT = re.compile(r"^Verdict: (approved|changes needed)\b", re.M)
+PLAN = re.compile(r"^Plan: (approved|changes needed)\b", re.M)
+EXECUTION = re.compile(r"^Execution: (approved|changes needed)\b", re.M)
+RULING = re.compile(r"^Ruling: (.+)$", re.M)
 FIXES = re.compile(r"\b(?:fixes|closes|resolves) #(\d+)", re.I)
 
 
@@ -59,7 +60,7 @@ def review_of(body: str) -> Review | None:
     head = REVIEWED.search(body)
     if head is None:
         return None
-    plan, verdict = PLAN.search(body), VERDICT.search(body)
+    plan, verdict = PLAN.search(body), EXECUTION.search(body) or VERDICT.search(body)
     return Review(
         sha=head.group(1),
         plan=plan.group(1) if plan else None,
@@ -108,7 +109,7 @@ def pull(
         labels=frozenset(x["name"] for x in data.get("labels", [])),
         checks=tuple(check_state(r) for r in runs),
         reviews=tuple(reviews),
-        rulings=tuple(m.group(1) for w in words for m in [RULING.search(w)] if m),
+        rulings=tuple(m.group(1).strip() for w in words for m in [RULING.search(w)] if m),
         fixes=tuple(int(n) for n in FIXES.findall(data.get("body") or "")),
     )
 

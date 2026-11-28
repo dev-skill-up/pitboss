@@ -31,7 +31,7 @@ def pull_step(pr: parse.Pull) -> Step:
     Returns:
         The step.
     """
-    if pr.rulings and pr.rulings[-1] == "escalate":
+    if pr.rulings and pr.rulings[-1].startswith("escalate"):
         return Step.OWNER
     if pr.conflict:
         return Step.FIX_CONFLICT

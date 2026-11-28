@@ -16,8 +16,8 @@ def pr(draft=False, state="clean", runs=("success",), comments=()):
     return parse.pull(data, rs, cs, T)
 
 
-APPROVED = f"Adversarial review\nReviewed: {SHA}\nPlan: approved\nVerdict: approved"
-REJECTED = f"Adversarial review\nReviewed: {SHA}\nVerdict: changes needed"
+APPROVED = f"Independent review (a separate reviewer agent) of head {SHA}: approved\nPlan: approved\nVerdict: approved\nBody: x"
+REJECTED = f"Independent review (a separate reviewer agent) of head {SHA}: changes needed\nVerdict: changes needed"
 
 
 class Fake:
@@ -40,7 +40,7 @@ class TestMachine(unittest.TestCase):
             (pr(runs=("success",), state="dirty", comments=[APPROVED]), S.FIX_CONFLICT),
             (pr(comments=[REJECTED]), S.WORKER),
             (pr(comments=[REJECTED, REJECTED]), S.OPUS_RULING),
-            (pr(comments=["Ruling: escalate"]), S.OWNER),
+            (pr(comments=["Opus ruling\nRuling: escalate to the owner"]), S.OWNER),
         ]:
             assert_that(machine.pull_step(p), equal_to(want))
 
@@ -79,9 +79,9 @@ class TestActions(unittest.TestCase):
 
 class TestEdges(unittest.TestCase):
     def test_plan_only(self):
-        plan = f"Adversarial review\nReviewed: {SHA}\nPlan: approved"
+        plan = f"Independent review (a) of head {SHA}: approved\nPlan: approved"
         assert_that(machine.pull_step(pr(comments=[plan])), equal_to(machine.Step.WORKER))
-        bare = f"Adversarial review\nReviewed: {SHA}"
+        bare = f"Independent review (a) of head {SHA}: approved"
         assert_that(machine.pull_step(pr(comments=[bare])), equal_to(machine.Step.REVIEW))
 
     def test_cli(self):

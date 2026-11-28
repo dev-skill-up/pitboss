@@ -7,9 +7,9 @@ pitboss is three things: a parser, a state machine, and actions that check state
 Input: GitHub REST JSON, every list read with `--paginate`. Output: plain frozen values, no I/O.
 - `Pull`: number, head sha, draft, conflict (`mergeable_state == dirty`), labels, check states
   (`green`/`red`/`pending`), reviews, rulings, the tickets its body fixes.
-- `Review`: a trusted comment (author association in the trusted set) with a `Reviewed: <sha>` line;
+- `Review`: a trusted comment (author association in the trusted set) with a first line `Independent review ... of head <sha>: <verdict>`;
   `Plan:` and `Verdict:` lines grade it.
-- Rulings: `Ruling: approved | changes needed | escalate` lines of trusted comments.
+- Rulings: `Ruling: <words>` lines (escalation: words start with `escalate`) of trusted comments.
 - `Ticket`: number, open, labels, the bullets under `## Done when`.
 
 ## 2. State machine (`pitboss_core/machine.py`)
