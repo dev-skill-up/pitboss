@@ -89,13 +89,14 @@ def same(left: object, right: str) -> bool:
         right: what was sent.
 
     Returns:
-        True when equal, a line end and the ends' blanks apart.
+        True when it holds the text sent, a line end and the ends' blanks apart,
+        with anything after it (a footer the host adds to what it keeps).
     """
 
     def plain(each: str) -> str:
         return each.replace("\r\n", "\n").strip()
 
-    return plain(text(left)) == plain(right)
+    return plain(text(left)).startswith(plain(right))
 
 
 def _nothing(github: GitHub, write: Words) -> object:

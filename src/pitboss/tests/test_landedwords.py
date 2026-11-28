@@ -5,7 +5,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to, none
 
-from .. import landedwords
+from .. import landedseen, landedwords
 from . import fakeapply
 
 REPO = "repos/o/r"
@@ -73,6 +73,19 @@ class TestWords(unittest.TestCase):
         ):
             with self.subTest(words=words):
                 assert_that(landedwords.parse(words), none())
+
+
+class TestSame(unittest.TestCase):
+    """A text GitHub holds is the one sent, a footer after it apart."""
+
+    def test_a_footer_after_the_text_is_the_text_shown(self) -> None:
+        """Another text, or the text cut short, is not."""
+        sent = "the body\r\n"
+        found = [
+            landedseen.same(held, sent)
+            for held in ("the body\n\n---\n_footer_", "the body", "other", "the bo")
+        ]
+        assert_that(found, equal_to([True, True, False, False]))
 
 
 class TestFakeApply(unittest.TestCase):
