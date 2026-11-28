@@ -1,151 +1,147 @@
-"""The machine of the automatic cleaning: the pressure switch and the real parts."""
+"""The state machine: every step, and the gates."""
 
-import pathlib
 import unittest
-from typing import Sequence
+from collections.abc import Sequence
 
-from .. import disk, machine
-from . import cleanworld, world
-from .autocleanworld import Tree, machine_of, used
+from hamcrest import assert_that, equal_to
 
-same = cleanworld.same
+from .. import machine, parse
+from . import world
 
-
-def crowded_in(percent: int, limit: float, minimum: float) -> Sequence[machine.Crowded]:
-    """The file systems of one path that are crowded.
-
-    Args:
-        percent: how much of the 100 GiB file system is used.
-        limit: the limit.
-        minimum: the free space, in GiB, under which it is crowded.
-
-    Returns:
-        The crowded file systems.
-    """
-    place = pathlib.Path("/a")
-    seen = machine_of(Tree(), {place: used(percent)})
-    return machine.find_crowded(seen, [place], limit, minimum)
+Step = machine.Step
+READY = world.READY
+CHECKED = world.CHECKED
+REJECTS = [CHECKED, world.REJECTED]
+EDITED = world.APPROVED.replace(world.DIGEST, "0")
+OTHER_HEAD = world.APPROVED.replace(world.SHA, "b" * 40)
 
 
-def crowded_count(percent: int, limit: float, minimum: float = 0.0) -> int:
-    """How many file systems of one path are crowded.
+def at(
+    want: Step,
+    tags: str = "",
+    comments: Sequence[str] = (),
+    runs: Sequence[str] = ("success",),
+) -> tuple[parse.Pull, Step]:
+    """Pair a PR with the step it should be at.
 
     Args:
-        percent: how much of the file system is used.
-        limit: the limit.
-        minimum: the free space, in GiB, under which it is crowded.
+        want: the step.
+        tags: words for ``world.pull``.
+        comments: its trusted comments.
+        runs: its check conclusions.
 
     Returns:
-        The count.
+        The PR and the step.
     """
-    return len(crowded_in(percent, limit, minimum))
+    return world.pull(tags, runs, comments), want
 
 
-class TestPressureSwitch(unittest.TestCase):
-    """At 90% used the cleaning is aggressive."""
+def check(cases: Sequence[tuple[parse.Pull, Step]], gates: machine.Gates) -> None:
+    """Check each PR has its step.
 
-    def test_percent_used(self) -> None:
-        """The percent is as df counts it."""
-        same(machine.percent_used(used(95)), 95.0)
-
-    def test_a_file_system_of_no_size_is_not_used(self) -> None:
-        """No division by zero: it is 0 percent."""
-        found = machine.percent_used(disk.Usage(total=0, used=0, free=0))
-        same(found, 0.0)
-
-    def test_just_under_the_limit_is_not_crowded(self) -> None:
-        """89% used is under 90%."""
-        same(crowded_count(89, 90), 0)
-
-    def test_the_limit_itself_is_crowded(self) -> None:
-        """Exactly 90% used switches to the aggressive cleaning."""
-        same(crowded_count(90, 90), 1)
-
-    def test_under_the_minimum_free_space_is_crowded_too(self) -> None:
-        """95 GiB used of 100 leaves 5 GiB: under 6 GiB free, not under 5."""
-        (found,) = crowded_in(95, 99, 6.0)
-        same(
-            (found.short, found.free, found.over),
-            (True, 5 * 2**30, 2**30 + 1),
-        )
-        same((crowded_count(95, 99, 5.0), crowded_count(95, 99)), (0, 0))
-
-    def test_the_bytes_over_are_the_larger_of_the_two_rules(self) -> None:
-        """Over 90 percent and short of free space: the more bytes to free."""
-        (found,) = crowded_in(95, 90, 20.0)
-        same((found.short, found.over), (True, 15 * 2**30 + 1))
-
-    def test_each_file_system_once_and_absent_paths_left_out(self) -> None:
-        """Two paths on one file system are one entry; a missing path is none."""
-        first, second, missing = (pathlib.Path(name) for name in ("/a", "/b", "/c"))
-        seen = machine_of(Tree(), {first: used(95), second: used(95)})
-        found = machine.find_crowded(seen, [first, second, missing], 90)
-        same([each.place for each in found], [first])
-
-
-def real_root() -> pathlib.Path:
-    """A directory of two entries.
-
-    Returns:
-        The directory.
+    Args:
+        cases: each PR and the step it should be at.
+        gates: holds and pressure.
     """
-    return cleanworld.session_root("a", "b")
+    got = [machine.pull_step(pr, gates) for pr, _ in cases]
+    assert_that(got, equal_to([want for _, want in cases]))
 
 
-class TestReal(unittest.TestCase):
-    """The real file system and disk reader, on a real directory."""
+class TestPull(unittest.TestCase):
+    """``pull_step``."""
 
-    def test_it_lists_a_directory(self) -> None:
-        """It lists the entries, sorted, and none for a missing directory."""
-        top = real_root()
-        fs = machine.real()
-        same([each.name for each in fs.children(top)][:3], ["a", "b", "marker"])
-        same(fs.children(top / "missing"), [])
-
-    def test_it_tells_what_is_there(self) -> None:
-        """It tells a path from none, and a link from the rest."""
-        top = real_root()
-        link = top / "link"
-        link.symlink_to(top / "a")
-        fs = machine.real()
-        same([fs.exists(top / "a"), fs.exists(top / "none")], [True, False])
-        same([fs.is_link(link), fs.is_link(top)], [True, False])
-
-    def test_it_reads_owners_and_walks(self) -> None:
-        """It reads the owner of a path and walks it."""
-        top = real_root()
-        fs = machine.real()
-        same(fs.owner(top), top.stat().st_uid)
-        same(fs.inspect(top / "a").unreadable, ())
-
-    def test_a_path_that_went_has_no_owner(self) -> None:
-        """An entry deleted after it was listed is nobody's, not an error."""
-        top = real_root()
-        fs = machine.real()
-        same([fs.owner(top / "gone"), fs.owner(top / "a")], [None, top.stat().st_uid])
-
-    def test_it_reads_when_a_path_changed_without_a_walk(self) -> None:
-        """It reads a path's own time; a path that went has none."""
-        top = real_root()
-        fs = machine.real()
-        same(
-            [fs.changed(top / "a"), fs.changed(top / "gone")],
-            [(top / "a").stat().st_mtime, None],
+    def test_work_and_checks(self) -> None:
+        """A PR without sections, with a conflict or with a red check."""
+        check(
+            [
+                at(Step.WORKER, "bare"),
+                at(Step.FIX_CONFLICT, "dirty", READY),
+                at(Step.FIX_CI, "", READY, ("failure",)),
+                at(Step.PLAN_CHECK),
+                at(Step.SEND_BACK_PLAN_CHECK, "", [world.REFUSED]),
+                at(Step.REVIEW, "", [CHECKED]),
+                at(Step.WAIT, "", READY, ("pending",)),
+            ],
+            machine.Gates(),
         )
 
-    def test_the_disk_reader_reads_a_path(self) -> None:
-        """It reads a real path."""
-        top = real_root()
-        found = machine.read_usage(top)
-        same(found is not None and found.total > 0, True)
+    def test_reviews(self) -> None:
+        """What the review at the head says."""
+        check(
+            [
+                at(Step.MERGE, "", READY),
+                at(Step.PLAN_EDITED, "", [CHECKED, EDITED]),
+                at(Step.WORKER, "", REJECTS),
+                at(Step.OPUS_RULING, "", [*REJECTS, world.REJECTED]),
+                at(Step.WORKER, "", [CHECKED, world.PLAN_ONLY]),
+                at(Step.REVIEW, "", [CHECKED, world.BARE]),
+                at(Step.PLAN_CHECK, "", [OTHER_HEAD]),
+            ],
+            machine.Gates(),
+        )
 
-    def test_the_disk_reader_answers_none_for_a_missing_path(self) -> None:
-        """A path that is not there has no use."""
-        top = real_root()
-        same(machine.read_usage(top / "no"), None)
+    def test_drafts(self) -> None:
+        """An approved draft is undrafted, or its e2e is run first."""
+        check(
+            [
+                at(Step.UNDRAFT, "draft", READY),
+                at(Step.RUN_E2E, "draft e2e/a.js", READY),
+                at(Step.UNDRAFT, "draft e2e e2e/a.js", READY),
+            ],
+            machine.Gates(),
+        )
 
-    def test_the_real_machine_is_the_user_running(self) -> None:
-        """It reads the home from the environment and keeps the working set."""
-        working = {pathlib.Path("/w")}
-        found = machine.real_machine({"HOME": "/h"}, world.START, working)
-        same([found.home, found.working], [pathlib.Path("/h"), working])
+    def test_rulings(self) -> None:
+        """What the newest ruling asks."""
+        check(
+            [
+                at(Step.RULING_STEPS, "", [CHECKED, world.STEPS_RULING]),
+                at(Step.OWNER, "", [CHECKED, world.ESCALATES]),
+                at(Step.FIX_RULING, "", [CHECKED, world.UNREADABLE]),
+                at(Step.MERGE, "", [CHECKED, "hi", world.APPROVED]),
+            ],
+            machine.Gates(),
+        )
+
+    def test_untrusted(self) -> None:
+        """An untrusted comment counts for nothing."""
+        who = [world.comment(world.APPROVED, "NONE")]
+        thread = parse.thread_of(who, world.TRUSTED)
+        assert_that(thread.reviews, equal_to([]))
+
+
+class TestGates(unittest.TestCase):
+    """Holds and pressure."""
+
+    def test_hold_withholds_writes(self) -> None:
+        """A hold label or gate holds a merge, not a plan check."""
+        check(
+            [
+                at(Step.HELD, "hold", READY),
+                at(Step.HELD, "", READY),
+                at(Step.PLAN_CHECK),
+            ],
+            machine.Gates(hold=True),
+        )
+
+    def test_pressure_holds_all_but_undraft(self) -> None:
+        """Pressure or quiet holds a merge; a draft may still be undrafted."""
+        for gates in (machine.Gates(pressure=True), machine.Gates(quiet=True)):
+            check([at(Step.HELD, "", READY), at(Step.UNDRAFT, "draft", READY)], gates)
+
+
+class TestTicket(unittest.TestCase):
+    """``ticket_step``."""
+
+    def test_ticket(self) -> None:
+        """A ticket is done, waits for its PR, or needs one."""
+        text = "x\n## Done when\n- a\n- b"
+        ticket = parse.ticket_from({"number": 3, "state": "open", "body": text})
+        shut = parse.ticket_from({"number": 3, "state": "closed"})
+        assert_that(ticket.done_when, equal_to(["a", "b"]))
+        assert_that(
+            machine.ticket_step(ticket, [world.pull()]), equal_to(Step.WAIT_FOR_PR)
+        )
+        assert_that(machine.ticket_step(ticket, []), equal_to(Step.OPEN_PR))
+        assert_that(machine.ticket_step(shut, []), equal_to(Step.DONE))
+        assert_that(shut.done_when, equal_to([]))

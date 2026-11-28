@@ -2,7 +2,7 @@ pitboss
 ================
 
 
-Sweep a project's pull requests, merge queue, worktrees and worker slots
+Read GitHub pull requests and tickets, say each one's next step, act on it
 
 .. toctree::
    :maxdepth: 2

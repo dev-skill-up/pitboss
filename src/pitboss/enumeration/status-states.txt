@@ -1,6 +1,0 @@
-# derived by derive/github_sets.py from https://docs.github.com/en/rest/commits/statuses
-# count: 4
-error
-failure
-pending
-success

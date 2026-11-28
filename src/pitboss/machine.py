@@ -1,253 +1,189 @@
-"""What the automatic cleaning reads from the machine, all of it injected.
-
-The file system, the disk reader, the clock, the user and the home directory are
-values of a ``Machine``, so the tests play a fake one (keyword: auto-clean,
-pitboss#120; the rule is in ``rules.md``, "Checkouts and disk").
-"""
+"""State machine: a parsed PR or ticket (and the gates) to its one next step. Pure."""
 
 import dataclasses
-import datetime
-import math
-import os
-import pathlib
-import shutil
-from typing import AbstractSet, Callable, Mapping, Sequence
+import enum
+from collections.abc import Sequence
 
-from . import disk, mounts, procs, survey
+from . import parse
+
+
+class Step(enum.Enum):
+    """What happens next.
+
+    Attributes:
+        WORKER: a worker writes code.
+        REVIEW: a reviewer grades the head.
+        OPUS_RULING: an Opus agent rules.
+        FIX_RULING: the newest ruling has no readable ``Ruling:`` line.
+        RULING_STEPS: the worker does the steps of the newest ruling.
+        OWNER: the newest ruling escalates to the owner.
+        PLAN_CHECK: no clean Plan check is recorded.
+        SEND_BACK_PLAN_CHECK: the Plan check refused the Plan.
+        PLAN_EDITED: the approved Plan was edited.
+        RUN_E2E: dispatch the checks of a draft that touches e2e.
+        UNDRAFT: mark a approved draft ready.
+        FIX_CI: a check of the head is red.
+        FIX_CONFLICT: the head conflicts with the base.
+        WAIT: checks are still running.
+        HELD: a hold or the runner pressure withholds a write.
+        MERGE: the PR merges.
+        OPEN_PR: a ticket has no PR.
+        DONE: a ticket is closed.
+        WAIT_FOR_PR: a ticket has a PR that fixes it.
+    """
+
+    WORKER = enum.auto()
+    REVIEW = enum.auto()
+    OPUS_RULING = enum.auto()
+    FIX_RULING = enum.auto()
+    RULING_STEPS = enum.auto()
+    OWNER = enum.auto()
+    PLAN_CHECK = enum.auto()
+    SEND_BACK_PLAN_CHECK = enum.auto()
+    PLAN_EDITED = enum.auto()
+    RUN_E2E = enum.auto()
+    UNDRAFT = enum.auto()
+    FIX_CI = enum.auto()
+    FIX_CONFLICT = enum.auto()
+    WAIT = enum.auto()
+    HELD = enum.auto()
+    MERGE = enum.auto()
+    OPEN_PR = enum.auto()
+    DONE = enum.auto()
+    WAIT_FOR_PR = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Filesystem:
-    """What the cleaning asks of the file system.
+class Gates:
+    """What the caller read of the world outside the PR.
 
     Attributes:
-        children: lists a directory (sorted; none when it is not there).
-        exists: says whether something is at a path (a link counts as itself).
-        is_link: says whether a path is a symbolic link.
-        owner: says who owns a path (a link is not followed); None when it cannot
-            be read, as when it just went.
-        inspect: walks a path once: size, newest change, marker, mount points.
-        changed: when a path itself last changed (seconds since the epoch, a link
-            not followed), without a walk; None when it cannot be read. A
-            directory's walk is never older than this.
+        hold: whether a hold is on.
+        pressure: whether the runners are under pressure.
+        quiet: whether the quiet period after a push lasts.
     """
 
-    children: Callable[[pathlib.Path], Sequence[pathlib.Path]]
-    exists: Callable[[pathlib.Path], bool]
-    is_link: Callable[[pathlib.Path], bool]
-    owner: Callable[[pathlib.Path], int | None]
-    inspect: survey.Inspector
-    changed: Callable[[pathlib.Path], float | None]
+    hold: bool = False
+    pressure: bool = False
+    quiet: bool = False
 
 
-def _children(directory: pathlib.Path) -> Sequence[pathlib.Path]:
-    try:
-        return sorted(directory.iterdir())
-    except OSError:
-        return []
+WRITES = frozenset({Step.MERGE, Step.UNDRAFT, Step.RUN_E2E})
 
 
-def _owner(path: pathlib.Path) -> int | None:
-    # A path that went between the listing and now has no owner: not mine.
-    try:
-        return path.lstat().st_uid
-    except OSError:
-        return None
-
-
-def _inspect(path: pathlib.Path) -> survey.Survey:
-    return survey.walk(path, mounts.current())
-
-
-def _changed(path: pathlib.Path) -> float | None:
-    found = survey.status(path)
-    return None if found is None else found.st_mtime
-
-
-def real() -> Filesystem:
-    """The file system of this machine.
-
-    Returns:
-        The file system.
-    """
-    return Filesystem(
-        children=_children,
-        exists=os.path.lexists,
-        is_link=pathlib.Path.is_symlink,
-        owner=_owner,
-        inspect=_inspect,
-        changed=_changed,
-    )
-
-
-def read_usage(path: pathlib.Path) -> disk.Usage | None:
-    """Read the use of the file system of a path.
+def at_head(pr: parse.Pull) -> Sequence[parse.Review]:
+    """The reviews that name the head of the PR.
 
     Args:
-        path: a path on it.
+        pr: the PR.
 
     Returns:
-        The use, or None when the path is not there.
+        Them, oldest first.
     """
-    try:
-        return disk.Usage(*shutil.disk_usage(path))
-    except OSError:
-        return None
+    return [
+        r
+        for r in pr.thread.reviews
+        if pr.head.startswith(r.sha) or r.sha.startswith(pr.head)
+    ]
 
 
-def nobody() -> AbstractSet[pathlib.Path]:
-    """The directories no process works in: what a machine of no processes says.
-
-    Returns:
-        None.
-    """
-    return frozenset()
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Machine:
-    """What the cleaning reads from the machine.
-
-    Attributes:
-        fs: the file system.
-        usage: reads the use of a path's file system, None when absent.
-        now: the time now.
-        uid: the user whose tempdirs are removed.
-        home: the home directory, where the package caches are.
-        working: the directories the command runs in; never removed.
-        busy: reads the directories the running processes work in; a tempdir
-            that is or holds one is not removed (pitboss#348).
-    """
-
-    fs: Filesystem
-    usage: disk.Reader
-    now: datetime.datetime
-    uid: int
-    home: pathlib.Path
-    working: AbstractSet[pathlib.Path] = frozenset()
-    busy: Callable[[], AbstractSet[pathlib.Path]] = nobody
-
-
-def real_machine(
-    env: Mapping[str, str],
-    now: datetime.datetime,
-    working: AbstractSet[pathlib.Path],
-    usage: disk.Reader = read_usage,
-) -> Machine:
-    """This machine.
+def ruled(pr: parse.Pull) -> Step | None:
+    """The step a ruling asks for, when the newest event is one.
 
     Args:
-        env: the environment of the command.
-        now: the time now.
-        working: the directories the command runs in.
-        usage: reads the use of a path's file system.
+        pr: the PR.
 
     Returns:
-        The machine: the real file system and disk, the user running.
+        The step, None when the newest event is not a ruling.
     """
-    return Machine(
-        fs=real(),
-        usage=usage,
-        now=now,
-        uid=os.getuid(),
-        home=pathlib.Path(env.get("HOME", str(pathlib.Path.home()))),
-        working=working,
-        busy=procs.in_use,
-    )
+    order = pr.thread.order
+    asks = {"ruling-unreadable": Step.FIX_RULING}
+    if order and order[-1] == "ruling":
+        words = pr.thread.rulings[-1]
+        return Step.OWNER if words.startswith("escalate") else Step.RULING_STEPS
+    return asks.get(order[-1]) if order else None
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Crowded:
-    """A file system used up to the pressure.
-
-    Attributes:
-        place: a configured path on it.
-        percent: how much of it is used.
-        over: the bytes to free to get under the limit and over the minimum
-            free space.
-        free: the bytes free.
-        short: whether the free bytes are under the minimum (the second rule of
-            pressure, pitboss#205), whatever the percent used.
-        free_rule: whether the free bytes, not the percent used, set ``over``
-            (the file system needs more freed to have the minimum free than to
-            get under the limit).
-    """
-
-    place: pathlib.Path
-    percent: float
-    over: int = 0
-    free: int = 0
-    short: bool = False
-    free_rule: bool = False
-
-
-def percent_used(usage: disk.Usage) -> float:
-    """How much of a file system is used, as ``df`` counts it.
+def checked(pr: parse.Pull) -> Step | None:
+    """The step the Plan check asks for.
 
     Args:
-        usage: its use.
+        pr: the PR.
 
     Returns:
-        The percent; 0 for a file system of no size.
+        The step, None when the Plan check is clean.
     """
-    shown = usage.used + usage.free
-    return 100 * usage.used / shown if shown else 0.0
+    marks = [k for k in pr.thread.order if k.startswith("plancheck")]
+    if not marks:
+        return Step.PLAN_CHECK
+    return Step.SEND_BACK_PLAN_CHECK if marks[-1] == "plancheck-refused" else None
 
 
-def find_crowded(
-    machine: Machine,
-    places: Sequence[pathlib.Path],
-    limit: float,
-    minimum_gib: float = 0.0,
-) -> Sequence[Crowded]:
-    """The file systems used up to the limit or with too little free, each once.
+def pull_step(pr: parse.Pull, gates: Gates = Gates()) -> Step:
+    """The step of a PR.
 
     Args:
-        machine: the machine.
-        places: the configured paths; one that is not there is left out.
-        limit: the percent from which a file system is crowded.
-        minimum_gib: the free space, in GiB, under which a file system is
-            crowded too; 0 never is (pitboss#205).
+        pr: the PR.
+        gates: holds and pressure.
 
     Returns:
-        One entry for each, named by its first path.
+        The step.
     """
-    seen: set[disk.Usage] = set()
-    found = []
-    least = math.ceil(minimum_gib * disk.BYTES_IN_GIBIBYTE)
-    for each in places:
-        usage = machine.usage(each)
-        if usage is None or usage in seen:
-            continue
-        seen.add(usage)
-        if percent_used(usage) >= limit or usage.free < least:
-            found.append(crowd(each, usage, limit, least))
-    return found
+    step = _step(pr)
+    held = gates.hold or "hold" in pr.labels
+    pressed = (gates.pressure or gates.quiet) and step is not Step.UNDRAFT
+    return Step.HELD if step in WRITES and (held or pressed) else step
 
 
-def crowd(
-    place: pathlib.Path, usage: disk.Usage, limit: float, least: int = 0
-) -> Crowded:
-    """A file system crowded, with the bytes to free to get out of it.
+def _graded(pr: parse.Pull, last: parse.Review) -> Step:
+    grades = (last.plan, last.execution)
+    if "changes needed" in grades:
+        rejected = sum(r.execution == "changes needed" for r in pr.thread.reviews)
+        return Step.OPUS_RULING if rejected >= 2 else Step.WORKER
+    if last.execution != "approved":
+        return Step.WORKER if last.plan == "approved" else Step.REVIEW
+    return _ready(pr)
+
+
+def _ready(pr: parse.Pull) -> Step:
+    e2e = any(f.startswith("e2e/") for f in pr.files)
+    if pr.draft:
+        return Step.UNDRAFT if "e2e" in pr.labels or not e2e else Step.RUN_E2E
+    return Step.MERGE if pr.checks and set(pr.checks) == {"green"} else Step.WAIT
+
+
+def _step(pr: parse.Pull) -> Step:
+    asked = ruled(pr)
+    if asked is None and not pr.body.sections:
+        return Step.WORKER
+    if asked is None and pr.conflict:
+        return Step.FIX_CONFLICT
+    if asked is None and "red" in pr.checks:
+        return Step.FIX_CI
+    asked = asked or checked(pr)
+    mine = at_head(pr)
+    if asked is not None:
+        return asked
+    if not mine:
+        return Step.REVIEW
+    pinned = mine[-1].plan_digest
+    if pinned and pinned != pr.body.digest:
+        return Step.PLAN_EDITED
+    return _graded(pr, mine[-1])
+
+
+def ticket_step(t: parse.Ticket, pulls: Sequence[parse.Pull]) -> Step:
+    """The step of a ticket.
 
     Args:
-        place: a configured path on it.
-        usage: its use.
-        limit: the percent it must get under.
-        least: the free bytes it must have.
+        t: the ticket.
+        pulls: the open PRs.
 
     Returns:
-        The entry; it is at least 1 byte over.
+        The step.
     """
-    shown = usage.used + usage.free
-    short = usage.free < least
-    by_percent = math.ceil(usage.used - shown * limit / 100) + 1
-    by_free = least - usage.free + 1 if short else 0
-    return Crowded(
-        place=place,
-        percent=percent_used(usage),
-        over=max(1, by_percent, by_free),
-        free=usage.free,
-        short=short,
-        free_rule=by_free > by_percent,
-    )
+    if not t.is_open:
+        return Step.DONE
+    if any(t.number in p.body.closes for p in pulls):
+        return Step.WAIT_FOR_PR
+    return Step.OPEN_PR

@@ -1,399 +1,177 @@
-"""A whole project for the command tests: a fake GitHub, a real clone."""
+"""Builders and fakes the tests share."""
 
-import argparse
-import contextlib
-import copy
 import dataclasses
-import datetime
-import io
-import os
-import pathlib
-from typing import Mapping, MutableMapping, MutableSequence, Sequence
+import json
+from collections.abc import Mapping, MutableSequence, Sequence
+
+from .. import actions
+from .. import jsonish as j
+from .. import parse
+
+SHA = "a" * 40
+TRUSTED = frozenset({"MEMBER"})
+LABELS = frozenset({"hold", "e2e"})
+BODY = "Fixes #3\n\n## Plan\n1. x\n\n## Execution\ndone\n"
+DIGEST = parse.digest_of(BODY)
+HEAD = f"Independent review (a separate reviewer agent) of head {SHA}"
+APPROVED = f"{HEAD}: approved\nPlan: approved\nVerdict: approved\nPlan-digest: {DIGEST}"
+REJECTED = f"{HEAD}: changes needed\nVerdict: changes needed"
+PLAN_ONLY = f"{HEAD}: approved\nPlan: approved"
+BARE = f"{HEAD}: approved"
+CHECKED = "Plan check\nPlan check: ok"
+REFUSED = "Plan check\nPlan check: refused"
+STEPS_RULING = "Opus ruling\nRuling: do these steps"
+ESCALATES = "Opus ruling\nRuling: escalate to the owner"
+UNREADABLE = "Opus ruling\nno ruling line"
+READY = [CHECKED, APPROVED]
 
 
-from .. import cli_parser, disk, shell
-from . import faketranscripts, fakes, fixeddisk, ownerbodies, repositories
-from . import ticket_bodies, worldcomments
-from .worldreads import GATE_READS
-
-FUTURE = "2030-01-01T00:00:00+00:00"
-START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
-PROJECT = "repos/owner/project"
-LIBRARY = "repos/owner/lib"
-EXTRA = """
-[runners]
-[libraries]
-repositories = ["lib"]
-no_auto_merge = ["lib"]
-
-[review]
-gated = ["gated"]
-
-[clean]
-min_free_gib = 0
-tmp_roots = []
-pressure_percent = 100
-
-[slots]
-ledger = "{ledger}"
-ledger-owner = true
-models = ["small", "large"]
-priority_labels = ["urgent"]
-default = [{{name = "tiny", model = "small"}}, {{name = "big", model = "large"}}]
-"""
-GREEN = {"id": 7, "name": "build", "status": "completed", "conclusion": "success"}
-RED = {"id": 8, "name": "test", "status": "completed", "conclusion": "failure"}
-RED_JOB = "repos/owner/project/actions/jobs/8"
-RED_RUN = "repos/owner/project/check-runs/8"
-RED_NOTES = "repos/owner/project/check-runs/8/annotations?per_page=20"
-RED_BODIES: Mapping[str, object] = {
-    RED_JOB: {
-        "steps": [
-            {"name": "Set up job", "conclusion": "success"},
-            {"name": "Run bats check", "conclusion": "failure"},
-        ]
-    },
-    RED_RUN: {"output": {"title": "check failed", "summary": "1 error"}},
-    RED_NOTES: [
-        {
-            "path": "src/a.bats",
-            "start_line": 3,
-            "message": "bad\ntype",
-            "annotation_level": "failure",
-        },
-        {
-            "path": ".github",
-            "start_line": 2,
-            "message": "Node 20 is deprecated",
-            "annotation_level": "warning",
-        },
-    ],
-}
-APPROVAL = {
-    "state": "APPROVED",
-    "commit_id": fakes.HEAD,
-    "author_association": "MEMBER",
-    "submitted_at": "2026-10-02T00:00:00Z",
-}
-COMMENT = worldcomments.REVIEW
-TICKET = {
-    "number": 9,
-    "title": "A ticket",
-    "created_at": "2026-09-01T00:00:00+00:00",
-    "labels": [{"name": "urgent"}],
-}
-QUEUE_RUNS = {
-    "workflow_runs": [
-        {
-            "id": 11,
-            "status": "queued",
-            "conclusion": None,
-            "created_at": "2029-12-31T23:11:00+00:00",
-            "head_branch": "gh-readonly-queue/main/pr-2-old",
-        },
-        {
-            "id": 12,
-            "status": "in_progress",
-            "conclusion": None,
-            "created_at": "2029-12-31T23:12:00+00:00",
-            "head_branch": "gh-readonly-queue/main/pr-2-new",
-        },
-    ]
-}
-REPOSITORY_BODIES: MutableMapping[str, object] = {
-    **GATE_READS,
-    PROJECT: {"default_branch": "main"},
-    LIBRARY: {"default_branch": "main"},
-    fakes.page(f"{PROJECT}/commits/main/check-runs"): {"check_runs": []},
-    fakes.page(f"{PROJECT}/issues/comments"): [],
-    fakes.page(f"{LIBRARY}/issues/comments"): [],
-    fakes.page(f"{PROJECT}/pulls?state=open"): [fakes.pull_body(n) for n in (1, 2, 3)],
-    fakes.page(f"{LIBRARY}/pulls?state=open"): [fakes.pull_body(4)],
-    fakes.page(f"{PROJECT}/actions/runs?event=merge_group"): QUEUE_RUNS,
-    fakes.page(f"{LIBRARY}/actions/runs?event=merge_group"): {"workflow_runs": []},
-    fakes.page(f"{PROJECT}/actions/runs/11/jobs"): {"jobs": [{"status": "queued"}]},
-    fakes.page(f"{PROJECT}/actions/runs/12/jobs"): {"jobs": []},
-    f"POST {PROJECT}/actions/runs/11/cancel": {},
-    fakes.page(f"{PROJECT}/pulls?state=closed"): [
-        {"head": {"ref": "merged-work"}, "state": "closed", "merged_at": "x"}
-    ],
-    fakes.page(f"{LIBRARY}/pulls?state=closed"): [],
-    fakes.page(f"{PROJECT}/issues?state=open&labels=urgent"): [TICKET],
-    fakes.page(f"{LIBRARY}/issues?state=open&labels=urgent"): [],
-    **ticket_bodies.ISSUES,
-}
-PULLS: Sequence[tuple[str, int, object, str]] = [
-    ("owner/project", 1, [RED], "dirty"),
-    ("owner/project", 2, [GREEN], "clean"),
-    ("owner/project", 3, [GREEN], "clean"),
-    ("owner/lib", 4, [GREEN], "clean"),
-]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class World:
-    """A workspace with a clone, a finished worktree, a config and a fake GitHub.
-
-    Attributes:
-        workspace: the workspace.
-        clone: the main clone.
-        worktree: a worktree whose PR merged.
-        ledger: the slot ledger.
-        config: the configuration file.
-        bodies: the fake GitHub's bodies (change them to change GitHub).
-        calls: every command line the commands ran.
-        processes: what the commands run processes with.
-        usage: reads the use of a disk; a fixed figure unless a test gives one.
-        kind: the class of the command line parser.
-    """
-
-    workspace: pathlib.Path
-    clone: pathlib.Path
-    worktree: pathlib.Path
-    ledger: pathlib.Path
-    config: str
-    bodies: MutableMapping[str, object]
-    calls: MutableSequence[Sequence[str]]
-    processes: fakes.Processes
-    usage: disk.Reader = fixeddisk.fixed_usage
-    kind: type[argparse.ArgumentParser] = cli_parser.IntermixedParser
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Result:
-    """What a command did.
-
-    Attributes:
-        out: its standard output.
-        err: its standard error.
-        code: its exit code.
-    """
-
-    out: str
-    err: str
-    code: object
-
-
-def pull_bodies(
-    slug: str, number: int, checks: object, state: str
-) -> MutableMapping[str, object]:
-    """One open PR: details, comments, reviews and its head's checks.
-
-    PR 2 has a GitHub approval of its head; the library's PR a comment one.
+def comment(text: str, who: str = "MEMBER") -> j.JsonObject:
+    """Build an issue comment.
 
     Args:
-        slug: its repository.
-        number: its number.
-        checks: its head's check runs.
-        state: its merge state.
+        text: its body.
+        who: its author association.
 
     Returns:
-        The canned bodies.
+        The comment.
     """
-    library = slug.endswith("lib")
-    head = fakes.HEAD if number == 2 or library else str(number) * 40
-    prefix = f"repos/{slug}"
-    branch = {"sha": head, "ref": f"branch-{number}"}
-    details = fakes.pull_body(number, head=branch, mergeable_state=state)
-    pages = [
-        (f"issues/{number}/comments", worldcomments.COMMENTS[library or number == 2]),
-        (f"pulls/{number}/reviews", [APPROVAL] if number == 2 else []),
-        (f"issues/{number}/timeline", []),
-        (f"pulls/{number}/files", []),
-        (f"commits/{head}/check-runs", {"check_runs": checks}),
-        (f"commits/{head}/status", fakes.NO_STATUS),
-    ]
-    found = fakes.bodies_under(prefix, pages)
-    found[f"{prefix}/pulls/{number}"] = details
-    return found
+    return {"body": text, "author_association": who}
 
 
-def unread_first(here: World, body: str = "") -> None:
-    """Make PR 1 unreadable: its check-runs call fails (#101).
+def pull_data(tags: str, body: str) -> j.JsonObject:
+    """Build the JSON of a PR.
 
     Args:
-        here: the world.
-        body: the text of PR 1's body.
-    """
-    head = "1" * 40
-    branch = {"sha": head, "ref": "branch-1"}
-    here.bodies[f"{PROJECT}/pulls/1"] = fakes.pull_body(1, body=body, head=branch)
-    del here.bodies[fakes.page(f"{PROJECT}/commits/{head}/check-runs")]
-
-
-def bodies() -> MutableMapping[str, object]:
-    """The fake GitHub of the tests.
+        tags: words: ``draft``, ``dirty`` and the labels.
+        body: its body.
 
     Returns:
-        The canned bodies.
+        The PR as GitHub gives it.
     """
-    found = {**ownerbodies.BODIES, **REPOSITORY_BODIES}
-    for slug, number, checks, state in PULLS:
-        found.update(pull_bodies(slug, number, checks, state))
-    found.update(RED_BODIES)
-    # each world its own copy: a test that edits a canned body edits only its world
-    return copy.deepcopy(found)
-
-
-def configure(workspace: pathlib.Path) -> pathlib.Path:
-    """Write the configuration of a workspace.
-
-    Args:
-        workspace: the workspace.
-
-    Returns:
-        The slot ledger's path.
-    """
-    ledger = workspace / "ledger.json"
-    fakes.settings(workspace, EXTRA.format(ledger=ledger))
-    faketranscripts.seed_ledger(ledger, ("tiny", "big"))
-    return ledger
-
-
-def make_world(answers: fakes.Answers = fakes.TRACEFS_FOUND) -> World:
-    """Make a world.
-
-    Args:
-        answers: the exit status of the tracefs check (``grep``) and of the
-            mount; nothing is mounted on the machine. Git runs for real, in
-            the world's main clone.
-
-    Returns:
-        The world.
-    """
-    workspace = fakes.directory()
-    clone = repositories.make_merged(workspace)
-    worktree = workspace / repositories.MERGED
-    ledger = configure(workspace)
-    processes = fakes.FakeProcesses(bodies=bodies(), answers=answers, cwd=clone)
-    return World(
-        workspace=workspace,
-        clone=clone,
-        worktree=worktree,
-        ledger=ledger,
-        config=str(workspace / "project.toml"),
-        bodies=processes.bodies,
-        calls=processes.calls,
-        processes=processes,
-    )
-
-
-def parser(here: World) -> argparse.ArgumentParser:
-    """The command line parser of every pitboss command.
-
-    Args:
-        here: the world, whose disk reader the commands get.
-
-    Returns:
-        The parser.
-    """
-    return cli_parser.make_parser(here.usage, kind=here.kind)
-
-
-def shell_env(world: World, directory: pathlib.Path | None) -> Mapping[str, str]:
-    """The environment a command runs with.
-
-    Args:
-        world: the world.
-        directory: the directory it runs in; the workspace when None.
-
-    Returns:
-        The environment, whose ``PWD`` is that directory and whose ``HOME`` is
-        a directory of the world (a cleaning never reaches the real caches).
-    """
+    words = tags.split()
     return {
-        "PWD": str(directory or world.workspace),
-        "HOME": str(world.workspace / "home"),
-        "GIT_CEILING_DIRECTORIES": os.environ.get("GIT_CEILING_DIRECTORIES", ""),
+        "number": 7,
+        "node_id": "N",
+        "head": {"sha": SHA, "ref": "b"},
+        "draft": "draft" in words,
+        "mergeable_state": "dirty" if "dirty" in words else "clean",
+        "labels": [{"name": n} for n in words if n in LABELS],
+        "body": BODY if "bare" not in words else "Fixes #3",
     }
 
 
-def invoke(
-    world: World,
-    *argv: str,
-    directory: pathlib.Path | None = None,
-    variables: Sequence[tuple[str, str]] = (),
-) -> Result:
-    """Run ``pitboss`` with arguments.
+def pull(
+    tags: str = "",
+    runs: Sequence[str] = ("success",),
+    comments: Sequence[str] = (),
+    files: Sequence[str] = (),
+) -> parse.Pull:
+    """Build a parsed PR.
 
     Args:
-        world: the world.
-        *argv: the arguments.
-        directory: the directory it runs in (its ``PWD``); the workspace when
-            None.
-        variables: more of the environment, each a name and a value.
+        tags: words: ``draft``, ``dirty``, ``bare`` (no sections), the labels.
+        runs: the conclusions of its check runs.
+        comments: the bodies of its trusted comments, oldest first.
+        files: the paths it changes.
 
     Returns:
-        What it did.
+        The PR.
     """
-    out, err = io.StringIO(), io.StringIO()
-    env = {**shell_env(world, directory), **dict(variables)}
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        code = exit_code(world, ["pitboss", *argv], env)
-    return Result(out=out.getvalue(), err=err.getvalue(), code=code)
+    done: list[j.JsonObject] = [
+        {"status": "in_progress" if c == "pending" else "completed", "conclusion": c}
+        for c in runs
+    ]
+    thread = parse.thread_of([comment(c) for c in comments], TRUSTED)
+    paths = [*files, *[x for x in tags.split() if "/" in x]]
+    return parse.pull_from(pull_data(tags, BODY), done, thread, paths)
 
 
-def exit_code(world: World, argv: Sequence[str], env: Mapping[str, str]) -> object:
-    """Run the command line and say how it exited.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Fake:
+    """Records the writes of ``actions.Hub``."""
+
+    _log: MutableSequence[tuple[str, int]] = dataclasses.field(default_factory=list)
+
+    def seen(self) -> Sequence[tuple[str, int]]:
+        """The writes so far.
+
+        Returns:
+            Each verb and PR.
+        """
+        return list(self._log)
+
+    def write(self, ask: actions.Ask, number: int) -> None:
+        """Record a write.
+
+        Args:
+            ask: the verb.
+            number: the PR.
+        """
+        self._log.append((ask.verb, number))
+
+
+PAGES: Mapping[str, j.JsonValue] = {
+    "pulls?state=open": [[{"number": 7}]],
+    "issues?state=open": [
+        [
+            {"number": 3, "state": "open", "labels": [], "body": ""},
+            {"number": 7, "state": "open", "labels": [], "pull_request": {}},
+        ]
+    ],
+    "issues/4": [{"number": 4, "state": "open", "labels": [], "body": ""}],
+    "check-runs": [{"check_runs": [{"status": "completed", "conclusion": "success"}]}],
+    "issues/7/comments": [[comment(c) for c in READY]],
+    "pulls/7/files": [[{"filename": "x.py"}]],
+    "actions/runs?head_sha="
+    + SHA: [
+        {
+            "workflow_runs": [
+                {"id": 5, "conclusion": "failure"},
+                {"id": 6, "conclusion": "success"},
+            ]
+        }
+    ],
+}
+
+
+def page(path: str) -> j.JsonValue:
+    """Answer a read.
 
     Args:
-        world: the world.
-        argv: the whole command line.
-        env: the environment it runs with.
+        path: the REST path.
 
     Returns:
-        The code it exited with; 0 when it returned.
+        The pages.
     """
-    try:
-        shell.run_maybe_dry(
-            parser=parser(world),
-            argv=list(argv),
-            env=env,
-            sp_run=world.processes,
-        )
-    except SystemExit as exit_error:
-        return exit_error.code
-    return 0
+    for tail, answer in PAGES.items():
+        if path.endswith(tail) or tail in path:
+            return answer
+    return [pull_data("", BODY)]
 
 
-def again(here: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
-    """Run ``pitboss`` in a world, with the config after the command.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Runner:
+    """A fake ``gh``: answers reads from ``PAGES``, records every call."""
 
-    Args:
-        here: the world.
-        *argv: the command, then the arguments after the config.
-        directory: the directory it runs in; the workspace when None.
+    _log: MutableSequence[Sequence[str]] = dataclasses.field(default_factory=list)
 
-    Returns:
-        What the command did.
-    """
-    return invoke(here, argv[0], here.config, *argv[1:], directory=directory)
+    def seen(self) -> Sequence[Sequence[str]]:
+        """The calls so far.
 
+        Returns:
+            Each call's arguments.
+        """
+        return list(self._log)
 
-def origin_of(clone: pathlib.Path) -> pathlib.Path:
-    """The path of the ``origin`` of a clone ``copy_of`` made (or its copy).
+    def __call__(self, args: Sequence[str]) -> str:
+        """Answer one ``gh`` call.
 
-    Args:
-        clone: the clone.
+        Args:
+            args: the arguments after ``gh``.
 
-    Returns:
-        The path of the repository it came from.
-    """
-    return repositories.ORIGINS[clone]  # recorded by copy_of: no git process
-
-
-def project_page(path: str) -> str:
-    """The first page of a list of the project's.
-
-    Args:
-        path: the list's path under the project's repository.
-
-    Returns:
-        The paged path.
-    """
-    return fakes.page(f"{PROJECT}/{path}")
-
-
-# the statuses of the head every fake PR has
-HEAD_STATUS = project_page(f"commits/{fakes.HEAD}/status")
-comment_json = ownerbodies.comment_json
+        Returns:
+            What ``gh`` would print.
+        """
+        self._log.append(list(args))
+        return json.dumps(page(args[-1])) if "--slurp" in args else ""

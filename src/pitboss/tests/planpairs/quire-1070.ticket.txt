@@ -1,5 +1,0 @@
-Moshe, 2026-11-06 10:53Z: "Drop any mention if reporting to w3c. This snuck in and I didn't catch it, it should never have been there". And 10:56Z, on the same step in #420 (epubtest.org): "We can drop reporting in 420, too, sure."
-
-Done when: `.claude/orchestration.md` has a dated ruling line quoting those words and stating that no ticket, spec or script of Quire reports test results to W3C or to epubtest.org (no pull request on w3c/epub-tests, no fork for it, no listing request); `grep -rn -i "submit.*w3c\|w3c.*submit\|submit.*epubtest" CLAUDE.md .claude e2e scripts` prints nothing.
-
-Already done: step 5 of #419 removed, #830 closed as not planned, the submit step of #420 removed. Running the suites against Quire for our own use stays.

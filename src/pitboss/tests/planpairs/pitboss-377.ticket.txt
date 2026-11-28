@@ -1,7 +1,0 @@
-Moshe's correction (2026-10-30): pitboss#112 was opened as a draft because the worker brief copied quire's rules. Pressure holds, drafts and the 15-minute spacing exist for quire's runner quota (bats-lang), not for dev-skill-up/pitboss.
-
-**Change.** The `pitboss-sweep` skill text and `sweep.md` state that a repository named in a config's pitboss section (or listed as exempt in the config) is not subject to `RUNNER PRESSURE` holds: `sweep` prints no hold line for its PRs, and `slots next`/`pitboss next` never answer UNDRAFT/WAIT_FOR_UNDRAFT for them; the worker step for such a PR is a normal PR.
-
-**Done-when**
-- A test sweeps a config with a pitboss-org PR under pressure and shows no HOLD line and no UNDRAFT step for it, while a quire PR in the same sweep still gets the hold (raw output of both).
-- The skill and `sweep.md` say so in one place.

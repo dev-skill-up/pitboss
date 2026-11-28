@@ -8,14 +8,12 @@ Use `nox` to run all checks. If nox is not installed:
 pip install nox
 ```
 
-Run all checks (this is CI's `Run Nox` step; a worker does not run it locally):
+Run all checks:
 ```bash
 nox
 ```
 
-A worker's local check is `pitboss nox` (pitboss#210): the order of its sessions and its stops are stated in the sweep skill's `references/rules.md` ("A worker's local check is `pitboss nox`"), each session with `-r`. A worker runs `pitboss nox` before every push, and never a targeted test module (`pitboss nox -- <module>`), `nox -s ...` or `virtue` by hand.
-
-Run specific sessions (for a person, not for a worker):
+Run specific sessions:
 ```bash
 nox -s tests    # Run tests with coverage
 nox -s lint     # Run black and stolid

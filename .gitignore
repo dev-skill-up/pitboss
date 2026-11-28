@@ -4,6 +4,3 @@ __pycache__
 /dist
 /build
 /git-log-head
-uv.lock
-/.coverage
-/.venv

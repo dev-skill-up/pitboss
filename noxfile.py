@@ -1,26 +1,14 @@
 import functools
 import os
 import re
-import shutil
-import time
-import urllib.error
 import urllib.request
 
 import nox
 
 nox.options.envdir = "build/nox"
-nox.options.sessions = [
-    "lint",
-    "modes",
-    "tests",
-    "mypy",
-    "docs",
-    "skills",
-    "dry_release",
-]
+nox.options.sessions = ["lint", "tests", "mypy", "docs", "dry_release"]
 
 VERSIONS = ["3.12", "3.13", "3.14"]
-COVER = "--cover="
 
 PUBLISH_ACTION = "pypa/gh-action-pypi-publish"
 # The interpreter the publish action uploads with (its Docker base image).
@@ -41,29 +29,14 @@ def _publish_action_sha():
     return match.group(1)
 
 
-FETCH_TRIES = 5
-
-
-def publish_action_file(sha, path):
-    # keyword: fetch-retry. raw.githubusercontent.com answers 503 "max_conn" under
-    # load (dry_release of 5a40f7f): a server error is tried again with backoff; a
-    # 4xx, which a retry cannot change, is raised at once.
+def _publish_action_file(sha, path):
     url = f"https://raw.githubusercontent.com/{PUBLISH_ACTION}/{sha}/{path}"
-    for attempt in range(FETCH_TRIES):
-        try:
-            with urllib.request.urlopen(url, timeout=30) as response:
-                return response.read().decode()
-        except urllib.error.HTTPError as error:
-            if error.code < 500 or attempt == FETCH_TRIES - 1:
-                raise
-        except urllib.error.URLError:
-            if attempt == FETCH_TRIES - 1:
-                raise
-        time.sleep(2**attempt)
+    with urllib.request.urlopen(url) as response:
+        return response.read().decode()
 
 
 def _verify_publish_python(sha):
-    dockerfile = publish_action_file(sha, "Dockerfile")
+    dockerfile = _publish_action_file(sha, "Dockerfile")
     match = re.search(r"^FROM python:(\d+\.\d+)", dockerfile, re.MULTILINE)
     found = match.group(1) if match else None
     if found != PUBLISH_PYTHON:
@@ -75,42 +48,16 @@ def _verify_publish_python(sha):
 
 
 def _publish_twine_requirement(sha):
-    runtime = publish_action_file(sha, "requirements/runtime.txt")
+    runtime = _publish_action_file(sha, "requirements/runtime.txt")
     return re.search(r"^twine==\S+", runtime, re.MULTILINE).group(0)
-
-
-def _empty_directory(directory):
-    for name in os.listdir(directory):
-        path = os.path.join(directory, name)
-        if os.path.isdir(path) and not os.path.islink(path):
-            shutil.rmtree(path)
-        else:
-            os.remove(path)
 
 
 @nox.session(python=VERSIONS)
 def tests(session):
     tmpdir = session.create_tmp()
-    # The coverage data is beside the tests' TMPDIR, not in it: a green run empties
-    # TMPDIR (pitboss#346, keyword: test-leak).
-    coverage_file = os.path.join(os.path.dirname(tmpdir), "coverage")
     session.install("-r", "requirements-tests.txt")
     session.install("-e", ".")
-    # `pitboss nox` passes -x (virtue stops after the first unsuccessful test,
-    # pitboss#326): the words that start with a dash are virtue's options, the
-    # others the modules, and CI passes none, so it runs every test.
-    # `--cover=PATH` words (keyword: changed-coverage, pitboss#364) are not virtue's:
-    # the changed files whose coverage a run of some modules reports.
-    covers = [word for word in session.posargs if word.startswith(COVER)]
-    options = [
-        word
-        for word in session.posargs
-        if word.startswith("-") and not word.startswith(COVER)
-    ]
-    modules = [word for word in session.posargs if not word.startswith("-")]
-    # The run always ends with the total time and the slowest tests (pitboss#324,
-    # keyword: test-timing): the reporter comes last, so no argument replaces it.
-    reporter = "--reporter=pitboss.tests.timingreport.TimingReporter"
+    tests = session.posargs or ["pitboss.tests"]
     session.run(
         "coverage",
         "run",
@@ -119,32 +66,9 @@ def tests(session):
         "--omit=**/__main__.py",
         "-m",
         "virtue",
-        *options,
-        reporter,
-        *(modules or ["pitboss.tests"]),
-        env=dict(COVERAGE_FILE=coverage_file, TMPDIR=tmpdir),
+        *tests,
+        env=dict(COVERAGE_FILE=os.path.join(tmpdir, "coverage"), TMPDIR=tmpdir),
     )
-    # Only a green run removes what the tests left in TMPDIR: a run that fails raises
-    # above and keeps it for debugging, and the next green run removes everything.
-    # The reporter has already failed a green run that left a directory (test-leak).
-    _empty_directory(tmpdir)
-    # A run of some modules covers only part of the package, so the 100% report
-    # belongs to the whole run (CI's). `pitboss nox` (pitboss#210), which selects
-    # the tests from the diff (pitboss#331), reports only the changed files it names
-    # with `--cover=`: a missing line or branch there fails the session.
-    if modules:
-        if covers:
-            changed = ",".join(word[len(COVER) :] for word in covers)
-            session.run(
-                "coverage",
-                "report",
-                "--fail-under=100",
-                "--show-missing",
-                "--skip-covered",
-                f"--include={changed}",
-                env=dict(COVERAGE_FILE=coverage_file),
-            )
-        return
     fail_under = "--fail-under=100"
     session.run(
         "coverage",
@@ -152,16 +76,8 @@ def tests(session):
         fail_under,
         "--show-missing",
         "--skip-covered",
-        env=dict(COVERAGE_FILE=coverage_file),
+        env=dict(COVERAGE_FILE=os.path.join(tmpdir, "coverage")),
     )
-
-
-@nox.session(python=VERSIONS[-1])
-def mutation(session):
-    # mutants run only here, on CI's ephemeral runner (keyword: no-local-mutants)
-    session.install("-r", "requirements-tests.txt")
-    session.install("-e", ".")
-    session.run("python", "-m", "pitboss.mutationci", *session.posargs)
 
 
 @nox.session(python=VERSIONS[-1])
@@ -188,7 +104,7 @@ def dry_release(session):
 
 @nox.session(python=VERSIONS[-1])
 def lint(session):
-    files = ["src/", "scripts/", "noxfile.py"]
+    files = ["src/", "noxfile.py"]
     session.install("-r", "requirements-lint.txt")
     session.install("-e", ".")
     session.run("black", "--check", "--diff", *files)
@@ -205,20 +121,6 @@ def lint(session):
         "--check-yield-types=False",
         "src/",
     )
-
-
-@nox.session(python=VERSIONS[-1])
-def modes(session):
-    # P4: every command line the parser takes maps onto a Mode (plan section 6.3)
-    session.install("-e", ".")
-    session.run("python", "-m", "pitboss.modeproof")
-
-
-@nox.session(python=VERSIONS[-1])
-def seeded(session):
-    # each proof fails on its seeded violation, in CI's mutation job (section 6.5)
-    session.install("-e", ".")
-    session.run("python", "-m", "pitboss.proofseeds")
 
 
 @nox.session(python=VERSIONS[-1])
@@ -250,33 +152,10 @@ def docs(session):
 
 
 @nox.session(python=VERSIONS[-1])
-def skills(session):
-    """Check the skill and its references, and that skill-zips/ is current."""
-    session.install("-r", "requirements-skills.txt")
-    session.install("-e", ".")
-    session.run("python", "scripts/check_skills.py")
-    session.run("python", "scripts/check_markers.py")
-    session.run("python", "scripts/build_dist.py")
-    session.run("git", "diff", "--exit-code", "--", "skill-zips/", external=True)
-    untracked = session.run(
-        "git",
-        "ls-files",
-        "--others",
-        "--exclude-standard",
-        "--",
-        "skill-zips/",
-        external=True,
-        silent=True,
-    )
-    if untracked.strip():
-        session.error(f"skill-zips/ has files not in git; add them:\n{untracked}")
-
-
-@nox.session(python=VERSIONS[-1])
 def refresh_deps(session):
     """Refresh the requirements-*.txt files"""
     session.install("pip-tools")
-    for deps in ["tests", "docs", "lint", "mypy", "skills"]:
+    for deps in ["tests", "docs", "lint", "mypy"]:
         session.run(
             "pip-compile",
             "--upgrade",

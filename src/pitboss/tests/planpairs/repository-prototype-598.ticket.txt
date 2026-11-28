@@ -1,9 +1,0 @@
-Found on bats-lang/quire#1083 (a new step in the `build` job of check.yml): the text-lint status fails with "`.github/workflows/check.yml` runs from the default branch: cite its job URL in bats-lang/relock-scratch (scratch-run)". Quire's check.yml has `on:` push, pull_request, merge_group, workflow_dispatch and schedule. The row `scratch-run` (#509, `src/gated.bats`) calls a changed workflow gated when any of the 21 events that run the default branch's file (`tools/text-lint/gated-triggers.txt`, which includes `schedule`) is one of its triggers. For this file the `pull_request` event runs the PR's own copy, so the PR's own run shows the change running on the real trigger, which is the point of #509; the schedule trigger is the same file and job.
-
-Effect: every quire PR that changes check.yml (and every repository whose check.yml has a nightly `schedule`) is refused by text-lint until it cites a run of relock-scratch that shows nothing about the change.
-
-Done-when:
-* A changed workflow file whose `on:` block holds `pull_request` (or `push`) beside a gated event is not judged by `scratch-run` for the job steps the PR's own `pull_request` run executes; a file whose only triggers are gated events is still refused.
-* A test plants quire's real `on:` block (push, pull_request, merge_group, workflow_dispatch, schedule) with a changed step and requires no `scratch-run` finding.
-* A test plants a file with only `schedule` and a file with only `pull_request_target` and requires the finding for both.
-* `text_lint` prints, for the accepted file, no finding, and for the refused one the file and the trigger that gates it.
