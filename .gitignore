@@ -1,9 +1,5 @@
-.ipynb_checkpoints
-*.egg-info
-__pycache__
-/dist
-/build
-/git-log-head
-uv.lock
-/.coverage
-/.venv
+__pycache__/
+*.egg-info/
+build/
+.nox/
+.coverage
