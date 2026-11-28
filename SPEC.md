@@ -31,7 +31,7 @@ Ticket: closed `DONE`; a PR that fixes it `WAIT_FOR_PR`; else `OPEN_PR`.
 
 ## 3. Actions (`actions.py`, `hub.py`)
 
-One verb per write: merge, undraft, update-branch, rerun, dispatch, close, label, comment, and the three comment forms the queue posts, each for one step (`review` at REVIEW, `plan-check` at PLAN_CHECK, `ruling` at OPUS_RULING). On a ticket, `pr-create` (at OPEN_PR, as a draft). `file-ticket` has no item yet, so it checks nothing. `push` is the one git write: it pushes the checked-out head to the named branch, never forced, and only when the PR is at WORKER, FIX_CI, FIX_CONFLICT, RULING_STEPS or PLAN_EDITED; `hub.Git` is its edge, with its own injected runner beside the `gh` one. `run` recomputes the
+One verb per write: merge, undraft, update-branch, rerun, dispatch, close, label, comment, and the three comment forms the queue posts, each for one step (`review` at REVIEW, graded `--plan` and `--execution` apart, with the `Ticket: <owner/repo#N> <digest>` line of each ticket the PR fixes, `plan-check` at PLAN_CHECK, `ruling` at OPUS_RULING). On a ticket, `pr-create` (at OPEN_PR, as a draft). `file-ticket` has no item yet, so it checks nothing. `push` is the one git write: it pushes the checked-out head to the named branch, never forced, and only when the PR is at WORKER, FIX_CI, FIX_CONFLICT, RULING_STEPS or PLAN_EDITED; `hub.Git` is its edge, with its own injected runner beside the `gh` one. `run` recomputes the
 step of the PR it was given and writes only when that is a step the verb needs (`STEPS`); otherwise it returns
 `Refused(wanted, found)` and writes nothing. Results are `Done` or `Refused`. Writes go through a `Hub` port;
 `hub.Github` is the `gh` implementation, with the runner injected.

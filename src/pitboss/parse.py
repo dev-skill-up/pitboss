@@ -22,7 +22,7 @@ EXPANDED = re.compile(
 RUN_ADDRESS = re.compile(
     r"(https://github\.com/[\w.-]+/[\w.-]+)/actions/runs/\d+(?:/job/\d+)?"
 )
-CLOSES = re.compile(r"\b(?:fixes|closes|resolves) #(\d+)", re.I)
+CLOSES = re.compile(r"\b(?:fixes|closes|resolves) ([\w.-]+/[\w.-]+)?#(\d+)", re.I)
 GREEN = ("success", "neutral", "skipped")
 
 
@@ -63,13 +63,15 @@ class Body:
     """What the body of a PR says.
 
     Attributes:
-        closes: the tickets it fixes.
+        closes: the numbers of the tickets it fixes.
+        refs: the tickets it fixes as written, ``owner/name#N`` or ``#N``.
         sections: whether it has a Plan section and an Execution section.
         digests: the digests a review may record for its Plan section, empty with none.
         whole: the digest of the whole body.
     """
 
     closes: Sequence[int]
+    refs: Sequence[str]
     sections: bool
     digests: Sequence[str]
     whole: str
@@ -235,7 +237,8 @@ def body_of(text: str) -> Body:
         What it says.
     """
     return Body(
-        closes=[int(n) for n in CLOSES.findall(text)],
+        closes=[int(n) for _, n in CLOSES.findall(text)],
+        refs=[f"{repo}#{n}" for repo, n in CLOSES.findall(text)],
         sections=bool(PLAN_SECTION.search(text)) and "## Execution" in text,
         digests=digests_of(text),
         whole=text_digest(text),
