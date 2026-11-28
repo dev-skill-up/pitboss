@@ -1,7 +1,7 @@
 """Actions: each checks the item is at one of the steps it acts for, then writes."""
 
 import dataclasses
-from collections.abc import Mapping, Set
+from collections.abc import Mapping, Sequence, Set
 from typing import Protocol
 
 from . import machine, parse
@@ -67,7 +67,35 @@ STEPS: Mapping[str, Set[machine.Step]] = {
     "close": set(),
     "label": set(),
     "comment": set(),
+    "review": {machine.Step.REVIEW},
+    "plan-check": {machine.Step.PLAN_CHECK},
+    "ruling": {machine.Step.OPUS_RULING},
 }
+TICKET_STEPS: Mapping[str, Set[machine.Step]] = {
+    "pr-create": {machine.Step.OPEN_PR},
+}
+NEW = "file-ticket"
+
+
+def settle(
+    ask: Ask, hub: Hub, at: tuple[int, machine.Step], wanted: Set[machine.Step]
+) -> Outcome:
+    """Write when the item is at a wanted step; an empty set wants any.
+
+    Args:
+        ask: the verb and its text.
+        hub: the writes.
+        at: the item's number and its step.
+        wanted: the steps the verb is for.
+
+    Returns:
+        ``Done``, or ``Refused`` with nothing written.
+    """
+    number, found = at
+    if wanted and found not in wanted:
+        return Refused(wanted=wanted, found=found)
+    hub.write(ask, number)
+    return Done(verb=ask.verb)
 
 
 def run(ask: Ask, hub: Hub, pr: parse.Pull, gates: machine.Gates) -> Outcome:
@@ -82,9 +110,37 @@ def run(ask: Ask, hub: Hub, pr: parse.Pull, gates: machine.Gates) -> Outcome:
     Returns:
         ``Done``, or ``Refused`` with nothing written.
     """
-    found = machine.pull_step(pr, gates)
     wanted = STEPS[ask.verb]
-    if wanted and found not in wanted:
-        return Refused(wanted=wanted, found=found)
-    hub.write(ask, pr.number)
+    return settle(ask, hub, (pr.number, machine.pull_step(pr, gates)), wanted)
+
+
+def run_ticket(
+    ask: Ask, hub: Hub, ticket: parse.Ticket, pulls: Sequence[parse.Pull]
+) -> Outcome:
+    """Run a verb on a ticket when the ticket is at a step the verb is for.
+
+    Args:
+        ask: the verb and its text.
+        hub: the writes.
+        ticket: the ticket.
+        pulls: the open PRs.
+
+    Returns:
+        ``Done``, or ``Refused`` with nothing written.
+    """
+    found = machine.ticket_step(ticket, pulls)
+    return settle(ask, hub, (ticket.number, found), TICKET_STEPS[ask.verb])
+
+
+def file_ticket(ask: Ask, hub: Hub) -> Outcome:
+    """File a new ticket: nothing exists yet, so there is no state to check.
+
+    Args:
+        ask: the verb and the title.
+        hub: the writes.
+
+    Returns:
+        ``Done``.
+    """
+    hub.write(ask, 0)
     return Done(verb=ask.verb)

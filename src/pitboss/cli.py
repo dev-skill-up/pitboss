@@ -68,6 +68,31 @@ def lines(call: hub.Runner, repo: str, gates: machine.Gates) -> Sequence[str]:
     return out
 
 
+def act(
+    ask: actions.Ask, call: hub.Runner, target: tuple[str, int, machine.Gates]
+) -> actions.Outcome:
+    """Run one verb on its subject: a new ticket, a ticket or a PR.
+
+    Args:
+        ask: the verb and its text.
+        call: runs ``gh``.
+        target: the repository, the number of the ticket or PR, and the gates.
+
+    Returns:
+        What happened.
+    """
+    repo, number, gates = target
+    github = hub.Github(_repo=repo, _run=call)
+    if ask.verb == actions.NEW:
+        return actions.file_ticket(ask, github)
+    if ask.verb in actions.TICKET_STEPS:
+        issue = j.obj(hub.get(call, f"repos/{repo}/issues/{number}"))
+        listed = rows_at(call, f"repos/{repo}/pulls?state=open")
+        pulls = [read_pull(call, repo, j.number(p)) for p in listed]
+        return actions.run_ticket(ask, github, parse.ticket_from(issue), pulls)
+    return actions.run(ask, github, read_pull(call, repo, number), gates)
+
+
 def command_line() -> argparse.ArgumentParser:
     """Build the command line.
 
@@ -76,13 +101,13 @@ def command_line() -> argparse.ArgumentParser:
     """
     top = argparse.ArgumentParser(prog="pitboss")
     sub = top.add_subparsers(dest="command", required=True)
-    for word in ("next", *actions.STEPS):
+    for word in ("next", *actions.STEPS, *actions.TICKET_STEPS, actions.NEW):
         one = sub.add_parser(word)
         one.add_argument("repo")
         one.add_argument("--hold", action="store_true")
         one.add_argument("--pressure", action="store_true")
         if word != "next":
-            one.add_argument("number", type=int)
+            one.add_argument("number", type=int, nargs="?", default=0)
             one.add_argument("--text", default="")
     return top
 
@@ -102,9 +127,8 @@ def main(argv: Sequence[str] | None = None, call: hub.Runner = hub.call_gh) -> i
     if options.command == "next":
         print("\n".join(lines(call, options.repo, gates)))
         return 0
-    pr = read_pull(call, options.repo, options.number)
     ask = actions.Ask(verb=options.command, text=options.text)
-    result = actions.run(ask, hub.Github(_repo=options.repo, _run=call), pr, gates)
+    result = act(ask, call, (options.repo, options.number, gates))
     print(result)
     return 0 if isinstance(result, actions.Done) else 1
 

@@ -51,6 +51,29 @@ class TestCli(unittest.TestCase):
         assert_that(text, contains_string("PR #7: HELD"))
 
 
+class TestVerbs(unittest.TestCase):
+    """The queue's verbs: comment forms, a PR from a ticket, a new ticket."""
+
+    def test_statuses(self) -> None:
+        """Each verb is done or refused by the state of its subject."""
+        cases = [
+            (["file-ticket", "o/r", "--text", "t"], 0),
+            (["pr-create", "o/r", "4", "--text", "b"], 0),
+            (["pr-create", "o/r", "3", "--text", "b"], 1),
+            (["review", "o/r", "7"], 1),
+            (["plan-check", "o/r", "7"], 1),
+            (["ruling", "o/r", "7"], 1),
+        ]
+        got = [say(argv, world.Runner())[0] for argv, _ in cases]
+        assert_that(got, equal_to([want for _, want in cases]))
+
+    def test_pr_create_fields(self) -> None:
+        """A PR is made as a draft from the branch named."""
+        call = world.Runner()
+        say(["pr-create", "o/r", "4", "--text", "b"], call)
+        assert_that(call.seen()[-1][-2:], equal_to(["-f", "draft=true"]))
+
+
 class TestHub(unittest.TestCase):
     """``hub.Github`` writes."""
 
@@ -68,6 +91,9 @@ class TestHub(unittest.TestCase):
             "actions/workflows/check.yml/dispatches",
             "pulls/7",
             "issues/7/labels",
+            "issues/7/comments",
+            "issues/7/comments",
+            "issues/7/comments",
             "issues/7/comments",
         ]
         assert_that(paths, equal_to([f"repos/o/r/{x}" for x in want]))

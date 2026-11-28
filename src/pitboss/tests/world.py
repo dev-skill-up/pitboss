@@ -119,6 +119,7 @@ PAGES: Mapping[str, j.JsonValue] = {
             {"number": 7, "state": "open", "labels": [], "pull_request": {}},
         ]
     ],
+    "issues/4": [{"number": 4, "state": "open", "labels": [], "body": ""}],
     "check-runs": [{"check_runs": [{"status": "completed", "conclusion": "success"}]}],
     "issues/7/comments": [[comment(c) for c in READY]],
     "pulls/7/files": [[{"filename": "x.py"}]],

@@ -61,6 +61,11 @@ ROUTES: Mapping[str, tuple[str, str, str]] = {
     "update-branch": ("PUT", "pulls/{n}/update-branch", ""),
     "comment": ("POST", "issues/{n}/comments", "body={text}"),
     "label": ("POST", "issues/{n}/labels", "labels[]={text}"),
+    "review": ("POST", "issues/{n}/comments", "body={text}"),
+    "plan-check": ("POST", "issues/{n}/comments", "body={text}"),
+    "ruling": ("POST", "issues/{n}/comments", "body={text}"),
+    "pr-create": ("POST", "pulls", "head={text}\nbase=main\ntitle={text}\ndraft=true"),
+    "file-ticket": ("POST", "issues", "title={text}"),
 }
 READY = (
     "mutation($id:ID!){markPullRequestReadyForReview"
@@ -96,7 +101,7 @@ def send(call: Runner, repo: str, route: tuple[str, str, str]) -> None:
     """
     method, path, field = route
     base = ["api", "-X", method, f"repos/{repo}/{path}"]
-    call([*base, "-f", field] if field else base)
+    call([*base, *[x for f in field.splitlines() for x in ("-f", f)]])
 
 
 def undraft(call: Runner, repo: str, ask: actions.Ask, number: int) -> None:
