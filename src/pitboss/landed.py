@@ -19,7 +19,7 @@ import subprocess
 import time
 from typing import Callable, NoReturn, Sequence
 
-from . import landedseen
+from . import landedseen, retrying
 from .landedwords import Words, parse
 from .running import GitHub, NotLanded as NotLanded, Run
 
@@ -92,9 +92,17 @@ def _shown(look: Look) -> bool:
         try:
             if look.watch.seen(look.github, look.parsed, look.before):
                 return True
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, retrying.ReadFailed):
             continue
     return False
+
+
+def _printed(tried: Tried, look: Look) -> str:
+    # what the write printed; a write that raised and landed printed nothing, so
+    # what the reading found (the id or number of what it made) stands for it
+    if tried.error is None:
+        return tried.answer
+    return look.watch.told(look.github, look.parsed, look.before)
 
 
 def _unseen(tried: Tried, parsed: Words) -> NoReturn:
@@ -132,7 +140,7 @@ def write(github: GitHub, words: Sequence[str], pause: Pause = time.sleep) -> Ou
     for attempt in (1, 2):
         tried = _try(github, words)
         if _shown(look):
-            return Outcome(stdout=tried.answer, attempts=attempt)
+            return Outcome(stdout=_printed(tried, look), attempts=attempt)
         if tried.error is None:
             break
     return _unseen(tried, look.parsed)

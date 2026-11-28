@@ -3,7 +3,6 @@
 The keyword is act-verbs, pitboss#444.
 """
 
-import dataclasses
 import json
 import subprocess
 import sys
@@ -14,7 +13,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_item
 
 from .. import actcore, acthub, actinputs, actledger, actwiring, ghapi
 from ..totaljson import members
-from . import fakehub, fakes, knownshipped, world
+from . import fakehub, fakes, forgetting, knownshipped, world
 from .knownkit import NUMBER, REPO, base_map, made
 from .says import errs, exits, outs
 from .fakes import calls_with
@@ -127,14 +126,6 @@ def _here() -> world.World:
     return here
 
 
-def _forgetful() -> world.World:
-    # a GitHub that keeps nothing it is told: a write of its is not shown
-    here = _here()
-    kept = here.processes
-    assert isinstance(kept, fakes.FakeProcesses)
-    return dataclasses.replace(here, processes=dataclasses.replace(kept, applies=False))
-
-
 def _shown(here: world.World, label: str) -> None:
     pull = here.bodies["repos/owner/project/pulls/3"]
     pull["labels"] = [{"name": label}]  # type: ignore[index]
@@ -172,7 +163,7 @@ class TestCommand(unittest.TestCase):
 
     def test_c29_a_live_action_whose_pr_did_not_change_is_refused(self) -> None:
         """The fake GitHub applies no label: the write is made, then refused."""
-        here = _forgetful()
+        here = forgetting.forgetful(_here())
         done = _act(here, "label", PULL, f"name={HOLD}", "--no-dry-run")
         errs(done, 2, "NOT LANDED")
         _shown(here, HOLD)

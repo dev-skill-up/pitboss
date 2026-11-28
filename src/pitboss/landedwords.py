@@ -2,9 +2,11 @@
 
 import dataclasses
 import itertools
+import re
 from typing import Mapping, Sequence
 
 PR_VERBS = {"merge": "PR-MERGE", "ready": "PR-READY"}
+MUTATION = re.compile(r"mutation\s*(?:\([^)]*\))?\s*\{\s*(\w+)")
 FIELD_FLAGS = frozenset({"-f", "-F", "--field", "--raw-field"})
 
 
@@ -15,7 +17,7 @@ class Words:
     Attributes:
         verb: the HTTP method, or ``PR-MERGE`` and ``PR-READY`` for ``gh pr``.
         path: the path under ``https://api.github.com/`` (``repos/R/pulls/N``
-            for ``gh pr``, ``graphql`` for a query).
+            for ``gh pr``, ``graphql/NAME`` for the mutation NAME).
         fields: each field's values (``labels[]`` may have several).
         flags: the flags of a ``gh pr`` command.
     """
@@ -53,11 +55,16 @@ def _fields(words: Sequence[str]) -> Mapping[str, Sequence[str]]:
     }
 
 
+def _mutation(fields: Mapping[str, Sequence[str]]) -> str:
+    # the mutation a query names: ``mutation(...) { NAME(`` ("" for a query)
+    return next(iter(MUTATION.findall(" ".join(fields.get("query", [])))), "")
+
+
 def _api(words: Sequence[str]) -> Words | None:
     # every write of the package puts the path last, a query (graphql) excepted
     fields = _fields(words)
     if len(words) > 2 and words[2] == "graphql":
-        return Words(verb="POST", path="graphql", fields=fields)
+        return Words(verb="POST", path=f"graphql/{_mutation(fields)}", fields=fields)
     verbs = [given for flag, given in zip(words, words[1:]) if flag == "-X"]
     if len(words) < 3 or words[-1].startswith("-"):
         return None

@@ -94,7 +94,7 @@ def _api(read: Run, write: Run, verify: bool) -> ghapi.GitHub:
     return ghapi.GitHub(run=read, mutate=landed.checked(read, write, verify))
 
 
-def move(read: Run, write: Run, path: str, verify: bool = False) -> Moved | None:
+def move(read: Run, write: Run, path: str, verify: bool) -> Moved | None:
     """Put the PR's head in its body.
 
     Args:

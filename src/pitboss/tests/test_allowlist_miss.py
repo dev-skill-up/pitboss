@@ -9,7 +9,7 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import allowlistmiss, pulls, shapes
 from . import blank, fakes, rankworld, test_flow, test_work, world
@@ -235,6 +235,18 @@ class TestRanking(unittest.TestCase):
         rankworld.fixing(here, 3, "A bump")
         output = next_output(here)
         assert_that(mentioning(output, "owner/project#3"), equal_to([]))
+
+    def test_a_miss_nothing_asks_for_is_one_ticket_to_file_and_name(self) -> None:
+        """quire#1127: the step files ONE ticket and names it in ``Blocked-by:``."""
+        output = next_output(unasked())
+        step = mentioning(output, "owner/project#3: file one ticket")
+        task = mentioning(output, "Task: PR owner/project#3: its failed check")
+        assert_that(step, has_length(1))
+        assert_that(
+            task[0], contains_string("file ONE ticket against the shared cause")
+        )
+        assert_that(task[0], contains_string("add a `Blocked-by: <that ticket>` line"))
+        assert_that(mentioning(output, "owner/project#3: fix CI"), equal_to([]))
 
     def test_another_failed_check_is_still_fix_the_ci(self) -> None:
         """A PR with no miss in its log keeps its worker line."""

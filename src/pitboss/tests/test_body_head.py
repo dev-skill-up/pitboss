@@ -6,7 +6,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, bodyhead, shapes
-from . import fakes, world
+from . import fakes, forgetting, world
 from .says import exits, says
 
 OLD, NEW = "a" * 40, "b" * 40
@@ -153,6 +153,14 @@ class TestTheCommand(unittest.TestCase):
         bad = world.invoke(here, "body-head", "owner/project")
         codes = [run(here).code, bad.code, len(patches(here))]
         assert_that(codes, equal_to([2, 2, 0]))
+
+
+class TestNotLanded(unittest.TestCase):
+    """A change GitHub does not show is not a change."""
+
+    def test_a_body_github_does_not_keep_is_not_landed(self) -> None:
+        """The PATCH returned; the body is as it was: exit 2 and ``NOT LANDED``."""
+        forgetting.not_landed(run(forgetting.forgetful(served(BODY))))
 
 
 class TestTheReviewedHead(unittest.TestCase):

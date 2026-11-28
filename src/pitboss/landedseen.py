@@ -14,18 +14,17 @@ import subprocess
 import urllib.parse
 from typing import Callable, Mapping, Sequence
 
+from .landedtext import same
 from .landedwords import Words, value_of
 from .running import GitHub
 from .totaljson import at, count, field, listing, records, text
 
 Reading = Callable[[GitHub, Words], object]
 Shown = Callable[[GitHub, Words, object], bool]
+Told = Callable[[GitHub, Words, object], str]
 GET = ("gh", "api")
 GONE = object()
 PAGE = 100
-CARET = {
-    code: "^" + chr(code ^ 64) for code in (*range(9), 11, 12, *range(14, 32), 127)
-}
 QUERY = (
     "query($id: ID!) { node(id: $id) { ... on PullRequest"
     " { mergeQueueEntry { id } } } }"
@@ -40,10 +39,13 @@ class Watch:
         before: what is read before the write.
         seen: whether the reading after it shows the write (the reading before
             is the second argument).
+        told: what the write would have printed, as the reading found it (the id
+            or number of what it made), for a write that raised and landed.
     """
 
     before: Reading
     seen: Shown
+    told: Told = lambda github, write, before: ""
 
 
 def _missing(error: subprocess.CalledProcessError) -> object:
@@ -84,25 +86,6 @@ def _every(github: GitHub, path: str) -> Sequence[Mapping[str, object]]:
             return found
 
 
-def same(left: object, right: str) -> bool:
-    """Whether a text GitHub holds is the one that was sent.
-
-    Args:
-        left: what GitHub holds.
-        right: what was sent.
-
-    Returns:
-        True when it holds the text sent, a line end and the ends' blanks apart,
-        with anything after it (a footer the host adds to what it keeps).
-    """
-
-    def plain(each: str) -> str:
-        # the host may write a control character as ``^[`` (caret notation)
-        return each.translate(CARET).replace("\r\n", "\n").strip()
-
-    return plain(text(left)).startswith(plain(right))
-
-
 def _nothing(github: GitHub, write: Words) -> object:
     return None
 
@@ -114,6 +97,16 @@ def _bodies(github: GitHub, write: Words) -> int:
     return len(
         [each for each in _every(github, path) if same(each.get("body"), wanted)]
     )
+
+
+def _comment_id(github: GitHub, write: Words, before: object) -> str:
+    wanted = value_of(write, "body")
+    found = [
+        count(each, "id")
+        for each in _every(github, write.path)
+        if same(each.get("body"), wanted)
+    ]
+    return str(max(found, default=0))
 
 
 def _more_bodies(github: GitHub, write: Words, before: object) -> bool:
@@ -147,31 +140,51 @@ def _newer(before: object, each: Mapping[str, object]) -> bool:
     return count(each, "number") > (before if isinstance(before, int) else 0)
 
 
-def _made_issue(github: GitHub, write: Words, before: object) -> bool:
+def _issues_made(github: GitHub, write: Words, before: object) -> Sequence[int]:
     path = f"{_repo(write)}/issues?state=open&sort=created&direction=desc&per_page=30"
-    return any(
-        _newer(before, each)
+    return [
+        count(each, "number")
+        for each in records(get(github, path))
+        if _newer(before, each)
         and "pull_request" not in each
         and same(each.get("title"), value_of(write, "title"))
-        for each in records(get(github, path))
-    )
+    ]
 
 
-def _made_pull(github: GitHub, write: Words, before: object) -> bool:
+def _made_issue(github: GitHub, write: Words, before: object) -> bool:
+    return bool(_issues_made(github, write, before))
+
+
+def _issue_number(github: GitHub, write: Words, before: object) -> str:
+    return str(max(_issues_made(github, write, before), default=0))
+
+
+def _pulls_made(github: GitHub, write: Words, before: object) -> Sequence[int]:
     owner = _repo(write).split("/")[1]
     head = value_of(write, "head")
     named = urllib.parse.quote(head if ":" in head else f"{owner}:{head}")
     path = f"{_repo(write)}/pulls?state=open&head={named}&per_page=30"
-    return any(map(functools.partial(_newer, before), records(get(github, path))))
+    return [
+        count(each, "number")
+        for each in records(get(github, path))
+        if _newer(before, each)
+    ]
+
+
+def _made_pull(github: GitHub, write: Words, before: object) -> bool:
+    return bool(_pulls_made(github, write, before))
+
+
+def _pull_number(github: GitHub, write: Words, before: object) -> str:
+    return str(max(_pulls_made(github, write, before), default=0))
 
 
 def _patched(github: GitHub, write: Words, before: object) -> bool:
     # a PR or an issue holds each field the PATCH sent
     held = get(github, write.path)
-    return all(
-        same(field(held, name), value_of(write, name))
-        for name in ("title", "body", "state")
-        if name in write.fields
+    named = [name for name in ("title", "body", "state") if name in write.fields]
+    return bool(named) and all(
+        same(field(held, name), value_of(write, name)) for name in named
     )
 
 
@@ -205,7 +218,8 @@ def _label_names(github: GitHub, path: str) -> Sequence[str]:
 
 def _labelled(github: GitHub, write: Words, before: object) -> bool:
     path = write.path.rsplit("/labels", 1)[0]
-    return value_of(write, "labels[]") in _label_names(github, path)
+    held = _label_names(github, path)
+    return all(name in held for name in write.fields.get("labels[]", []))
 
 
 def _unlabelled(github: GitHub, write: Words, before: object) -> bool:
@@ -279,7 +293,7 @@ RULES: Sequence[tuple[str, str, Watch]] = (
     (
         "POST",
         r"repos/[^/]+/[^/]+/issues/\d+/comments",
-        Watch(before=_bodies, seen=_more_bodies),
+        Watch(before=_bodies, seen=_more_bodies, told=_comment_id),
     ),
     (
         "PATCH",
@@ -294,12 +308,20 @@ RULES: Sequence[tuple[str, str, Watch]] = (
     (
         "POST",
         r"repos/[^/]+/[^/]+/issues",
-        Watch(before=functools.partial(_newest, kind="issues"), seen=_made_issue),
+        Watch(
+            before=functools.partial(_newest, kind="issues"),
+            seen=_made_issue,
+            told=_issue_number,
+        ),
     ),
     (
         "POST",
         r"repos/[^/]+/[^/]+/pulls",
-        Watch(before=functools.partial(_newest, kind="pulls"), seen=_made_pull),
+        Watch(
+            before=functools.partial(_newest, kind="pulls"),
+            seen=_made_pull,
+            told=_pull_number,
+        ),
     ),
     (
         "PATCH",
@@ -344,7 +366,7 @@ RULES: Sequence[tuple[str, str, Watch]] = (
         r"repos/[^/]+/[^/]+/actions/workflows/[^/]+/dispatches",
         Watch(before=_latest_dispatch, seen=_dispatched),
     ),
-    ("POST", r"graphql", Watch(before=_nothing, seen=_dequeued)),
+    ("POST", r"graphql/dequeuePullRequest", Watch(before=_nothing, seen=_dequeued)),
 )
 
 

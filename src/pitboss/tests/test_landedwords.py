@@ -5,7 +5,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to, none
 
-from .. import landedseen, landedwords
+from .. import landedtext, landedwords
 from . import fakeapply
 
 REPO = "repos/o/r"
@@ -56,12 +56,16 @@ def _after(words: Sequence[str], held: Mapping[str, object]) -> object:
 class TestWords(unittest.TestCase):
     """What ``parse`` makes of the command lines the package writes with."""
 
-    def test_a_graphql_query_is_a_post_to_graphql(self) -> None:
-        """Its path is ``graphql`` and its fields are read."""
+    def test_a_graphql_query_is_a_post_named_by_its_mutation(self) -> None:
+        """Its path is ``graphql/`` and the mutation it names; its fields are read."""
         found = landedwords.parse(["gh", "api", "graphql", "-f", "query=q"])
         assert found is not None
-        assert_that((found.verb, found.path), equal_to(("POST", "graphql")))
+        assert_that((found.verb, found.path), equal_to(("POST", "graphql/")))
         assert_that(landedwords.value_of(found, "query"), equal_to("q"))
+        mutation = "mutation($id: ID!) { dequeuePullRequest(input: {}) { x } }"
+        named = landedwords.parse(["gh", "api", "graphql", "-f", f"query={mutation}"])
+        assert named is not None
+        assert_that(named.path, equal_to("graphql/dequeuePullRequest"))
 
     def test_words_that_are_neither_shape_are_not_a_write(self) -> None:
         """A flag last, too few words, a ``pr`` with no ``-REPO``, another program."""
@@ -81,15 +85,24 @@ class TestSame(unittest.TestCase):
     def test_a_footer_after_the_text_is_the_text_shown(self) -> None:
         """Another text, or the text cut short, is not."""
         sent = "the body\r\n"
-        found = [
-            landedseen.same(held, sent)
-            for held in ("the body\n\n---\n_footer_", "the body", "other", "the bo")
-        ]
-        assert_that(found, equal_to([True, True, False, False]))
+        host = landedtext.HOST_FOOTER
+        held = (
+            f"the body\n\n{host}",
+            "the body",
+            "other",
+            "the bo",
+            "the body\n\nmore",
+        )
+        found = [landedtext.same(each, sent) for each in held]
+        assert_that(found, equal_to([True, True, False, False, False]))
+
+    def test_a_text_cut_off_before_its_end_is_not_the_text_sent(self) -> None:
+        """What GitHub holds is longer than what was sent: another text."""
+        assert_that(landedtext.same("A\n\nB", "A"), equal_to(False))
 
     def test_a_control_character_the_host_writes_in_caret_notation(self) -> None:
         """An escape sent as itself is held as ``^[``."""
-        assert_that(landedseen.same("ok ^[[1mx", "ok \x1b[1mx"), equal_to(True))
+        assert_that(landedtext.same("ok ^[[1mx", "ok \x1b[1mx"), equal_to(True))
 
 
 class TestFakeApply(unittest.TestCase):

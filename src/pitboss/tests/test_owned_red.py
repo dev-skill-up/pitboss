@@ -8,11 +8,11 @@ import dataclasses
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, has_item
 
 from .. import ownedred, pulls
 from . import blank, fakes, rankworld, test_work, world
-from .rankworld import mentioning, next_output
+from .rankworld import mentioning, next_output, starts
 
 JOB = 21
 RUN = 4567
@@ -58,6 +58,8 @@ def owned_world(body: str, fixes: str = FIXES) -> world.World:
     here = world.make_world()
     rankworld.fixing(here, 3, fixes)
     here.bodies["repos/owner/project/issues/9"] = rankworld.ticket()
+    flake = rankworld.ticket(body, number=20, labels=[{"name": "p0"}])
+    rankworld.serve(here, "owner/project", 20, flake)
     for path, found in served.items():
         here.bodies[fakes.page(f"{world.PROJECT}/{path}")] = found
     return here
@@ -135,10 +137,13 @@ class TestRanking(unittest.TestCase):
 
     def test_the_pull_request_has_no_fix_the_ci_line(self) -> None:
         """Owned: no worker line for PR 3; a ticket that names nothing: its line."""
-        owned = next_output(owned_world(f"failed in job {JOB}"))
+        here = owned_world(f"failed in job {JOB}")
+        owned = next_output(here)
         other = next_output(owned_world("failed in another run"))
         found = [
             mentioning(owned, "WORKER: owner/project#3: fix CI"),
             bool(mentioning(other, "WORKER: owner/project#3: fix CI")),
         ]
         assert_that(found, equal_to([[], True]))
+        # quire#1128: the ticket that names the red is offered in the PR's place
+        assert_that(starts(here), has_item("owner/project#20"))

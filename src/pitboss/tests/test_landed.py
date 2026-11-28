@@ -11,7 +11,17 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to, has_length, instance_of
 
-from .. import acthub, ghapi, ghstore, landed, landedseen, landedwords, running
+from .. import (
+    acthub,
+    ghapi,
+    ghstore,
+    landed,
+    landedseen,
+    landedtext,
+    landedwords,
+    retrying,
+    running,
+)
 from . import landedscenarios as scenarios
 from .landedhub import BAD_GATEWAY, LAGGING, TIMEOUT, Hub
 
@@ -161,6 +171,103 @@ class TestFailures(unittest.TestCase):
                 assert_that(result(hub, words), equal_to((UNSAID, 0, 0)))
 
 
+def kept(each: scenarios.Scenario) -> Hub:
+    """GitHub, whose first write raised after GitHub kept it.
+
+    Args:
+        each: the scenario.
+
+    Returns:
+        The hub.
+    """
+    return hub_of(each, fails=[TIMEOUT], kept=True)
+
+
+class TestRaisedEveryKind(unittest.TestCase):
+    """A write that raised is looked for, for every shape of write there is."""
+
+    def test_a_write_that_raised_and_landed_is_not_made_twice(self) -> None:
+        """Seen after the first write: one write, one attempt."""
+        for each in scenarios.ALL:
+            with self.subTest(each.name):
+                assert_that(result(kept(each), each.words), equal_to(SEEN))
+
+    def test_a_write_that_raised_and_left_nothing_is_made_again_once(self) -> None:
+        """Not seen after the first write: the second lands."""
+        for each in scenarios.ALL:
+            with self.subTest(each.name):
+                hub = hub_of(each, fails=[TIMEOUT])
+                assert_that(result(hub, each.words), equal_to(("Outcome", 2, 2)))
+
+    def test_a_write_that_raised_twice_is_the_command_s_error(self) -> None:
+        """Raised twice and nothing shown: the command's own error."""
+        for each in scenarios.ALL:
+            with self.subTest(each.name):
+                hub = hub_of(each, fails=[TIMEOUT, BAD_GATEWAY], lands=False)
+                assert_that(result(hub, each.words), equal_to((FAILED, 0, 2)))
+
+    def test_what_it_made_is_told_by_the_reading_not_the_lost_answer(self) -> None:
+        """A comment, an issue and a pull request print their id or number."""
+        told = {
+            each.name: make(kept(each), each.words).stdout for each in scenarios.ALL
+        }
+        made = {name: said for name, said in told.items() if said}
+        assert_that(made, equal_to({"comment": "8", "issue": "5", "pr": "5"}))
+
+
+class TestReadingsThatMissWhatTheyShow(unittest.TestCase):
+    """A reading that is satisfied by less than the write did is wrong."""
+
+    def test_a_patch_with_no_field_the_reading_knows_is_not_shown(self) -> None:
+        """There is nothing to compare, so nothing is shown."""
+        hub = Hub(state={scenarios.PULL: {"title": "t"}}, after={})
+        words = ["gh", "api", "-X", "PATCH", "-f", "draft=true", scenarios.PULL]
+        assert_that(result(hub, words), equal_to(UNSEEN))
+
+    def test_every_label_sent_is_held_not_the_first(self) -> None:
+        """Two labels sent and one held is not landed."""
+        words = ["gh", "api", "-X", "POST", "-f", "labels[]=a", "-f", "labels[]=b"]
+        words.append(f"{scenarios.ISSUE}/labels")
+        both = {"labels": [{"name": "a"}, {"name": "b"}]}
+        one = {"labels": [{"name": "a"}]}
+        held = Hub(
+            state={scenarios.ISSUE: {"labels": []}}, after={scenarios.ISSUE: one}
+        )
+        assert_that(result(held, words), equal_to(UNSEEN))
+        both_held = Hub(
+            state={scenarios.ISSUE: {"labels": []}}, after={scenarios.ISSUE: both}
+        )
+        assert_that(result(both_held, words), equal_to(SEEN))
+
+    def test_a_graphql_mutation_that_is_not_the_dequeue_is_refused_unwritten(
+        self,
+    ) -> None:
+        """The rule is keyed by the mutation the query names."""
+        query = "mutation($id: ID!) { deleteEverything(input: {}) { x } }"
+        words = ["gh", "api", "graphql", "-f", f"query={query}", "-f", "id=N"]
+        hub = Hub(state={}, after={})
+        assert_that(result(hub, words), equal_to((UNSAID, 0, 0)))
+
+
+class TestReadFailed(unittest.TestCase):
+    """A reading that fails on every try through the retrying runner is "not yet"."""
+
+    def test_a_reading_that_cannot_be_had_is_not_landed_not_a_crash(self) -> None:
+        """The write returned; the reading after it fails: ``NotLanded``."""
+        each = scenarios.KINDS[2]
+        hub = hub_of(each)
+        failing = Hub(state={scenarios.ONE_COMMENT: LAGGING}, after={})
+
+        def sleep(seconds: float) -> None:
+            return None
+
+        draw = lambda bound: 0.0  # noqa: E731
+        read = retrying.with_retries(failing.run, draw, sleep)  # type: ignore[arg-type]
+        runner = landed.checked(read, hub.mutate, True, no_wait)
+        with self.assertRaises(landed.NotLanded):
+            runner(each.words)
+
+
 class TestRunners(unittest.TestCase):
     """What the runner of an API is."""
 
@@ -224,5 +331,5 @@ class TestReadings(unittest.TestCase):
 
     def test_the_text_is_the_one_sent_up_to_the_line_ends(self) -> None:
         """GitHub keeps a body with CRLF line ends and trailing blanks."""
-        assert_that(landedseen.same("a\r\nb \n", "a\nb"))
-        assert_that(not landedseen.same(None, "a"))
+        assert_that(landedtext.same("a\r\nb \n", "a\nb"))
+        assert_that(not landedtext.same(None, "a"))

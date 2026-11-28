@@ -127,8 +127,8 @@ def pr_words(*flags: str) -> Sequence[str]:
 KINDS = (
     of_kind(
         "comment",
-        {COMMENTS: [{"body": "x"}]},
-        {COMMENTS: [{"body": "x"}, {"body": "b"}]},
+        {COMMENTS: [{"id": 7, "body": "x"}]},
+        {COMMENTS: [{"id": 7, "body": "x"}, {"id": 8, "body": "b"}]},
     ),
     held("comment-edit", ONE_COMMENT, {"body": "old"}, {"body": "b"}),
     held("comment-delete", ONE_COMMENT, {"body": "b"}, GONE),
